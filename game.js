@@ -404,25 +404,64 @@ const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
 }
 
 // ---------------------------------------------------------------- number banners
-function bannerTexture(num) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+function bannerTexture(num, icon) {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d');
-  g.fillStyle = '#efe0bd'; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff4dc'; g.beginPath(); g.roundRect(30, 2, 68, 50, 14); g.fill(); g.lineWidth = 6; g.strokeStyle = '#17110d'; g.stroke();
+  g.font = '34px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon || '', 64, 29);
+  g.fillStyle = '#efe0bd'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
   g.lineWidth = 9; g.strokeStyle = '#17110d'; g.stroke();
   const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#b3261e' : '#2b1d12'; g.font = 'bold 60px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(String(num), 64, 58);
+  g.fillStyle = red ? '#b3261e' : '#2b1d12'; g.font = 'bold 60px Georgia';
+  g.fillText(String(num), 64, 108);
   const pips = 6 - Math.abs(7 - num);
-  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 100, 4, 0, Math.PI * 2); g.fill(); }
+  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 150, 4, 0, Math.PI * 2); g.fill(); }
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
 for (const t of tiles) {
   if (!t.num) continue;
   const y = heightAt(t.x, t.z);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 7, 5), mat(0x5a3a1e)); pole.position.set(t.x, y + 3.5, t.z); pole.castShadow = true; scene.add(pole);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bannerTexture(t.num), fog: false, alphaTest: 0.5 }));
-  sp.scale.set(5, 5, 1); sp.position.set(t.x, y + 9, t.z); scene.add(sp);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bannerTexture(t.num, RES[t.type].icon), fog: false, alphaTest: 0.5 }));
+  sp.scale.set(5, 6.9, 1); sp.position.set(t.x, y + 10, t.z); scene.add(sp);
   t.banner = sp; t.pole = pole;
+}
+
+// comic caption textures for labels in the world
+function labelTexture(text, bg = '#fff4dc', fg = '#17110d') {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 100; const g = cv.getContext('2d');
+  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 22); g.fill(); g.lineWidth = 7; g.strokeStyle = '#17110d'; g.stroke();
+  g.fillStyle = fg; g.font = '44px Bangers, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 54);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+// floating "+1 🌲" popups in the world
+const floats = [];
+function floatText(text, x, y, z, color = '#fff4dc') {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const g = cv.getContext('2d');
+  g.font = '64px Bangers, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.strokeStyle = '#17110d'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
+  s.scale.set(7, 2.6, 1); s.position.set(x, y, z); s.renderOrder = 10; scene.add(s);
+  floats.push({ s, t: 0 });
+}
+function updateFloats(dt) {
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i]; f.t += dt; f.s.position.y += dt * 2.2; f.s.material.opacity = Math.min(1, 3 - f.t);
+    if (f.t > 3) { scene.remove(f.s); f.s.material.map.dispose(); f.s.material.dispose(); floats.splice(i, 1); }
+  }
+}
+// show what every building you can see harvests
+function harvestPopups(sum) {
+  for (const t of tiles) {
+    if (t.num !== sum || t === reaverTile || t.scorchedUntil >= state.harvests) continue;
+    for (const cid of t.corners) {
+      const c = corners[cid]; if (!c.building) continue;
+      if (c.building.owner !== P && !c.tiles.some(id => visible.has(id))) continue;
+      const n = c.building.type === 'keep' ? 2 : 1;
+      floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#ffe27a' : '#fff4dc');
+    }
+  }
 }
 
 // ---------------------------------------------------------------- reavers
@@ -435,6 +474,7 @@ const reavers = (() => {
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 8, 5), mat(0x222)); pole.position.y = 4; g.add(pole);
   const flag = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.1), mat(0x111111)); flag.position.set(1.2, 7, 0); g.add(flag);
   const fire = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.4, 5), new THREE.MeshBasicMaterial({ color: 0xff7a20 })); fire.position.set(0, 0.7, 2.5); g.add(fire);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture('🏴 REAVERS · no harvest here', '#2a1010', '#ffd0c0'), depthWrite: false, transparent: true })); tag.scale.set(11, 2.2, 1); tag.position.y = 11; g.add(tag);
   g.traverse(o => o.castShadow = true); scene.add(g); return g;
 })();
 let reaverTile = tiles.find(t => t.type === 'cradle');
@@ -889,6 +929,7 @@ function resolveHarvest() {
       if (c.building.owner === P) gain[t.type] = (gain[t.type] || 0) + n;
     }
   }
+  harvestPopups(sum);
   const parts = Object.entries(gain).map(([k, n]) => { flashRes(k); return `+${n} ${RES[k].icon}`; });
   announce(`HARVEST ${state.rollNo || 1}/${ROLLS_PER_HARVEST} · ${sum}`, parts.length ? parts.join('  ') : 'Your lands yield nothing this time');
   log(`🎲 Rune Stones show ${d1} + ${d2} = ${sum}` + (parts.length ? ' → ' + parts.join(' ') : ''));
@@ -1208,6 +1249,8 @@ function spawnAvatars() {
 function updateAI(dt, time) {
   for (const p of players) {
     if (!p.ai || !p.avatar) continue;
+    aiDuelCheck(p, dt);
+    if (p.duelWith != null) { p.avatar.position.set(p.pos.x, heightAt(p.pos.x, p.pos.z), p.pos.z); continue; }   // fighting: stand and face the foe
     p.think -= dt;
     if (p.think <= 0) { p.think = rr(2, 4); aiThink(p); if (Math.random() < 0.08) aiRavenOffer(p); }
     let target = p.task ? taskPos(p.task) : p.wander;
@@ -1238,27 +1281,35 @@ function updateAI(dt, time) {
 let ravenOffer = null;
 function aiWants(p, k) { const goal = aiGoal(p.id); return p.res[k] < needOf(goal, k) || p.res[k] === 0; }
 function aiSpare(p, k) { return p.res[k] - needOf(aiGoal(p.id), k) >= 1 && p.res[k] >= 1; }
-function aiAccepts(p, receive, give, from = P) {
+// would this AI house take the bundle? (give/get are from the asking player's side)
+function aiAccepts(p, give, get, from = P) {
   if (renown(from) >= renown(p.id) + 3) return 'refuses to aid the mightiest house';
-  if (!aiSpare(p, give)) return 'has none to spare';
-  if (!aiWants(p, receive)) return 'has no need of it';
+  const goal = aiGoal(p.id);
+  for (const k of RES_KEYS) if ((get[k] || 0) > 0) {
+    if (p.res[k] < get[k]) return `has too few ${RES[k].icon}`;
+    if (p.res[k] - needOf(goal, k) < get[k]) return `needs its ${RES[k].icon}`;
+  }
+  const nG = bundleSum(give), nR = bundleSum(get);
+  if (nG < nR) return 'wants a fairer deal';
+  const helps = RES_KEYS.some(k => (give[k] || 0) > 0 && aiWants(p, k));
+  if (!helps && nG < nR + 2) return 'has no need of it';
   return null;
 }
 function sendRaven(give, get) {
-  if (state.res[give] < 1) return;
+  if (!RES_KEYS.every(k => state.res[k] >= (give[k] || 0))) return;
   $('ravenStatus').textContent = '🐦 Your ravens fly to the other houses…';
   if (NET.guest) { netAct({ a: 'raven', give, get }); return; }
   setTimeout(() => ravenDeal(P, give, get), 1500);
 }
-function ravenDeal(from, give, get) {   // the AI houses answer a 1:1 offer
+function ravenDeal(from, give, get) {   // the AI houses answer an offer
   const me = players[from], replies = [];
   for (const p of shuffle(players.filter(p => p.ai))) {
     const no = aiAccepts(p, give, get, from);
-    if (!no && me.res[give] >= 1) {
-      me.res[give]--; me.res[get]++; p.res[give]++; p.res[get]--;
-      const msg = `🤝 ${nameOf(p.id)} accepts: your 1 ${RES[give].icon} for their 1 ${RES[get].icon}`;
-      if (from === P) { $('ravenStatus').textContent = msg; log(msg); flashRes(get); sfx('build'); updateHUD(); refreshMarkers(); renderTrade(); }
-      else tell(from, { raven: msg, log: msg, flash: [get], sfx: 'build' });
+    if (!no && RES_KEYS.every(k => me.res[k] >= (give[k] || 0))) {
+      applyBundle(from, give, get, p);
+      const msg = `🤝 ${nameOf(p.id)} accepts: your ${bundleTxt(give)} for their ${bundleTxt(get)}`;
+      if (from === P) { $('ravenStatus').textContent = msg; log(msg); RES_KEYS.forEach(k => get[k] && flashRes(k)); sfx('build'); resetTrade(); updateHUD(); refreshMarkers(); renderTrade(); }
+      else tell(from, { raven: msg, log: msg, flash: RES_KEYS.filter(k => get[k]), sfx: 'build' });
       return;
     }
     replies.push(`${p.house.sigil} ${no}`);
@@ -1369,6 +1420,8 @@ function tapAt(sx, sy) {
   // an egg in the Cradle?
   const egg = cradleEggs.find(e => !e.taken && Math.hypot(e.x - hit.x, e.z - hit.z) < 4);
   if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); return; }
+  const foe = players.find(p => p.id !== P && p.avatar && p.avatar.visible && Math.hypot(p.pos.x - hit.x, p.pos.z - hit.z) < 3.5);
+  if (foe) { if (Math.hypot(foe.pos.x - player.pos.x, foe.pos.z - player.pos.z) < DUEL_RANGE) challenge(foe.id); else walkTo({ x: foe.pos.x, z: foe.pos.z }); return; }
   const tgt = hit.d < 120 ? targetNear(hit) : null;
   if (tgt && !tgt.problem) { currentTarget = tgt; tryBuild(tgt); return; }   // gold sign: build it
   if (tgt && state.mode) { log('⚠️ ' + tgt.problem); sfx('bad'); return; }   // placing something: explain why not
@@ -1411,11 +1464,10 @@ function onOwnRoad(x, z) {
 function updatePlayer(dt) {
   if (keys.ArrowLeft) player.yaw += 2 * dt;
   if (keys.ArrowRight) player.yaw -= 2 * dt;
-  if (keys.ArrowUp) player.pitch = Math.min(1.45, player.pitch + 1.5 * dt);
-  if (keys.ArrowDown) player.pitch = Math.max(-1.45, player.pitch - 1.5 * dt);
   if (state.riding) return updateFlight(dt);
   let fx = 0, fz = 0;
-  if (keys.KeyW) fz -= 1; if (keys.KeyS) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
+  if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
+  if (state.dazeT > 0) { state.dazeT -= dt; fx = fz = 0; player.autoTarget = null; destMarker.visible = false; }   // knocked down in a duel
   if (fx || fz) { player.autoTarget = null; destMarker.visible = false; }
   else if (player.autoTarget) {   // click-to-move: turn toward the target and walk
     const dx = player.autoTarget.x - player.pos.x, dz = player.autoTarget.z - player.pos.z, d = Math.hypot(dx, dz);
@@ -1620,13 +1672,10 @@ function refreshMarkers() {
 const $ = id => document.getElementById(id);
 $('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
 const costStr = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join(' ');
-$('buildMenu').innerHTML = '<div class="bm-title">BUILD <span class="muted">· click a gold sign in the world</span></div>' +
-  [['road', 'Road', 'connects your lands'], ['hamlet', 'Hamlet', '+1★ · harvests 1'], ['keep', 'Keep', '+1★ · upgrade · harvests 2'], ['roost', 'Dragon Roost', 'beside a Keep · raise a dragon'], ['tower', 'Scorpion Tower', 'stops rival Dragonfire']].map(([k, nm, d]) =>
-    `<div class="slot" id="b-${k}" data-k="${k}"><div class="t">${nm}</div><div class="c">${costStr(k)}</div><div class="d">${d}</div></div>`).join('') +
-  '<div class="slot" data-k="all"><div class="t">Show all signs</div><div class="d">see everything you can build</div></div>';
-$('buildMenu').addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (!k) return; setMode(k === 'all' ? null : k); closeMenus(); });
-function closeMenus() { $('buildMenu').classList.add('hidden'); }
-$('actBuild').addEventListener('click', () => { if (state.phase !== 'play') return; $('buildMenu').classList.toggle('hidden'); });
+$('buildMenu').innerHTML = [['road', '🛤️', 'Road'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
+  `<div class="slot" id="b-${k}" data-k="${k}"><i>${ic}</i><div><b>${nm}</b><div class="c">${costStr(k).replace(/ /g, '')}</div></div></div>`).join('');
+$('buildMenu').addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (!k || state.phase !== 'play') return; setMode(state.mode === k ? null : k); });
+function closeMenus() {}
 $('actTrade').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleTrade(); });
 $('actLore').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleLore(); });
 $('actMap').addEventListener('click', () => { closeMenus(); if (state.phase === 'play') toggleMap(); });
@@ -1680,6 +1729,7 @@ function updateHUD() {
     $('actDragon').classList.toggle('poor', !roostOf(P) && !canAfford('roost'));
     $('actFire').classList.toggle('hidden', !(state.riding && d && d.stage === 'grown'));
     $('actHome').classList.toggle('hidden', !!state.riding);
+    document.querySelectorAll('#dpad .fly').forEach(b => b.classList.toggle('hidden', !state.riding));
   }
   if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🛤️ ${me.freeRoads} free roads` : '');
   $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Roads ${state.built.road}/${LIMITS.road}`;
@@ -1761,31 +1811,53 @@ let annTimer = 0;
 function announce(big, small) { $('annBig').textContent = big; $('annSmall').textContent = small || ''; $('announce').classList.add('show'); annTimer = 3.2; }
 
 // trade
-let give = null, get = null;
-function renderTrade() {
-  $('giveGrid').innerHTML = RES_KEYS.map(k => `<div class="pick ${give === k ? 'sel' : ''} ${state.res[k] < 1 ? 'dis' : ''}" data-k="${k}">${RES[k].icon}<br>${RES[k].name}<br><span class="muted">have ${state.res[k]}</span></div>`).join('');
-  $('getGrid').innerHTML = RES_KEYS.map(k => `<div class="pick ${get === k ? 'sel' : ''} ${k === give ? 'dis' : ''}" data-k="${k}">${RES[k].icon}<br>${RES[k].name}</div>`).join('');
-  $('tradeBtn').disabled = !(give && get && give !== get && state.res[give] >= 4);
-  $('tradeBtn').style.opacity = $('tradeBtn').disabled ? 0.5 : 1;
-  $('ravenBtn').disabled = !(give && get && give !== get && state.res[give] >= 1);
-  $('ravenBtn').style.opacity = $('ravenBtn').disabled ? 0.5 : 1;
+const tgive = {}, tget = {};
+const bundleSum = o => RES_KEYS.reduce((n, k) => n + (o[k] || 0), 0);
+const bundleTxt = o => RES_KEYS.filter(k => o[k] > 0).map(k => `${o[k]}${RES[k].icon}`).join(' ') || 'nothing';
+function resetTrade() { RES_KEYS.forEach(k => { tgive[k] = 0; tget[k] = 0; }); }
+resetTrade();
+// Guild: 4 of one kind for each 1 of anything; the bundle may combine several such swaps
+function guildOK(give, get, res) {
+  const g = bundleSum(give), r = bundleSum(get);
+  return g > 0 && r > 0 && g === 4 * r && RES_KEYS.every(k => (give[k] || 0) % 4 === 0 && !(give[k] && get[k]) && res[k] >= (give[k] || 0));
 }
-$('giveGrid').addEventListener('click', e => { const k = e.target.closest('.pick')?.dataset.k; if (k && state.res[k] >= 1) { give = k; if (get === k) get = null; renderTrade(); } });
-$('getGrid').addEventListener('click', e => { const k = e.target.closest('.pick')?.dataset.k; if (k && k !== give) { get = k; renderTrade(); } });
+function renderTrade() {
+  $('tradeTable').innerHTML = '<tr><th></th><th>have</th><th>you GIVE</th><th>you GET</th></tr>' + RES_KEYS.map(k => `<tr>
+    <td>${RES[k].icon} ${RES[k].name}</td><td class="have">${state.res[k]}</td>
+    <td><button class="st" data-a="g-" data-k="${k}">−</button><b class="${tgive[k] ? 'on' : ''}">${tgive[k]}</b><button class="st" data-a="g+" data-k="${k}">+</button></td>
+    <td><button class="st" data-a="r-" data-k="${k}">−</button><b class="${tget[k] ? 'on' : ''}">${tget[k]}</b><button class="st" data-a="r+" data-k="${k}">+</button></td></tr>`).join('');
+  const g = bundleSum(tgive), r = bundleSum(tget);
+  $('tradeSummary').innerHTML = g || r ? `You give <b>${bundleTxt(tgive)}</b> → you get <b>${bundleTxt(tget)}</b>` + (g && r && !guildOK(tgive, tget, state.res) ? '<div class="muted">Guild: give 4 of one kind for each 1 you get</div>' : '') : '<span class="muted">Use + and − to build an offer</span>';
+  const enough = RES_KEYS.every(k => state.res[k] >= tgive[k]);
+  $('tradeBtn').disabled = !guildOK(tgive, tget, state.res); $('tradeBtn').style.opacity = $('tradeBtn').disabled ? 0.5 : 1;
+  $('ravenBtn').disabled = !(g && r && enough); $('ravenBtn').style.opacity = $('ravenBtn').disabled ? 0.5 : 1;
+}
+$('tradeTable').addEventListener('click', e => {
+  const b = e.target.closest('[data-a]'); if (!b) return;
+  const k = b.dataset.k, a = b.dataset.a;
+  if (a === 'g+' && tgive[k] < state.res[k]) { tgive[k]++; tget[k] = 0; }
+  if (a === 'g-' && tgive[k] > 0) tgive[k]--;
+  if (a === 'r+' && tget[k] < 9) { tget[k]++; tgive[k] = 0; }
+  if (a === 'r-' && tget[k] > 0) tget[k]--;
+  renderTrade();
+});
+$('tradeClear').addEventListener('click', () => { resetTrade(); $('ravenStatus').textContent = ''; renderTrade(); });
+function applyBundle(pid, give, get, other = null) {
+  RES_KEYS.forEach(k => { const g = give[k] || 0, r = get[k] || 0; players[pid].res[k] += r - g; if (other) other.res[k] += g - r; });
+}
 $('tradeBtn').addEventListener('click', () => {
-  if (!(give && get && state.res[give] >= 4)) return;
-  if (NET.guest) { netAct({ a: 'guild', give, get }); give = null; renderTrade(); return; }
-  state.res[give] -= 4; state.res[get] += 1; log(`⚖️ Guild trade: 4 ${RES[give].icon} → 1 ${RES[get].icon}`); sfx('build');
-  if (state.res[give] < 1) give = null;
-  renderTrade(); updateHUD(); refreshMarkers();
+  if (!guildOK(tgive, tget, state.res)) return;
+  if (NET.guest) netAct({ a: 'guild', give: { ...tgive }, get: { ...tget } });
+  else { applyBundle(P, tgive, tget); log(`⚖️ Guild trade: ${bundleTxt(tgive)} → ${bundleTxt(tget)}`); RES_KEYS.forEach(k => tget[k] && flashRes(k)); sfx('build'); updateHUD(); refreshMarkers(); }
+  resetTrade(); renderTrade();
 });
 $('tradeClose').addEventListener('click', () => toggleTrade(false));
-$('ravenBtn').addEventListener('click', () => { if (give && get && give !== get) sendRaven(give, get); });
+$('ravenBtn').addEventListener('click', () => { if (!$('ravenBtn').disabled) sendRaven({ ...tgive }, { ...tget }); });
 function toggleTrade(force) {
   const el = $('trade'), open = force ?? el.classList.contains('hidden');
   if (open) {
     if (state.phase === 'setup') { log('⚠️ Finish your landing first'); return; }
-    el.classList.remove('hidden'); state.paused = !NET.online; give = get = null; $('ravenStatus').textContent = ''; renderTrade(); document.exitPointerLock?.();
+    el.classList.remove('hidden'); state.paused = !NET.online; resetTrade(); $('ravenStatus').textContent = ''; renderTrade(); document.exitPointerLock?.();
   } else {
     el.classList.add('hidden'); state.paused = false; $('pause').classList.add('hidden'); lockPointer();
   }
@@ -2353,7 +2425,7 @@ function updateFlight(dt) {
   const sp = (keys.ShiftLeft || keys.ShiftRight ? 1.7 : 1) * (grown ? 34 : 24);
   const cy = Math.cos(player.pitch);
   _f.set(-Math.sin(player.yaw) * cy, Math.sin(player.pitch), -Math.cos(player.yaw) * cy);
-  const fw = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), st = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const fw = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), st = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (fw || st) { player.autoTarget = null; destMarker.visible = false; }
   else if (player.autoTarget) {
     const dx = player.autoTarget.x - player.pos.x, dz = player.autoTarget.z - player.pos.z, d = Math.hypot(dx, dz);
@@ -2546,6 +2618,8 @@ function applyTell(m) {
   if (m.raven) $('ravenStatus').textContent = m.raven;
   if (m.startGot) state.startGot = m.startGot;
   if (m.sfx) sfx(m.sfx);
+  if (m.daze) knockDown(null, 2);
+  if (m.duel != null && !duel && state.phase === 'play') startDuel(m.duel, true);   // an AI lord challenges a friend
 }
 
 // ---- the simulation (single player and host)
@@ -2624,6 +2698,7 @@ function snapFor(seat) {
 }
 
 // ---- host: apply a friend's action (every rule is checked again here)
+const cleanBundle = o => { if (!o || typeof o !== 'object') return null; const r = {}; for (const k of RES_KEYS) { const n = o[k] | 0; if (n < 0 || n > 40) return null; r[k] = n; } return r; };
 function hostAct(pid, a) {
   const p = players[pid]; if (!p || p.ai) return;
   const no = msg => tell(pid, { log: '⚠️ ' + msg, sfx: 'bad' });
@@ -2646,14 +2721,25 @@ function hostAct(pid, a) {
       refreshMarkers(); updateHUD(); checkWin();
       return;
     }
-    case 'guild':
-      if (RES[a.give] && RES[a.get] && a.give !== a.get && p.res[a.give] >= 4) {
-        p.res[a.give] -= 4; p.res[a.get]++;
-        tell(pid, { log: `⚖️ Guild trade: 4 ${RES[a.give].icon} → 1 ${RES[a.get].icon}`, flash: [a.get], sfx: 'build' });
-      }
+    case 'guild': {
+      const give = cleanBundle(a.give), get = cleanBundle(a.get);
+      if (give && get && guildOK(give, get, p.res)) { applyBundle(pid, give, get); tell(pid, { log: `⚖️ Guild trade: ${bundleTxt(give)} → ${bundleTxt(get)}`, flash: RES_KEYS.filter(k => get[k]), sfx: 'build' }); }
       return;
-    case 'raven':
-      if (RES[a.give] && RES[a.get] && a.give !== a.get) setTimeout(() => ravenDeal(pid, a.give, a.get), 1500);
+    }
+    case 'raven': {
+      const give = cleanBundle(a.give), get = cleanBundle(a.get);
+      if (give && get && bundleSum(give) && bundleSum(get)) setTimeout(() => ravenDeal(pid, give, get), 1500);
+      return;
+    }
+    case 'duel_result': {   // a friend finished a duel against an AI lord on their screen
+      const q = players[a.opp]; if (!q || !q.ai) return;
+      if (q.duelWith === pid) q.duelWith = null;
+      const w = a.won ? pid : q.id, l = a.won ? q.id : pid;
+      endDuelEffects(w, l, applyDuel(w, l, a.yield ? 1 : lootSize(w, l)));
+      return;
+    }
+    case 'duel_human':
+      if (players[a.target] && !players[a.target].ai && canDuel(pid, a.target)) autoDuel(pid, a.target);
       return;
     case 'scroll_buy': {
       if (state.phase !== 'play') return;
@@ -2775,6 +2861,7 @@ function guestEvents(prev, s) {
       announce('REAVER RAID!', lost.length ? 'They plunder your Hold: ' + lost.map(([k, n]) => `${n} ${RES[k].icon}`).join(' ') : 'The Reavers come ashore');
       log(`🎲 Rune Stones show ${d1} + ${d2} = 7: Reaver Raid!`); sfx('raid');
     } else {
+      harvestPopups(sum);
       const gain = delta.filter(([, n]) => n > 0); gain.forEach(([k]) => flashRes(k));
       const parts = gain.map(([k, n]) => `+${n} ${RES[k].icon}`);
       announce(`HARVEST ${st.rollNo || 1}/${ROLLS_PER_HARVEST} · ${sum}`, parts.length ? parts.join('  ') : 'Your lands yield nothing this time');
@@ -2952,6 +3039,179 @@ function netMsg(m) {
   }
 }
 
+// ---------------------------------------------------------------- DUELS (face to face)
+// When two lords meet, either may challenge the other. Best of 3: Strike beats Feint, Feint beats Block,
+// Block beats Strike; a tied round goes to the mightier lord. The winner takes 2 resources (3 if much mightier),
+// the loser is knocked down for a moment. Might = 1 + Sellswords played + home ground + a grown dragon.
+const DUEL_RANGE = 7;
+const MOVES = { strike: { icon: '⚔️', name: 'Strike', beats: 'feint' }, block: { icon: '🛡️', name: 'Block', beats: 'strike' }, feint: { icon: '🌀', name: 'Feint', beats: 'block' } };
+let duel = null, duelClock = 0, challengeTarget = null;
+const duelCD = {};
+const pairKey = (a, b) => a < b ? `${a}-${b}` : `${b}-${a}`;
+function lordAt(pid) { const p = players[pid]; if (!p) return null; if (pid === P) return player.pos; if (NET.guest || p.ai) return p.pos; return p.rpos || p.pos; }
+function homeGround(pid, at) { const t = at && tileAtWorld(at.x, at.z); return !!t && t.corners.some(cid => owns(corners[cid], pid)); }
+function might(pid, at) { const p = players[pid]; return 1 + (p.knights || 0) + (homeGround(pid, at) ? 1 : 0) + (p.dragon && p.dragon.stage === 'grown' ? 1 : 0); }
+function canDuel(a, b) {
+  return state.phase === 'play' && a !== b && (duelCD[pairKey(a, b)] || 0) <= duelClock
+    && !(a === P && state.riding) && !(b === P && state.riding) && !players[a]?.riding && !players[b]?.riding;
+}
+const lootSize = (w, l) => 2 + (might(w, lordAt(w)) >= might(l, lordAt(l)) + 2 ? 1 : 0);
+function applyDuel(w, l, n) {   // the winner takes n random resources from the loser
+  const taken = {};
+  for (let i = 0; i < n; i++) {
+    const pool = RES_KEYS.flatMap(k => Array(Math.max(0, players[l].res[k])).fill(k)); if (!pool.length) break;
+    const k = pick(pool); players[l].res[k]--; players[w].res[k]++; taken[k] = (taken[k] || 0) + 1;
+  }
+  duelCD[pairKey(w, l)] = duelClock + 45;
+  return taken;
+}
+function endDuelEffects(w, l, taken) {
+  const loot = bundleTxt(taken), wa = lordAt(w);
+  if (wa) floatText(`+${loot}`, wa.x, heightAt(wa.x, wa.z) + 6, wa.z, '#ffe27a');
+  const lp = players[l];
+  if (lp.ai) { lp.task = null; lp.wander = null; lp.wait = 4; lp.duelWith = null; }
+  if (players[w].ai) players[w].duelWith = null;
+  if (w !== P) tell(w, { big: 'DUEL WON!', small: `You take ${loot} from ${nameOf(l)}`, flash: RES_KEYS.filter(k => taken[k]), sfx: 'win' });
+  if (l !== P) tell(l, { big: 'DUEL LOST', small: `${nameOf(w)} takes ${loot} from you`, flash: RES_KEYS.filter(k => taken[k]), loss: true, sfx: 'raid', daze: true });
+  if (w !== P && l !== P) { const t = wa && tileAtWorld(wa.x, wa.z); if (t && visible.has(t.id)) log(`⚔️ ${nameOf(w)} defeats ${nameOf(l)} in a duel nearby`); }
+  updateHUD();
+}
+function knockDown(fromPos, secs = 2) {
+  if (fromPos) {
+    const dx = player.pos.x - fromPos.x, dz = player.pos.z - fromPos.z, L = Math.hypot(dx, dz) || 1;
+    const x = player.pos.x + dx / L * 8, z = player.pos.z + dz / L * 8;
+    if (heightAt(x, z) > 0.6) player.pos.set(x, heightAt(x, z), z);
+  }
+  state.dazeT = secs; player.autoTarget = null; destMarker.visible = false;
+}
+// you start a fight
+function challenge(opp) {
+  if (duel || state.phase !== 'play') return;
+  if (state.riding) return log('⚠️ Land your dragon first');
+  if (!canDuel(P, opp)) return log(`⏳ ${nameOf(opp)} will not fight you again so soon`);
+  if (!players[opp].ai) {   // two people: settled by might and luck on the host
+    if (NET.guest) netAct({ a: 'duel_human', target: opp }); else autoDuel(P, opp);
+    return;
+  }
+  startDuel(opp, false);
+}
+function startDuel(opp, challenged) {
+  if (duel) return;
+  const q = players[opp], qp = lordAt(opp);
+  if (!NET.guest) { q.duelWith = P; q.duelT = 30; }
+  duel = { opp, wins: [0, 0], rounds: 0, mine: might(P, player.pos), theirs: might(opp, qp), done: false };
+  if (qp) {   // face each other
+    player.yaw = Math.atan2(player.pos.x - qp.x, player.pos.z - qp.z); player.pitch = -0.05;
+    if (q.avatar) q.avatar.rotation.y = Math.atan2(player.pos.x - qp.x, player.pos.z - qp.z);
+  }
+  player.autoTarget = null; destMarker.visible = false;
+  $('duelWho').innerHTML = challenged ? `<b>${nameOf(opp)}</b> blocks your path and draws steel!` : `You challenge <b>${nameOf(opp)}</b>!`;
+  $('duelMight').innerHTML = `Your might <b>${duel.mine}</b> · their might <b>${duel.theirs}</b><br><span class="muted">might = 1 + Sellswords + fighting on your own land + a grown dragon</span>`;
+  $('duelLog').innerHTML = ''; renderDuel();
+  $('duel').classList.remove('hidden'); if (!NET.online) state.paused = true; sfx('raid');
+}
+function renderDuel(msg) {
+  const pip = n => '●'.repeat(n) + '○'.repeat(Math.max(0, 2 - n));
+  $('duelScore').innerHTML = `You <span class="pips">${pip(duel.wins[0])}</span> &nbsp;vs&nbsp; <span class="pips">${pip(duel.wins[1])}</span> ${players[duel.opp].house.sigil}`;
+  if (msg) { const d = document.createElement('div'); d.innerHTML = msg; $('duelLog').prepend(d); }
+  document.querySelectorAll('#duelMoves button, #duelYield').forEach(b => { b.disabled = duel.done; b.style.opacity = duel.done ? 0.4 : 1; });
+}
+$('duelMoves').addEventListener('click', e => {
+  const m = e.target.closest('[data-m]')?.dataset.m; if (!m || !duel || duel.done) return;
+  const ai = pick(Object.keys(MOVES)); duel.rounds++;
+  const w = MOVES[m].beats === ai ? 0 : MOVES[ai].beats === m ? 1 : duel.mine > duel.theirs ? 0 : duel.theirs > duel.mine ? 1 : -1;
+  if (w >= 0) duel.wins[w]++;
+  renderDuel(`${MOVES[m].icon} You ${MOVES[m].name.toLowerCase()} · ${MOVES[ai].icon} they ${MOVES[ai].name.toLowerCase()} → ` +
+    (w === 0 ? '<b>you win the round</b>' : w === 1 ? '<b>they win the round</b>' : 'even') + (m === ai && w >= 0 ? ' (the mightier lord)' : ''));
+  sfx(w === 0 ? 'build' : w === 1 ? 'bad' : 'build');
+  if (duel.wins[0] >= 2 || duel.wins[1] >= 2 || duel.rounds >= 6) finishDuel(duel.wins[0] > duel.wins[1] || (duel.wins[0] === duel.wins[1] && duel.mine >= duel.theirs));
+});
+$('duelYield').addEventListener('click', () => { if (duel && !duel.done) finishDuel(false, true); });
+function finishDuel(won, yielded = false) {
+  duel.done = true;
+  const opp = duel.opp, q = players[opp], qp = lordAt(opp) && { x: lordAt(opp).x, z: lordAt(opp).z };
+  let text;
+  if (NET.guest) {
+    netAct({ a: 'duel_result', opp, won, yield: yielded });
+    text = won ? 'VICTORY! Their goods are yours' : yielded ? 'You yield and pay 1 resource' : 'DEFEAT! They take your goods';
+  } else {
+    q.duelWith = null;
+    const w = won ? P : opp, l = won ? opp : P;
+    const taken = applyDuel(w, l, yielded ? 1 : lootSize(w, l));
+    endDuelEffects(w, l, taken);
+    RES_KEYS.forEach(k => taken[k] && flashRes(k, !won));
+    text = won ? `VICTORY! You take ${bundleTxt(taken)}` : `${yielded ? 'You yield' : 'DEFEAT'}: they take ${bundleTxt(taken)}`;
+  }
+  duelCD[pairKey(P, opp)] = duelClock + 45;
+  if (!won) knockDown(qp, yielded ? 0.5 : 2);
+  renderDuel(`<div class="result ${won ? 'win' : 'lose'}">${text}</div>`);
+  log(`⚔️ Duel with ${nameOf(opp)}: ${won ? 'won' : yielded ? 'yielded' : 'lost'}`);
+  sfx(won ? 'win' : 'raid');
+  setTimeout(() => { $('duel').classList.add('hidden'); duel = null; if (!NET.online) state.paused = false; updateHUD(); refreshMarkers(); }, 2300);
+}
+// people vs people online, and AI vs AI: might plus luck
+function autoDuel(a, b) {
+  const sa = might(a, lordAt(a)) + rand() * 3, sb = might(b, lordAt(b)) + rand() * 3;
+  const w = sa >= sb ? a : b, l = w === a ? b : a;
+  const taken = applyDuel(w, l, lootSize(w, l));
+  endDuelEffects(w, l, taken);
+  if (w === P) { announce('DUEL WON!', `You take ${bundleTxt(taken)} from ${nameOf(l)}`); RES_KEYS.forEach(k => taken[k] && flashRes(k)); sfx('win'); }
+  if (l === P) { announce('DUEL LOST', `${nameOf(w)} takes ${bundleTxt(taken)} from you`); RES_KEYS.forEach(k => taken[k] && flashRes(k, true)); knockDown(lordAt(w)); sfx('raid'); }
+}
+// AI lords block your way: the more you lead (or the deeper into their land you walk), the likelier a fight
+function aiDuelCheck(p, dt) {
+  if (p.duelWith != null) { if ((p.duelT -= dt) <= 0) p.duelWith = null; return; }
+  if ((p.duelLook = (p.duelLook || 0) - dt) > 0) return;
+  p.duelLook = 1;
+  for (const h of players) {
+    if (h.ai || h === p) continue;
+    const hp = lordAt(h.id); if (!hp) continue;
+    if (Math.hypot(hp.x - p.pos.x, hp.z - p.pos.z) > 6 || !canDuel(p.id, h.id)) continue;
+    if (h.id === P && (duel || state.paused || state.reaverPick)) continue;
+    const aggro = 0.25 + (renown(h.id) >= renown(p.id) + 2 ? 0.25 : 0) + (homeGround(p.id, p.pos) ? 0.3 : 0) + (resTotal(h.id) >= 5 ? 0.15 : 0);
+    if (rand() > aggro) { duelCD[pairKey(p.id, h.id)] = duelClock + 20; continue; }   // lets you pass this time
+    p.duelWith = h.id; p.duelT = 30; p.task = null;
+    if (h.id === P) { announce('⚔️ CHALLENGE!', `${nameOf(p.id)} blocks your path!`); startDuel(p.id, true); }
+    else tell(h.id, { duel: p.id });
+    return;
+  }
+  for (const q of players) {
+    if (!q.ai || q === p || q.duelWith != null || !q.pos) continue;
+    if (Math.hypot(q.pos.x - p.pos.x, q.pos.z - p.pos.z) < 5 && canDuel(p.id, q.id) && rand() < 0.3) { autoDuel(p.id, q.id); return; }
+  }
+}
+// a "Challenge" button appears when a rival lord stands close to you
+function updateChallenge() {
+  let best = null, bd = DUEL_RANGE;
+  if (state.phase === 'play' && !duel && !state.riding) for (const p of players) {
+    if (p.id === P || !p.avatar || !p.avatar.visible || !p.pos) continue;
+    const d = Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z);
+    if (d < bd && canDuel(P, p.id)) { bd = d; best = p; }
+  }
+  const id = best ? best.id : null;
+  if (id !== challengeTarget) {
+    challengeTarget = id; $('challengeBtn').classList.toggle('hidden', id === null);
+    if (best) $('challengeBtn').innerHTML = `⚔️ Challenge ${best.house.sigil} ${!best.ai && best.name ? best.name : best.house.name.replace('House ', '')} <span class="muted">(might ${might(best.id, best.pos)} vs your ${might(P, player.pos)})</span>`;
+  }
+}
+$('challengeBtn').addEventListener('click', () => { if (challengeTarget != null) challenge(challengeTarget); });
+
+// ---------------------------------------------------------------- on-screen D-pad (touch screens)
+let dpadOn = matchMedia('(pointer: coarse)').matches;
+try { const v = localStorage.getItem('dh-dpad'); if (v) dpadOn = v === 'on'; } catch (_) {}
+function setDpad(on) {
+  dpadOn = on; try { localStorage.setItem('dh-dpad', on ? 'on' : 'off'); } catch (_) {}
+  $('dpad').classList.toggle('hidden', !on); $('btnDpad').classList.toggle('on', on); $('hud').classList.toggle('dpad-on', on);
+}
+$('btnDpad').addEventListener('click', () => setDpad(!dpadOn));
+setDpad(dpadOn);
+document.querySelectorAll('#dpad [data-k]').forEach(b => {
+  const k = b.dataset.k;
+  const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('held'); try { b.setPointerCapture(e.pointerId); } catch (_) {} };
+  const off = () => { keys[k] = false; b.classList.remove('held'); };
+  b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('lostpointercapture', off);
+});
+
 // title-screen camera orbit
 let orbit = 0;
 const clock = new THREE.Clock();
@@ -2995,8 +3255,8 @@ function loop() {
   if (destMarker.visible) { destMarker.rotation.z += dt * 2; destMarker.scale.setScalar(1 + Math.sin(time * 5) * 0.12); }
   if (beacon.visible) beacon.material.opacity = 0.22 + Math.sin(time * 2.5) * 0.1;
   for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt * 3; const k = Math.min(1, p.t); p.o.scale.setScalar(0.2 + 0.8 * k + Math.sin(k * Math.PI) * 0.2); if (p.t >= 1) { p.o.scale.setScalar(1); pops.splice(i, 1); } }
-  for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s, 1); if (p.t > 1.5) { p.s.scale.set(5, 5, 1); pulse.splice(i, 1); } }
-  updateFire(dt);
+  for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s * 1.38, 1); if (p.t > 1.5) { p.s.scale.set(5, 6.9, 1); pulse.splice(i, 1); } }
+  updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge();
   if (annTimer > 0) { annTimer -= dt; if (annTimer <= 0) $('announce').classList.remove('show'); }
 
   inkU.fadeNear.value = scene.fog.near * 1.4; inkU.fadeFar.value = scene.fog.far * 1.1;
@@ -3007,4 +3267,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

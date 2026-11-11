@@ -178,6 +178,43 @@
   #tip { transform:none; white-space:nowrap; }
   #raven { pointer-events:auto; bottom:170px; }
   @media (max-width:760px) { .act { width:52px; height:54px; font-size:12px; } .act i { font-size:20px; } #house { transform:scale(.85); transform-origin:top left; } #log { display:none; } #minimap { width:130px; height:130px; } #topBtns { top:150px; } #harvest { width:220px; } }
+  /* side build bar */
+  #actBuild { display:none !important; }
+  #buildMenu { top:250px; bottom:auto; left:14px; transform:none; width:auto; display:flex !important; flex-direction:column; gap:6px; padding:8px; }
+  #buildMenu.hidden { display:flex !important; }
+  #buildMenu .slot { display:flex; align-items:center; gap:8px; width:136px; padding:4px 8px; text-align:left; }
+  #buildMenu .slot i { font-style:normal; font-size:24px; }
+  #buildMenu .slot b { font-family:'Bangers',Impact,sans-serif; font-weight:normal; font-size:17px; letter-spacing:1px; }
+  #buildMenu .slot .c { font-size:11px; letter-spacing:-1px; }
+  #buildMenu .slot.active { box-shadow:0 0 0 3px var(--gold); }
+  #buildMenu .slot:not(.poor) { background:#fff7c2; }
+  /* trade table */
+  #tradeTable { margin:10px auto; border-collapse:collapse; font-size:15px; }
+  #tradeTable th { font-family:'Bangers',Impact,sans-serif; font-weight:normal; letter-spacing:1px; padding:2px 10px; color:var(--gold); }
+  #tradeTable td { padding:3px 10px; text-align:center; } #tradeTable td:first-child { text-align:left; }
+  #tradeTable .have { opacity:.7; } #tradeTable b { display:inline-block; min-width:26px; } #tradeTable b.on { color:var(--gold); font-size:18px; }
+  .st { font-family:'Nunito',sans-serif; font-size:18px; padding:0 9px; line-height:24px; letter-spacing:0; border-width:2px; box-shadow:2px 2px 0 var(--ink); }
+  #tradeSummary { min-height:40px; margin:4px 0 10px; }
+  .tradeBtns button { margin:3px; }
+  /* duel */
+  #duel { background:radial-gradient(ellipse at center, rgba(60,10,10,.35), rgba(20,5,5,.75)); }
+  .duelcard { max-width:620px; }
+  #duelScore { font-family:'Bangers',Impact,sans-serif; font-size:30px; margin:6px 0; } #duelScore .pips { color:var(--gold); letter-spacing:4px; }
+  #duelMoves { display:flex; gap:12px; justify-content:center; margin:10px 0; }
+  #duelMoves button { width:120px; height:90px; font-size:24px; line-height:1.2; }
+  #duelLog { min-height:60px; margin:8px 0; font-size:14px; } #duelLog .result { font-family:'Bangers',Impact,sans-serif; font-size:30px; }
+  #duelLog .result.win { color:#1f8a3a; } #duelLog .result.lose { color:#b3261e; }
+  #challengeBtn { position:absolute; bottom:236px; left:50%; transform:translateX(-50%); pointer-events:auto; font-size:20px; padding:8px 18px; background:#ff8a4a; animation:pulse 1.2s infinite; }
+  #challengeBtn .muted { font-family:'Nunito',sans-serif; font-size:12px; color:var(--ink); }
+  @keyframes pulse { 50% { transform:translateX(-50%) scale(1.06); } }
+  /* touch D-pad */
+  #dpad { position:absolute; left:16px; bottom:16px; width:180px; height:180px; pointer-events:auto; z-index:3; }
+  #hud.dpad-on #log { display:none; }
+  .dp { position:absolute; width:60px; height:60px; font-size:26px; padding:0; border-radius:14px; background:rgba(255,244,220,.9); touch-action:none; }
+  .dp.held { background:var(--yellow); transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+  .dp.up { left:60px; top:0; } .dp.left { left:0; top:60px; } .dp.right { left:120px; top:60px; } .dp[data-k="KeyS"] { left:60px; top:120px; }
+  .dp.climb { left:200px; top:20px; } .dp.dive { left:200px; top:100px; }
+  @media (max-width:760px) { #buildMenu { top:200px; transform:scale(.8); transform-origin:top left; } #dpad { bottom:12px; transform:scale(.8); transform-origin:bottom left; } }
 </style>
 </head>
 <body>
@@ -219,7 +256,16 @@
     <button class="act" id="actMap"><i>🗺️</i><span>Map</span></button>
     <button class="act" id="actHome"><i>🏠</i><span>Home</span></button>
   </div>
-  <div id="topBtns"><button id="btnHelp" class="tb">❓ Help</button><button id="btnGuide" class="tb on">🎓 Guide: ON</button></div>
+  <div id="topBtns"><button id="btnHelp" class="tb">❓ Help</button><button id="btnGuide" class="tb on">🎓 Guide: ON</button><button id="btnDpad" class="tb">🎮 D-pad</button></div>
+  <button id="challengeBtn" class="hidden"></button>
+  <div id="dpad" class="hidden">
+    <button class="dp up" data-k="KeyW">▲</button>
+    <button class="dp left" data-k="KeyA">◀</button>
+    <button class="dp right" data-k="KeyD">▶</button>
+    <button class="dp back" data-k="KeyS">▼</button>
+    <button class="dp climb fly hidden" data-k="Space">⤒</button>
+    <button class="dp dive fly hidden" data-k="KeyC">⤓</button>
+  </div>
 </div>
 
 <div id="start" class="overlay">
@@ -274,15 +320,29 @@
 <div id="trade" class="overlay hidden">
   <div class="card panel" style="min-width:560px">
     <h2 class="title" style="font-size:44px;letter-spacing:4px">TRADE</h2>
-    <div class="muted"><b>Guild</b>: give 4, get 1, always works. <b>Raven</b>: offer 1-for-1 to the other houses; they accept only if it helps them (and you are not far ahead).</div>
-    <div style="margin-top:14px">Give 4 ×</div>
-    <div class="grid" id="giveGrid"></div>
-    <div>Receive 1 ×</div>
-    <div class="grid" id="getGrid"></div>
-    <button id="tradeBtn">GUILD 4:1</button>
-    <button id="ravenBtn">🐦 RAVEN 1:1</button>
-    <button id="tradeClose" class="small" style="margin-left:10px">Close (T)</button>
+    <div class="muted"><b>Guild</b>: 4 of one kind for each 1 of anything, always works. <b>Ravens</b>: offer any bundle to the other houses; they accept if it helps them and is fair.</div>
+    <table id="tradeTable"></table>
+    <div id="tradeSummary"></div>
+    <div class="tradeBtns">
+      <button id="tradeBtn">⚖️ GUILD TRADE</button>
+      <button id="ravenBtn">🐦 OFFER TO HOUSES</button>
+      <button id="tradeClear" class="small">✖ CLEAR</button>
+      <button id="tradeClose" class="small">CLOSE</button>
+    </div>
     <div id="ravenStatus" style="margin-top:10px;min-height:20px"></div>
+  </div>
+</div>
+
+<div id="duel" class="overlay hidden">
+  <div class="card panel duelcard">
+    <h2 class="title" style="font-size:56px">⚔️ DUEL!</h2>
+    <div id="duelWho" style="font-size:18px"></div>
+    <div id="duelMight" style="margin:6px 0"></div>
+    <div id="duelScore"></div>
+    <div id="duelMoves"><button data-m="strike">⚔️<br>STRIKE</button><button data-m="block">🛡️<br>BLOCK</button><button data-m="feint">🌀<br>FEINT</button></div>
+    <div class="muted">Strike beats Feint · Feint beats Block · Block beats Strike · a tie goes to the mightier lord · best of 3</div>
+    <div id="duelLog"></div>
+    <button id="duelYield" class="small">🏳️ Yield (pay 1 resource)</button>
   </div>
 </div>
 
@@ -299,10 +359,12 @@
       <div>
         <h3>CONTROLS (mouse or touch)</h3>
         <b>Drag</b> to look around<br>
-        <b>Click the ground</b> or the <b>map</b> to walk there<br>
-        <b>Click a gold sign</b> to build there<br>
-        <b>Buttons</b> at the bottom: Build · Trade · Scrolls · Dragon · Map · Home<br>
+        <b>Walk:</b> click the ground or the map · arrow keys / WASD · 🎮 D-pad on touch screens<br>
+        <b>Build:</b> pick from the bar on the left, then click a <b>gold sign</b><br>
+        <b>Buttons</b> at the bottom: Trade · Scrolls · Dragon · Map · Home<br>
         <b>Riding a dragon:</b> click where to fly, 🔥 Fire, Land
+        <h3 style="margin-top:10px">DUELS ⚔️</h3>
+        Meet a rival lord and press <b>Challenge</b> (or click them). AI lords may block <i>your</i> path too, especially on their land. Best of 3: Strike beats Feint, Feint beats Block, Block beats Strike. The winner takes 2–3 resources.
         <h3 style="margin-top:10px">SIGNS</h3>
         <b style="color:#c27c00">Gold</b> = you can build it now · <b>White</b> = allowed, need resources · <b>Faint ring</b> = a future Hamlet spot, one road away
         <div class="muted" style="margin-top:8px">Keyboard shortcuts still work: WASD, 1–5, T, L, M, R, E, F, G.</div>

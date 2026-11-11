@@ -132,6 +132,13 @@ The new layer on top of the familiar rules. It's optional to pursue, but strong.
 
 ---
 
+### Duels (face to face)
+- When two lords meet (within ~7 m) either may **Challenge**; AI lords block your path, more often when you lead, carry 5+ resources, or walk on their land
+- **Best of 3:** Strike beats Feint, Feint beats Block, Block beats Strike; a tied round goes to the mightier lord
+- **Might** = 1 + Sellswords played + fighting on your own land + a grown dragon
+- **Winner** takes 2 random resources (3 if 2+ mightier); the **loser** is knocked back and dazed for 2 s; the same pair can't fight again for 45 s; **Yield** pays 1 resource
+- Online: person vs AI is played on the person's screen; person vs person is settled by might + luck on the host
+
 ## 8. Houses (cosmetic + architecture in v1, for easy learning)
 Players choose a house for color, banner, and dragon look:
 - **House Varn** 🟥: red & black, wolf sigil, crimson dragon
