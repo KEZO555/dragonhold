@@ -36,19 +36,18 @@ Free services sleep after 15 minutes without visitors; the first visit after tha
 
 ## Controls
 
-| Key | Action |
+Everything works with the mouse (and touch):
+
+| Action | How |
 |---|---|
-| WASD / mouse | Move / look |
-| Shift · Space | Sprint · jump |
-| 1 / 2 / 3 / 4 / 5 | Blueprint: Road / Hamlet / Keep / Dragon Roost / Scorpion Tower |
-| Click | Build (aim at a gold sign) |
-| T | Trade (Merchant Guild 4:1, ravens 1:1 with houses) |
-| L | Lore Scrolls |
-| M | War map |
-| R | Recall to one of your Hamlets |
-| E | Pick up a dragon egg (in the volcano) |
-| F · G · C | Ride / land dragon · Dragonfire · dive |
-| Y / N | Accept / decline a raven trade offer |
+| Look around | Drag |
+| Walk somewhere | Click the ground, or click the map |
+| Build | Click a **gold** sign (white = you need more resources) |
+| Menus | Bottom buttons: Build · Trade · Scrolls · Dragon · Map · Home |
+| Fly a dragon | Dragon → Ride, click where to fly, 🔥 Fire, Land |
+| Help / beginner guide | ❓ Help and 🎓 Guide buttons under the map |
+
+Keyboard shortcuts still work: WASD move, 1–5 blueprints, T trade, L scrolls, M map, R home, E egg, F ride, G fire.
 
 ## Files
 

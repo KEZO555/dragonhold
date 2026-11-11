@@ -148,6 +148,36 @@
   .code { font-family:'Bangers',Impact,sans-serif; font-size:34px; letter-spacing:3px; background:var(--yellow); border:3px solid var(--ink); border-radius:8px; padding:0 10px; box-shadow:3px 3px 0 var(--ink); }
   .seat { display:flex; align-items:center; gap:8px; padding:6px 10px; margin:5px auto; max-width:420px; background:#fff; border:3px solid var(--ink); border-left:10px solid var(--hc, #888); border-radius:8px; text-align:left; }
   .seat.ai { opacity:.6; border-left-color:#888; } .seat .sig { font-size:22px; }
+  /* ===== simple HUD (mouse & touch) ===== */
+  canvas#view { touch-action:none; }
+  #crosshair { display:none; }
+  #help { display:none; }
+  #houseToggle { cursor:pointer; pointer-events:auto; font-size:12px; margin-top:4px; }
+  #house { pointer-events:auto; }
+  #minimap { pointer-events:auto; cursor:pointer; width:190px; height:190px; }
+  #minimap.big { cursor:crosshair; }
+  #resources { bottom:84px; } .res { width:70px; } .res .nm { display:none; } .res .n { font-size:24px; }
+  #actions { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:8px; pointer-events:auto; }
+  .act { font-family:'Bangers',Impact,sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; width:68px; height:62px; padding:2px; font-size:15px; letter-spacing:1px; background:var(--paper); border:3px solid var(--ink); border-radius:12px; box-shadow:3px 3px 0 var(--ink); }
+  .act i { font-style:normal; font-size:24px; line-height:1.1; }
+  .act.poor { opacity:.55; } .act.ready { background:var(--yellow); }
+  .act.fire { background:#ff8a4a; }
+  #buildMenu { position:absolute; bottom:84px; left:50%; transform:translateX(-50%); width:min(560px,96vw); padding:10px; pointer-events:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; z-index:4; }
+  #buildMenu .bm-title { grid-column:1/-1; font-family:'Bangers',Impact,sans-serif; font-size:20px; letter-spacing:1px; }
+  #buildMenu .slot { width:auto; cursor:pointer; background:#fff; border:3px solid var(--ink); border-radius:10px; padding:6px; }
+  #buildMenu .slot:hover { background:#fffbea; } #buildMenu .slot.poor { opacity:.5; } #buildMenu .slot.active { background:var(--yellow); }
+  #buildMenu .slot .d { font-size:11px; opacity:.75; }
+  #modeChip { position:absolute; bottom:160px; left:50%; transform:translateX(-50%); padding:6px 14px; background:var(--yellow); border:3px solid var(--ink); border-radius:18px; box-shadow:3px 3px 0 var(--ink); font-size:14px; cursor:pointer; pointer-events:auto; }
+  #objective { top:auto; bottom:178px; max-width:min(620px,94vw); text-align:center; font-size:15px; pointer-events:auto; background:#fffbe6; color:var(--ink); }
+  #objective .goal-tag { font-family:'Bangers',Impact,sans-serif; color:var(--gold); letter-spacing:1px; font-size:17px; margin-right:4px; }
+  #objective .go { font-size:15px; padding:3px 10px; margin-left:6px; vertical-align:middle; }
+  #topBtns { position:absolute; top:214px; right:14px; display:flex; flex-direction:column; gap:6px; pointer-events:auto; align-items:flex-end; }
+  .tb { font-family:'Nunito',sans-serif; font-weight:800; font-size:13px; letter-spacing:0; padding:5px 10px; background:var(--paper); border:3px solid var(--ink); border-radius:10px; box-shadow:2px 2px 0 var(--ink); }
+  .tb.on { background:var(--yellow); }
+  #log { width:280px; max-height:120px; font-size:12px; } #log div:nth-child(n+4) { display:none; }
+  #tip { transform:none; white-space:nowrap; }
+  #raven { pointer-events:auto; bottom:170px; }
+  @media (max-width:760px) { .act { width:52px; height:54px; font-size:12px; } .act i { font-size:20px; } #house { transform:scale(.85); transform-origin:top left; } #log { display:none; } #minimap { width:130px; height:130px; } #topBtns { top:150px; } #harvest { width:220px; } }
 </style>
 </head>
 <body>
@@ -157,11 +187,14 @@
   <div id="house" class="panel">
     <div class="name">House Varn</div>
     <div class="renown">★ <span id="renown">0</span> / <span id="goal">12</span> Renown</div>
-    <div class="sub" id="housesub">Hamlets 0 · Keeps 0 · Roads 0</div>
-    <div class="sub" id="highway">Longest road: 0 (Great Highway at 5)</div>
-    <div class="sub" id="lorebits"></div>
-    <div class="sub" id="dragonbits"></div>
     <div id="scores"></div>
+    <div id="houseToggle" class="muted">▸ details</div>
+    <div id="details" class="hidden">
+      <div class="sub" id="housesub">Hamlets 0 · Keeps 0 · Roads 0</div>
+      <div class="sub" id="highway">Longest road: 0 (Great Highway at 5)</div>
+      <div class="sub" id="lorebits"></div>
+      <div class="sub" id="dragonbits"></div>
+    </div>
   </div>
   <div id="harvest" class="panel">
     <div class="label" id="harvestLabel">Landing…</div>
@@ -170,21 +203,23 @@
   </div>
   <div id="objective" class="panel"></div>
   <canvas id="minimap" width="460" height="460"></canvas>
-  <div id="crosshair"></div>
   <div id="tip" class="panel hidden"></div>
   <div id="announce"><div class="big" id="annBig"></div><div class="small" id="annSmall"></div></div>
   <div id="log"></div>
-  <div id="raven" class="panel hidden"><div id="ravenText"></div><div class="muted" style="margin-top:4px"><b>Y</b> accept · <b>N</b> decline</div></div>
+  <div id="raven" class="panel hidden"><div id="ravenText"></div><div style="margin-top:6px"><button id="ravenYes" class="small">✔ ACCEPT</button> <button id="ravenNo" class="small">✖ NO</button></div></div>
   <div id="resources" class="panel"></div>
-  <div id="buildbar"></div>
-  <div id="help" class="panel">
-    <b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump<br>
-    <b>1/2/3</b> blueprint · <b>Click</b> build · <b>Q</b> cancel<br>
-    <b>T</b> Guild trade · <b>M</b> war map · <b>R</b> recall home<br>
-    <b>4</b> Roost · <b>5</b> Scorpion Tower · <b>E</b> take egg<br>
-    <b>F</b> ride / land · <b>G</b> Dragonfire · <b>C</b> dive<br>
-    <b>H</b> hide help · <b>Esc</b> pause
+  <div id="modeChip" class="hidden"></div>
+  <div id="buildMenu" class="panel hidden"></div>
+  <div id="actions">
+    <button class="act" id="actBuild"><i>🔨</i><span>Build</span></button>
+    <button class="act" id="actTrade"><i>⚖️</i><span>Trade</span></button>
+    <button class="act" id="actLore"><i>📜</i><span>Scrolls</span></button>
+    <button class="act" id="actDragon"><i>🐉</i><span id="actDragonLabel">Dragon</span></button>
+    <button class="act fire hidden" id="actFire"><i>🔥</i><span>Fire</span></button>
+    <button class="act" id="actMap"><i>🗺️</i><span>Map</span></button>
+    <button class="act" id="actHome"><i>🏠</i><span>Home</span></button>
   </div>
+  <div id="topBtns"><button id="btnHelp" class="tb">❓ Help</button><button id="btnGuide" class="tb on">🎓 Guide: ON</button></div>
 </div>
 
 <div id="start" class="overlay">
@@ -248,6 +283,32 @@
     <button id="ravenBtn">🐦 RAVEN 1:1</button>
     <button id="tradeClose" class="small" style="margin-left:10px">Close (T)</button>
     <div id="ravenStatus" style="margin-top:10px;min-height:20px"></div>
+  </div>
+</div>
+
+<div id="helpOverlay" class="overlay hidden">
+  <div class="card panel" style="text-align:left;max-width:720px">
+    <h2 class="title" style="font-size:44px;text-align:center">HOW TO PLAY</h2>
+    <div class="cols">
+      <div>
+        <h3>THE GOAL</h3>
+        Be the first house to reach <b>12 Renown ★</b>. Hamlets give 1★, Keeps 2★, a dragon up to 2★, and the longest road or biggest army of Sellswords 2★ each.
+        <h3 style="margin-top:10px">HARVESTS</h3>
+        Every 30–60 s the Rune Stones are cast twice. Each region whose number comes up gives resources to every Hamlet (1) and Keep (2) on its corners. A <b>7</b> brings the Reavers.
+      </div>
+      <div>
+        <h3>CONTROLS (mouse or touch)</h3>
+        <b>Drag</b> to look around<br>
+        <b>Click the ground</b> or the <b>map</b> to walk there<br>
+        <b>Click a gold sign</b> to build there<br>
+        <b>Buttons</b> at the bottom: Build · Trade · Scrolls · Dragon · Map · Home<br>
+        <b>Riding a dragon:</b> click where to fly, 🔥 Fire, Land
+        <h3 style="margin-top:10px">SIGNS</h3>
+        <b style="color:#c27c00">Gold</b> = you can build it now · <b>White</b> = allowed, need resources · <b>Faint ring</b> = a future Hamlet spot, one road away
+        <div class="muted" style="margin-top:8px">Keyboard shortcuts still work: WASD, 1–5, T, L, M, R, E, F, G.</div>
+      </div>
+    </div>
+    <div style="text-align:center"><button id="helpClose">GOT IT</button></div>
   </div>
 </div>
 

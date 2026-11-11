@@ -387,7 +387,7 @@ function makeCow(t) {
   for (const [lx, lz] of [[-0.8, -0.35], [-0.8, 0.35], [0.8, -0.35], [0.8, 0.35]]) { const l = new THREE.Mesh(leg, lm); l.position.set(lx, 0.35, lz); g.add(l); }
   g.traverse(o => o.castShadow = true);
   const p = placeIn(t, 6, HEX_R * 0.65); g.position.set(p.x, p.y, p.z); g.rotation.y = rr(0, 6); scene.add(g);
-  return { g, t, target: placeIn(t, 6, HEX_R * 0.65), wait: rr(0, 5) };
+  return { g, t };
 }
 
 const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
@@ -849,7 +849,6 @@ function finishSetup() {
   announce('THE HOUSES HAVE LANDED', got.length ? 'Your starting supplies: ' + got.join(' ') : 'Let the harvests begin');
   log('🎺 Landing complete. The mist rolls in… explore to reveal the isles.');
   endLanding(); spawnAvatars(); updateHUD(); updateObjective();
-  setTimeout(() => { if (!pointerLocked && state.phase === 'play' && !state.reaverPick) { state.paused = true; $('pause').classList.remove('hidden'); } }, 500);
   if (NET.host) wsSend({ t: 'close' });
 }
 
@@ -1023,7 +1022,7 @@ function bestSite(pid) {
   for (const c of corners) if (!hamletProblem(c, pid)) { const s = cornerScore(c, pid, have); if (s > bs) { bs = s; best = c; } }
   return best;
 }
-function bestRoad(pid) {
+function bestRoad(pid, noise = true) {
   let best = null, bs = 0.5; const have = ownedTypes(pid);
   for (const e of edges) {
     if (roadProblem(e, pid)) continue;
@@ -1034,7 +1033,7 @@ function bestRoad(pid) {
       if (freeSpot(c)) s = Math.max(s, cornerScore(c, pid, have));
       else s = Math.max(s, 0.55 * Math.max(0, ...c.adj.map(id => corners[id]).filter(freeSpot).map(x => cornerScore(x, pid, have))));
     }
-    s += rand() * 0.6;
+    s += noise ? rand() * 0.6 : 0;
     if (players[pid].longest >= 3 && state.highwayHolder !== pid) s += 1;   // chase the Great Highway
     if (s > bs) { bs = s; best = e; }
   }
@@ -1313,47 +1312,79 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyF' && state.phase === 'play') toggleRide();
   if (e.code === 'KeyG' && state.riding) dragonfire();
   if (e.code === 'KeyQ') setMode(null);
-  if (e.code === 'KeyM' && state.phase === 'play') { const el = document.getElementById('minimap'); el.classList.toggle('big'); el.width = el.height = el.classList.contains('big') ? 1000 : 460; }
-  if (e.code === 'KeyH') document.getElementById('help').classList.toggle('hidden');
+  if (e.code === 'KeyM' && state.phase === 'play') toggleMap();
+  if (e.code === 'KeyH') $('helpOverlay').classList.toggle('hidden');
   if (e.code === 'KeyR') recall();
   if (e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
-function lockPointer() {
-  try {
-    const p = canvas.requestPointerLock();
-    if (p && p.catch) p.catch(() => {});
-  } catch (_) {}
-}
-document.addEventListener('pointerlockchange', () => {
-  pointerLocked = document.pointerLockElement === canvas;
-  const inGame = state.phase === 'play';
-  const tradeOpen = !document.getElementById('trade').classList.contains('hidden') || !$('lore').classList.contains('hidden');
-  if (!pointerLocked && inGame && !tradeOpen && !state.reaverPick) { state.paused = true; document.getElementById('pause').classList.remove('hidden'); }
-});
-document.getElementById('pause').addEventListener('click', () => {
-  document.getElementById('pause').classList.add('hidden'); state.paused = false; lockPointer();
-});
-canvas.addEventListener('mousedown', e => {
+// No mouse capture: drag to look around, click (or tap) to act. Works with a mouse and with touch.
+function lockPointer() {}
+document.getElementById('pause').addEventListener('click', () => { document.getElementById('pause').classList.add('hidden'); state.paused = false; });
+const ptr = { down: false, id: null, lx: 0, ly: 0, moved: 0, hover: null };
+canvas.addEventListener('pointerdown', e => {
   if (state.phase !== 'play') return;
   if (e.button === 2) { setMode(null); return; }
-  if (!pointerLocked) { dragLook = true; dragMoved = 0; lockPointer(); return; }
-  if (e.button === 0) { if (state.riding) dragonfire(); else tryBuild(); }
+  ptr.down = true; ptr.id = e.pointerId; ptr.lx = e.clientX; ptr.ly = e.clientY; ptr.moved = 0;
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
 });
-addEventListener('mouseup', e => {
-  if (dragLook && dragMoved < 5 && e.button === 0 && !pointerLocked) tryBuild();
-  dragLook = false;
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') ptr.hover = { x: e.clientX, y: e.clientY };
+  if (!ptr.down || e.pointerId !== ptr.id) return;
+  const dx = e.clientX - ptr.lx, dy = e.clientY - ptr.ly; ptr.lx = e.clientX; ptr.ly = e.clientY;
+  ptr.moved += Math.abs(dx) + Math.abs(dy);
+  if (ptr.moved > 6) {
+    const k = e.pointerType === 'touch' ? 0.006 : 0.0042;
+    player.yaw += dx * k; player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch + dy * k));   // drag the world around you
+  }
 });
+canvas.addEventListener('pointerup', e => {
+  if (!ptr.down || e.pointerId !== ptr.id) return;
+  ptr.down = false;
+  if (ptr.moved <= 6) tapAt(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointercancel', () => { ptr.down = false; });
+canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') ptr.hover = null; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('mousemove', e => {
-  if (!pointerLocked && !dragLook) return;
-  dragMoved += Math.abs(e.movementX) + Math.abs(e.movementY);
-  const s = pointerLocked ? 0.0022 : 0.005;
-  player.yaw -= e.movementX * s;
-  player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch - e.movementY * s));
-});
+
+// what is under a screen point?
+const _rc = new THREE.Raycaster(), _ndc = new THREE.Vector2();
+function groundAt(sx, sy, maxD = 320) {
+  _ndc.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); _rc.setFromCamera(_ndc, camera);
+  const o = _rc.ray.origin, d = _rc.ray.direction;
+  for (let t = 0.5; t < maxD; t += t < 80 ? 0.5 : 1.5) {
+    const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
+    if (y <= heightAt(x, z)) return { x, z, d: t };
+  }
+  return null;
+}
+function tapAt(sx, sy) {
+  if (state.paused || state.phase !== 'play') return;
+  closeMenus();
+  const hit = groundAt(sx, sy);
+  if (state.riding) { if (hit) flyTo(hit); return; }
+  if (!hit) return;
+  // an egg in the Cradle?
+  const egg = cradleEggs.find(e => !e.taken && Math.hypot(e.x - hit.x, e.z - hit.z) < 4);
+  if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); return; }
+  const tgt = hit.d < 120 ? targetNear(hit) : null;
+  if (tgt && !tgt.problem) { currentTarget = tgt; tryBuild(tgt); return; }   // gold sign: build it
+  if (tgt && state.mode) { log('⚠️ ' + tgt.problem); sfx('bad'); return; }   // placing something: explain why not
+  walkTo(hit);   // anything else: walk there
+}
+// click-to-move (and click-to-fly)
+const destMarker = (() => {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.22, 5, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
+  m.rotation.x = Math.PI / 2; m.visible = false; scene.add(m); return m;
+})();
+function walkTo(p) {
+  if (heightAt(p.x, p.z) < 0.6) { const L = Math.hypot(p.x, p.z), k = Math.min(1, 150 / L); p = { x: p.x * k, z: p.z * k }; }   // not into the sea
+  player.autoTarget = { x: p.x, z: p.z };
+  destMarker.position.set(p.x, heightAt(p.x, p.z) + 0.4, p.z); destMarker.visible = true;
+}
+function flyTo(p) { player.autoTarget = { x: p.x, z: p.z }; destMarker.position.set(p.x, heightAt(p.x, p.z) + 0.6, p.z); destMarker.visible = true; }
 
 function recall() {
   if (state.riding || state.carrying) { log('⚠️ The Recall Horn cannot be used while flying or carrying an egg'); return; }
@@ -1385,6 +1416,18 @@ function updatePlayer(dt) {
   if (state.riding) return updateFlight(dt);
   let fx = 0, fz = 0;
   if (keys.KeyW) fz -= 1; if (keys.KeyS) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
+  if (fx || fz) { player.autoTarget = null; destMarker.visible = false; }
+  else if (player.autoTarget) {   // click-to-move: turn toward the target and walk
+    const dx = player.autoTarget.x - player.pos.x, dz = player.autoTarget.z - player.pos.z, d = Math.hypot(dx, dz);
+    if (d < 1.5) { player.autoTarget = null; destMarker.visible = false; }
+    else {
+      const want = Math.atan2(-dx, -dz); let dy = want - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      player.yaw += dy * Math.min(1, dt * 4);
+      const sp = (d > 30 ? 15 : 10) * (onOwnRoad(player.pos.x, player.pos.z) ? 1.5 : 1) * (state.carrying ? 0.7 : 1) * dt;
+      const nx = player.pos.x + dx / d * Math.min(sp, d), nz = player.pos.z + dz / d * Math.min(sp, d);
+      if (heightAt(nx, nz) > 0.6) { player.pos.x = nx; player.pos.z = nz; } else { player.autoTarget = null; destMarker.visible = false; }
+    }
+  }
   const len = Math.hypot(fx, fz);
   if (len > 0) {
     fx /= len; fz /= len;
@@ -1418,15 +1461,7 @@ buildGhosts();
 let roadGhost = null, roadGhostEdge = -1;
 let currentTarget = null;
 const _dir = new THREE.Vector3();
-function aimPoint() {
-  camera.getWorldDirection(_dir);
-  const o = camera.position;
-  for (let d = 1; d < 110; d += 0.5) {
-    const x = o.x + _dir.x * d, y = o.y + _dir.y * d, z = o.z + _dir.z * d;
-    if (y <= heightAt(x, z)) return { x, z, d };
-  }
-  return null;
-}
+function aimPoint() { return ptr.hover && !ptr.down ? groundAt(ptr.hover.x, ptr.hover.y, 120) : null; }
 // What can be built where? Used by the ground signs and by aiming.
 // With no blueprint selected you can aim at any sign and click: the sign decides what gets built.
 function siteReady(kind, x) {
@@ -1446,14 +1481,21 @@ function updateAim() {
     const d = dragonOf(P), t = tileAtWorld(camera.position.x, camera.position.z);
     const prob = d.stage === 'grown' ? scorchProblem(P, t) : 'A Wyrmling is too young for Dragonfire';
     tip.classList.remove('hidden', 'ok', 'bad'); tip.classList.add(prob ? 'bad' : 'ok');
-    tip.textContent = prob ? `🔥 ${prob}` : `🔥 G or click: DRAGONFIRE on ${BIOME[t.type].name} (${t.num})`;
+    tip.textContent = prob ? `🔥 ${prob}` : `🔥 Press FIRE to scorch ${BIOME[t.type].name} (${t.num})`;
+    tip.style.left = '50%'; tip.style.top = '62%';
     return;
   }
   const hit = aimPoint();
   if (!hit) { tip.classList.add('hidden'); return; }
-  // candidates: with a blueprint, every spot of that kind (so you learn why a spot is invalid);
-  // without one, only spots that have a sign on them
-  let best = null, bd = 12;
+  const best = targetNear(hit);
+  if (!best) { tip.classList.add('hidden'); return; }
+  tip.style.left = (ptr.hover.x + 18) + 'px'; tip.style.top = (ptr.hover.y + 14) + 'px';
+  showTarget(best, tip);
+}
+// candidates: with a blueprint, every spot of that kind (so you learn why a spot is invalid);
+// without one, only spots that have a sign on them
+function targetNear(hit) {
+  let best = null, bd = 8;
   const kinds = state.mode ? [state.mode] : ['hamlet', 'keep', 'road'];
   for (const kind of kinds) {
     if (kind === 'road') {
@@ -1470,8 +1512,10 @@ function updateAim() {
       }
     }
   }
-  if (!best) { tip.classList.add('hidden'); return; }
-  best.problem = problemFor(best.kind, best);
+  if (best) best.problem = problemFor(best.kind, best);
+  return best;
+}
+function showTarget(best, tip) {
   currentTarget = best;
   const col = best.problem ? 0xff5040 : 0x7dff8a;
   const showGhost = state.mode || !best.problem;   // no blueprint: only preview what you can actually build
@@ -1485,7 +1529,7 @@ function updateAim() {
   const where = best.c ? '   ' + best.c.tiles.map(id => tiles[id]).map(t => t.num ? `${RES[t.type]?.icon || ''}${t.num}` : '🌋').join(' ') : '';
   tip.classList.remove('hidden', 'ok', 'bad');
   tip.classList.add(best.problem ? 'bad' : 'ok');
-  tip.textContent = best.problem ? `${names[best.kind]}: ✖ ${best.problem}` : `Click: build ${names[best.kind]}${best.kind === 'keep' ? ' (upgrade)' : ''}${where}`;
+  tip.textContent = best.problem ? `${names[best.kind]}: ✖ ${best.problem}` : `Click to build ${names[best.kind]}${best.kind === 'keep' ? ' (upgrade)' : ''}${where}`;
 }
 
 // ---------------------------------------------------------------- ground signs
@@ -1576,10 +1620,44 @@ function refreshMarkers() {
 const $ = id => document.getElementById(id);
 $('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
 const costStr = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join(' ');
-$('buildbar').innerHTML = [['road', '1', 'Road'], ['hamlet', '2', 'Hamlet ★'], ['keep', '3', 'Keep ★★'], ['roost', '4', 'Roost 🐉'], ['tower', '5', 'Tower 🏹']].map(([k, key, nm]) =>
-  `<div class="slot panel" id="b-${k}"><div class="t"><span class="k">${key}</span>${nm}</div><div class="c">${costStr(k)}</div></div>`).join('') +
-  `<div class="slot panel" id="b-lore"><div class="t"><span class="k">L</span>Lore</div><div class="c">${costStr('scroll')}</div></div>` +
-  `<div class="slot panel" id="b-trade"><div class="t"><span class="k">T</span>Trade</div><div class="c">🐦 · 4 → 1</div></div>`;
+$('buildMenu').innerHTML = '<div class="bm-title">BUILD <span class="muted">· click a gold sign in the world</span></div>' +
+  [['road', 'Road', 'connects your lands'], ['hamlet', 'Hamlet', '+1★ · harvests 1'], ['keep', 'Keep', '+1★ · upgrade · harvests 2'], ['roost', 'Dragon Roost', 'beside a Keep · raise a dragon'], ['tower', 'Scorpion Tower', 'stops rival Dragonfire']].map(([k, nm, d]) =>
+    `<div class="slot" id="b-${k}" data-k="${k}"><div class="t">${nm}</div><div class="c">${costStr(k)}</div><div class="d">${d}</div></div>`).join('') +
+  '<div class="slot" data-k="all"><div class="t">Show all signs</div><div class="d">see everything you can build</div></div>';
+$('buildMenu').addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (!k) return; setMode(k === 'all' ? null : k); closeMenus(); });
+function closeMenus() { $('buildMenu').classList.add('hidden'); }
+$('actBuild').addEventListener('click', () => { if (state.phase !== 'play') return; $('buildMenu').classList.toggle('hidden'); });
+$('actTrade').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleTrade(); });
+$('actLore').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleLore(); });
+$('actMap').addEventListener('click', () => { closeMenus(); if (state.phase === 'play') toggleMap(); });
+$('actHome').addEventListener('click', () => { closeMenus(); recall(); });
+$('actFire').addEventListener('click', () => dragonfire());
+$('actDragon').addEventListener('click', () => {
+  closeMenus(); if (state.phase !== 'play') return;
+  const d = dragonOf(P);
+  if (state.riding || (d && d.stage !== 'egg')) return toggleRide();
+  if (state.carrying) return log('🥚 Walk back to your Roost: the egg is placed in the nest automatically');
+  if (d) return log(`🥚 ${dragonStatus()}`);
+  if (!roostOf(P)) { setMode('roost'); return log('🐉 First build a Dragon Roost beside one of your Keeps (gold signs show where)'); }
+  const egg = cradleEggs.filter(e => !e.taken).sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z))[0];
+  if (!egg) return log('⚠️ No dragon eggs are left in the Cradle');
+  if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else { walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); log('🥚 Walking to the Cradle to fetch an egg…'); }
+});
+$('modeChip').addEventListener('click', () => setMode(null));
+$('ravenYes').addEventListener('click', () => answerRaven(true));
+$('ravenNo').addEventListener('click', () => answerRaven(false));
+$('houseToggle').addEventListener('click', () => $('details').classList.toggle('hidden'));
+// help overlay and the beginner guide
+let guideOn = true;
+try { guideOn = localStorage.getItem('dh-guide') !== 'off'; } catch (_) {}
+function setGuide(on) {
+  guideOn = on; try { localStorage.setItem('dh-guide', on ? 'on' : 'off'); } catch (_) {}
+  $('btnGuide').textContent = on ? '🎓 Guide: ON' : '🎓 Guide: OFF'; $('btnGuide').classList.toggle('on', on); if (state.phase !== 'title') updateObjective();
+}
+$('btnGuide').addEventListener('click', () => setGuide(!guideOn));
+$('btnHelp').addEventListener('click', () => $('helpOverlay').classList.remove('hidden'));
+$('helpClose').addEventListener('click', () => $('helpOverlay').classList.add('hidden'));
+setGuide(guideOn);
 $('goal').textContent = GOAL;
 function updateHUD() {
   for (const k of RES_KEYS) document.querySelector(`#r-${k} .n`).textContent = state.res[k];
@@ -1588,11 +1666,21 @@ function updateHUD() {
     el.classList.toggle('active', state.mode === k);
     el.classList.toggle('poor', state.phase === 'play' && (!canAfford(k) || limitHit(k)));
   }
-  $('b-trade').classList.toggle('poor', !RES_KEYS.some(k => state.res[k] >= 4));
+  $('actTrade').classList.toggle('poor', !RES_KEYS.some(k => state.res[k] >= 1));
   $('renown').textContent = totalRenown(P);
   const me = players[P];
   if (me) $('dragonbits').textContent = dragonStatus();
-  $('b-lore').classList.toggle('poor', state.phase === 'play' && !canAfford('scroll') && !(me && me.scrolls.some(c => canPlay(me, c))));
+  $('actLore').classList.toggle('poor', state.phase === 'play' && !canAfford('scroll') && !(me && me.scrolls.some(c => canPlay(me, c))));
+  $('actBuild').classList.toggle('ready', state.phase === 'play' && ['road', 'hamlet', 'keep', 'roost', 'tower'].some(k => canAfford(k) && !limitHit(k)));
+  $('modeChip').classList.toggle('hidden', !state.mode || state.phase !== 'play');
+  if (state.mode) $('modeChip').textContent = `Placing: ${{ road: 'Road', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower' }[state.mode]}  ✕`;
+  if (me) {
+    const d = dragonOf(P);
+    $('actDragonLabel').textContent = state.riding ? 'Land' : d && d.stage !== 'egg' ? 'Ride' : state.carrying ? 'Carrying' : d ? 'Egg' : roostOf(P) ? 'Get egg' : 'Dragon';
+    $('actDragon').classList.toggle('poor', !roostOf(P) && !canAfford('roost'));
+    $('actFire').classList.toggle('hidden', !(state.riding && d && d.stage === 'grown'));
+    $('actHome').classList.toggle('hidden', !!state.riding);
+  }
   if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🛤️ ${me.freeRoads} free roads` : '');
   $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Roads ${state.built.road}/${LIMITS.road}`;
   $('highway').textContent = state.highwayHolder === P ? `🛣️ Great Highway held (${state.longest} roads) +2★` : `Longest road: ${state.longest} (Highway: 5+ and the longest)`;
@@ -1602,21 +1690,65 @@ function updateHUD() {
 }
 function updateObjective() {
   const o = $('objective');
+  let html = null, go = null;
   if (state.phase === 'setup') {
-    const msgs = ['Click a gold corner on the war map to found your FIRST Hamlet',
-      'Click a gold marker to lay a road from your first Hamlet',
-      'Found your SECOND Hamlet (its lands give your starting supplies)',
-      'Lay a road from your second Hamlet. Then the mist rolls in.'];
-    o.textContent = myLandingTurn() ? `Your turn · ` + msgs[players[P]?.setupStep || 0] : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
-    o.classList.remove('hidden');
+    const msgs = ['Click a <b>gold dot</b> on the map to place your first Hamlet. More dots under the numbers = more harvests',
+      'Click a <b>gold dot</b> next to your Hamlet to lay a road',
+      'Place your <b>second Hamlet</b>. Its lands give your starting supplies',
+      'Lay a road from your second Hamlet. Then the mist rolls in'];
+    html = myLandingTurn() ? `🎯 <b>Your turn</b> · ${msgs[players[P]?.setupStep || 0]}` : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
   } else if (state.reaverPick) {
-    o.innerHTML = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the war map to send the Reavers (they block it and rob a rival there)';
-    o.classList.remove('hidden');
-  } else if (state.phase === 'play' && !state.builtInPlay) {
-    o.innerHTML = '💡 <b style="color:#c27c00">Gold</b> signs: build there now, just aim and click · <b>White</b>: allowed, need resources · <span style="opacity:.6">Faint rings</span>: future Hamlet plots, one road away';
-    o.classList.remove('hidden');
-  } else o.classList.add('hidden');
+    html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Reavers block it and rob a rival there';
+  } else if (state.phase === 'play' && guideOn) {
+    const g = nextGoal(); currentGoal = g;
+    html = `<span class="goal-tag">🎯 NEXT GOAL</span> ${g.text}`;
+    go = g.target;
+  }
+  o.classList.toggle('hidden', !html);
+  if (html) o.innerHTML = html + (go ? ' <button class="small go" id="goBtn">🧭 Go</button>' : '');
+  if (go) $('goBtn').onclick = () => { if (state.riding) flyTo(go); else walkTo(go); };
+  beacon.visible = !!(go && guideOn && state.phase === 'play');
+  if (beacon.visible) beacon.position.set(go.x, heightAt(go.x, go.z), go.z);
 }
+let currentGoal = null;
+const beacon = (() => {   // a pillar of light over the next goal
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.2, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  m.geometry.translate(0, 35, 0); m.visible = false; scene.add(m); return m;
+})();
+const needTxt = kind => { const m = []; for (const [k, n] of Object.entries(COST[kind])) if (state.res[k] < n) m.push(`${n - state.res[k]} ${RES[k].icon}`); return m.join(' '); };
+const at = c => ({ x: c.x - c.x / (Math.hypot(c.x, c.z) || 1) * 4, z: c.z - c.z / (Math.hypot(c.x, c.z) || 1) * 4 });
+// What should a beginner do right now? One clear step at a time.
+function nextGoal() {
+  const me = players[P], d = dragonOf(P), have = ownedTypes(P);
+  if (state.carrying) { const c = roostOf(P); return { text: 'Carry the <b>dragon egg</b> home to your Roost', target: c && at(c) }; }
+  if (state.riding && d && d.stage === 'grown' && d.fireCD === 0 && !d.restless) {
+    const t = tiles.find(t => !scorchProblem(P, t));
+    return { text: 'Fly over a rival\'s region and press <b>🔥 FIRE</b>. It yields nothing next harvest', target: t && { x: t.x, z: t.z } };
+  }
+  if (state.riding) return { text: 'Click anywhere to fly there. Higher up you see through the mist. Press <b>Land</b> to get off', target: null };
+  if (canAfford('keep') && !limitHit('keep')) {
+    const c = corners.filter(c => owns(c) && c.building.type === 'hamlet').sort((a, b) => cornerScore(b, P) - cornerScore(a, P))[0];
+    if (c) return { text: 'Upgrade a Hamlet to a <b>Keep</b>: it harvests double (+1★). Click the gold ring', target: at(c) };
+  }
+  const site = !limitHit('hamlet') ? bestSite(P) : null;
+  if (site && canAfford('hamlet')) return { text: 'Found a new <b>Hamlet</b> on the gold ring (+1★)', target: at(site) };
+  if (canAfford('road') && !limitHit('road') && !(site && missing('hamlet').length <= 1)) {
+    const e = bestRoad(P, false);
+    if (e) return { text: 'Lay a <b>Road</b> toward a new Hamlet spot: click the gold dashed line', target: { x: e.mx * 0.92, z: e.mz * 0.92 } };
+  }
+  if (roostOf(P) && !d) { const egg = cradleEggs.find(e => !e.taken); if (egg) return { text: 'Fetch a <b>dragon egg</b> from the volcano and carry it to your Roost', target: { x: egg.x * 0.8, z: egg.z * 0.8 } }; }
+  if (!roostOf(P) && me.built.keep > 0 && canAfford('roost')) { const c = corners.find(c => owns(c) && c.building.type === 'keep' && !roostProblem(c)); if (c) return { text: 'Build a <b>Dragon Roost</b> beside your Keep (🔨 Build → Dragon Roost)', target: at(c) }; }
+  if (d && d.stage !== 'egg' && !d.restless && !state.riding) return { text: 'Your dragon is ready: press <b>Ride</b> to fly and scout through the mist', target: null };
+  // what are we saving for, and can the Guild help?
+  const goal = site || corners.some(c => !c.building && !c.adj.some(id => corners[id].building) && c.edges.some(id => !roadProblem(edges[id]))) ? 'hamlet' : me.built.hamlet ? 'keep' : 'road';
+  const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= 4);
+  if (lack.length && spare) return { text: `Trade at the Guild: 4 ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}`, target: null };
+  if (canAfford('scroll') && deckCount() && resTotal(P) >= 6) return { text: 'Study a <b>Lore Scroll</b> (📜 Scrolls): Sellswords, secret Renown and more', target: null };
+  const nums = [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
+  void have;
+  return { text: `Save up for a <b>${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}</b> (need ${needTxt(goal) || 'nothing'}). Your lands harvest on <b>${nums.join(', ') || '—'}</b>`, target: null };
+}
+setInterval(() => { if (state.phase === 'play') updateObjective(); }, 700);
 function flashRes(k, loss) {
   const el = $('r-' + k); el.classList.remove('flash', 'loss'); void el.offsetWidth; el.classList.add(loss ? 'loss' : 'flash');
   setTimeout(() => el.classList.remove('flash', 'loss'), 900);
@@ -1739,6 +1871,7 @@ function applyFogToWorld(dt) {
 const mm = $('minimap'), mctx = mm.getContext('2d');
 let mapHover = null;
 const mapScale = () => mm.width / (mm.classList.contains('big') ? 300 : 330);
+function toggleMap() { setWarMap(!mm.classList.contains('big')); }
 function setWarMap(open) {
   mm.classList.toggle('big', open); mm.width = mm.height = open ? 1000 : 460;
 }
@@ -1759,6 +1892,11 @@ mm.addEventListener('mousemove', ev => { mapHover = mapTargetAt(ev); if (state.r
 mm.addEventListener('mouseleave', () => { mapHover = null; });
 mm.addEventListener('mousedown', ev => {
   if (state.reaverPick) { const w = mapToWorld(ev), tile = tileAtWorld(w.x, w.z); if (tile && tile !== reaverTile) finishReaverPick(tile); return; }
+  if (state.phase === 'play') {   // click the map to travel there
+    const w = mapToWorld(ev); if (state.riding) flyTo(w); else walkTo(w);
+    if (mm.classList.contains('big')) setWarMap(false);
+    return;
+  }
   const t = mapTargetAt(ev); if (!t) return;
   if (t.problem) { log('⚠️ ' + t.problem); sfx('bad'); return; }
   tryBuild(t); mapHover = null;
@@ -1847,8 +1985,10 @@ function drawMinimap() {
     mctx.fillStyle = ok ? '#f3e9d2' : '#ff9a8a'; mctx.fillText(txt, W / 2, W - fs * 2.1);
   }
   if (state.phase !== 'play') return;
+  if (beacon.visible) { mctx.font = `${18 * u}px serif`; mctx.fillText('🎯', X(beacon.position.x), Y(beacon.position.z)); }
+  if (destMarker.visible) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2 * u; mctx.setLineDash([4 * u, 4 * u]); mctx.beginPath(); mctx.moveTo(X(player.pos.x), Y(player.pos.z)); mctx.lineTo(X(destMarker.position.x), Y(destMarker.position.z)); mctx.stroke(); mctx.setLineDash([]); }
   // player arrow
-  const px = X(player.pos.x), py = Y(player.pos.z), a = -player.yaw + Math.PI;
+  const px = X(player.pos.x), py = Y(player.pos.z), a = -player.yaw;   // arrow points where you look
   mctx.save(); mctx.translate(px, py); mctx.rotate(a);
   mctx.scale(u, u); mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2;
   mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7, 8); mctx.lineTo(0, 4); mctx.lineTo(-7, 8); mctx.closePath(); mctx.fill(); mctx.stroke();
@@ -2196,12 +2336,12 @@ function toggleRide() {
   if (state.carrying) { log('⚠️ Bring the egg home first'); return; }
   if (!d || d.stage === 'egg') { log('⚠️ You have no dragon to ride yet'); return; }
   if (d.restless) { log(`⚠️ Your dragon is Restless: it will eat ${iconsOf(UPKEEP)} at the next harvest`); return; }
-  state.riding = true; setMode(null); player.pos.y += EYE + 9; player.pitch = 0;
+  state.riding = true; setMode(null); player.pos.y += EYE + 9; player.pitch = -0.3; player.autoTarget = null; destMarker.visible = false;
   announce('TO THE SKIES!', 'W fly · Space climb · C dive · Shift faster · ' + (d.stage === 'grown' ? 'G Dragonfire · ' : '') + 'F land');
   sfx('horn'); updateHUD();
 }
 function forceLand() {
-  state.riding = false;
+  state.riding = false; player.autoTarget = null; destMarker.visible = false;
   const x = player.pos.x, z = player.pos.z;
   if (heightAt(x, z) < 0.6) { const c = roostOf(P); player.pos.set(c.x * 0.9, heightAt(c.x * 0.9, c.z * 0.9), c.z * 0.9); }
   else player.pos.y = heightAt(x, z);
@@ -2214,6 +2354,16 @@ function updateFlight(dt) {
   const cy = Math.cos(player.pitch);
   _f.set(-Math.sin(player.yaw) * cy, Math.sin(player.pitch), -Math.cos(player.yaw) * cy);
   const fw = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), st = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  if (fw || st) { player.autoTarget = null; destMarker.visible = false; }
+  else if (player.autoTarget) {
+    const dx = player.autoTarget.x - player.pos.x, dz = player.autoTarget.z - player.pos.z, d = Math.hypot(dx, dz);
+    const want = Math.atan2(-dx, -dz); let dy = want - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    player.yaw += dy * Math.min(1, dt * 2.5);
+    if (d < 3) { player.autoTarget = null; destMarker.visible = false; }
+    else { player.pos.x += dx / d * Math.min(d, sp * dt); player.pos.z += dz / d * Math.min(d, sp * dt); }
+    const cruise = Math.max(0, heightAt(player.pos.x, player.pos.z)) + (grown ? 45 : 30);
+    player.pos.y += (cruise - player.pos.y) * Math.min(1, dt * 1.2);
+  }
   player.pos.addScaledVector(_f, fw * sp * dt);
   player.pos.x += Math.cos(player.yaw) * st * sp * 0.6 * dt; player.pos.z -= Math.sin(player.yaw) * st * sp * 0.6 * dt;
   if (keys.Space) player.pos.y += 18 * dt;
@@ -2671,7 +2821,6 @@ function guestEnterPlay() {
   announce('THE HOUSES HAVE LANDED', got.length ? 'Your starting supplies: ' + got.join(' ') : 'Let the harvests begin');
   log('🎺 Landing complete. The mist rolls in… explore to reveal the isles.');
   endLanding(); spawnAvatars(); updateHUD(); updateObjective();
-  setTimeout(() => { if (!pointerLocked && state.phase === 'play' && !state.reaverPick) { state.paused = true; $('pause').classList.remove('hidden'); } }, 500);
 }
 function guestStep(dt, time) {
   const mine = dragonOf(P);
@@ -2841,15 +2990,10 @@ function loop() {
   clouds.forEach(c => { c.position.x += dt * 3; if (c.position.x > 600) c.position.x = -600; });
   const top = heightAt(0, 0) + 2;
   smoke.forEach(s => { s.userData.age += dt * 0.12; if (s.userData.age > 1) s.userData.age = 0; const a = s.userData.age; s.position.set(Math.sin(a * 9 + s.id) * 3 + a * 18, top + a * 45, Math.cos(a * 7 + s.id) * 3); s.scale.setScalar(0.6 + a * 2.4); });
-  for (const cw of cows) {
-    if (cw.wait > 0) { cw.wait -= dt; continue; }
-    const g = cw.g, dx = cw.target.x - g.position.x, dz = cw.target.z - g.position.z, d = Math.hypot(dx, dz);
-    if (d < 0.5) { cw.target = placeIn(cw.t, 6, HEX_R * 0.65); cw.wait = rr(2, 8); continue; }
-    g.rotation.y = Math.atan2(-dz, dx);
-    g.position.x += dx / d * dt * 1.2; g.position.z += dz / d * dt * 1.2; g.position.y = heightAt(g.position.x, g.position.z);
-  }
   cornerSigns.forEach((s, i) => { if (s.g.visible) { s.ring.rotation.y += dt * 0.6; if (s.label.visible) s.label.position.y += Math.sin(time * 2 + i) * 0.004; } });
   const glow = 0.75 + Math.sin(time * 3) * 0.2; signGold.opacity = glow;
+  if (destMarker.visible) { destMarker.rotation.z += dt * 2; destMarker.scale.setScalar(1 + Math.sin(time * 5) * 0.12); }
+  if (beacon.visible) beacon.material.opacity = 0.22 + Math.sin(time * 2.5) * 0.1;
   for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt * 3; const k = Math.min(1, p.t); p.o.scale.setScalar(0.2 + 0.8 * k + Math.sin(k * Math.PI) * 0.2); if (p.t >= 1) { p.o.scale.setScalar(1); pops.splice(i, 1); } }
   for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s, 1); if (p.t > 1.5) { p.s.scale.set(5, 5, 1); pulse.splice(i, 1); } }
   updateFire(dt);
@@ -2863,4 +3007,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
