@@ -2610,22 +2610,22 @@ const C = h => new THREE.Color(h);
 const DAYKEYS = [
   [0.00, 0x56649e, 0xf3a06a, 0xffaa66, 1.3, 0xb8c4ea, 0x5a4632, 0.95, 0x2f6f92],   // dawn
   [0.10, 0x4a86c8, 0xf6d6ab, 0xffe2b8, 2.5, 0xcfe3ff, 0x5a4632, 1.3, 0x2f7fa6],    // morning
-  [0.30, 0x3b80d2, 0xd4e6f2, 0xfff4e2, 2.8, 0xd8ecff, 0x5e4a34, 1.4, 0x3388b0],    // noon
-  [0.50, 0x4878bc, 0xf4cf9a, 0xffd59a, 2.4, 0xcfe3ff, 0x5a4632, 1.25, 0x2f7fa6],   // afternoon
-  [0.60, 0x3b3c78, 0xf27a46, 0xff7a40, 1.3, 0xa69cc8, 0x4a3628, 0.95, 0x2a5a7c],   // sunset
-  [0.66, 0x1b2050, 0x6e4a72, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // twilight
-  [0.80, 0x080d24, 0x1f2d50, 0x9ab2ee, 0.8, 0x6474b4, 0x2c2a32, 0.95, 0x0f2440],    // midnight
-  [0.94, 0x1b2050, 0x5c4a74, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // before dawn
+  [0.36, 0x3b80d2, 0xd4e6f2, 0xfff4e2, 2.8, 0xd8ecff, 0x5e4a34, 1.4, 0x3388b0],    // noon
+  [0.64, 0x4878bc, 0xf4cf9a, 0xffd59a, 2.4, 0xcfe3ff, 0x5a4632, 1.25, 0x2f7fa6],   // afternoon
+  [0.76, 0x3b3c78, 0xf27a46, 0xff7a40, 1.3, 0xa69cc8, 0x4a3628, 0.95, 0x2a5a7c],   // sunset
+  [0.81, 0x1b2050, 0x6e4a72, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // twilight
+  [0.90, 0x080d24, 0x1f2d50, 0x9ab2ee, 0.8, 0x6474b4, 0x2c2a32, 0.95, 0x0f2440],    // midnight
+  [0.97, 0x1b2050, 0x5c4a74, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // before dawn
   [1.00, 0x56649e, 0xf3a06a, 0xffaa66, 1.3, 0xb8c4ea, 0x5a4632, 0.95, 0x2f6f92],
 ];
 const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
 function lerpHex(a, b, k, out) { return out.copy(_ca.setHex(a)).lerp(_cb.setHex(b), k); }
-const sunAngle = t => t < 0.6 ? t / 0.6 * Math.PI : Math.PI + (t - 0.6) / 0.4 * Math.PI;   // longer days than nights
-let dayT = 0.57, dayCount = 1, night = 0, lastTod = null;
+const sunAngle = t => t < 0.78 ? t / 0.78 * Math.PI : Math.PI + (t - 0.78) / 0.22 * Math.PI;   // long days, short nights
+let dayT = 0.74, dayCount = 1, night = 0, lastTod = null;
 // time-of-day rules: dusk market (Guild 3:1), night raids, dawn bounty
-function isDusk() { return dayT >= 0.55 && dayT < 0.64; }
-function isNight() { return dayT >= 0.64; }
+function isDusk() { return dayT >= 0.70 && dayT < 0.80; }   // ~48 s
+function isNight() { return dayT >= 0.80; }                  // ~96 s
 function todAnnounce(tod) {
   if (tod === 'dusk') announce('🌇 DUSK MARKET', 'Until nightfall the Guild trades 3:1 and the houses take any fair deal');
   if (tod === 'night') announce('🌙 NIGHT FALLS', 'Raid rival Hamlets in the dark, but beware their towers and their lords');
@@ -2656,7 +2656,7 @@ function updateDayNight(dt) {
   glowMat.opacity = 0.1 + night * 0.85;
   lavaLight.intensity = 350 + night * 900;
   if (state.phase === 'play') {
-    const names = [[0.06, '🌅 Dawn'], [0.27, '☀️ Morning'], [0.38, '☀️ Midday'], [0.55, '🌤️ Afternoon'], [0.64, '🌇 Dusk'], [0.93, '🌙 Night'], [1.01, '🌌 Before dawn']];
+    const names = [[0.06, '🌅 Dawn'], [0.30, '☀️ Morning'], [0.44, '☀️ Midday'], [0.70, '🌤️ Afternoon'], [0.80, '🌇 Dusk'], [0.97, '🌙 Night'], [1.01, '🌌 Before dawn']];
     $('clock').textContent = `Day ${dayCount} · ${names.find(n => dayT < n[0])[1]}` + (isDusk() ? ' · Guild 3:1' : isNight() ? ' · raids possible' : state.dawnBounty ? ' · bountiful harvest next' : '');
     const tod = isDusk() ? 'dusk' : isNight() ? 'night' : dayT < 0.06 ? 'dawn' : 'day';
     if (tod !== lastTod) { if (lastTod) todAnnounce(tod); lastTod = tod; }

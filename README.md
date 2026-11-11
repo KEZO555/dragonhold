@@ -56,6 +56,7 @@ Keyboard shortcuts still work: WASD move, 1–5 blueprints, T trade, L scrolls, 
 - `three.module.js` – [three.js](https://threejs.org) r170 (MIT License), vendored
 - `server/server.js` – online server (serves the game, relays messages inside a room)
 - `render.yaml` – one-click deploy to Render
+- `RULES.md` – one-page rules cheat sheet
 - `GAME_DESIGN.md` – the game design document
 
 ## Status

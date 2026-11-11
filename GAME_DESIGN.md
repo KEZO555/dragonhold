@@ -162,7 +162,7 @@ Low-poly shapes drawn like an animated fantasy comic:
 - Touchstones: *Borderlands* (ink lines), *Hi-Fi Rush* / *Sable* (cel color), animated fantasy series.
 
 ### Day / Night Cycle
-- A full day lasts **~8 minutes** (about 4–6 days per match). Days are longer than nights for readability.
+- A full day lasts **~8 minutes**: daylight ~5.6 min, dusk ~50 s, night ~1.5 min.
 - Dawn → morning → midday → afternoon → **painted sunset** → twilight → **starry night with a moon** → before dawn.
 - At night: windows and torches glow, the volcano's lava burns brighter, and the mist gets thicker (shorter sight).
 - **🌅 Dawn bounty:** the first harvest after dawn (both casts) gives +1 to every producing Hamlet and Keep

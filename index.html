@@ -218,6 +218,12 @@
   #harvest { pointer-events:auto; } #hurryBtn { margin:6px 0 8px; font-size:15px; padding:3px 12px; }
   #raidBtn { position:absolute; bottom:290px; left:50%; transform:translateX(-50%); pointer-events:auto; font-size:20px; padding:8px 18px; background:#b9a4ff; }
   #raidBtn .muted { font-family:'Nunito',sans-serif; font-size:12px; color:var(--ink); }
+  .cheat { max-width:900px; text-align:left; }
+  .cheatgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; font-size:13px; line-height:1.45; }
+  .cheatgrid section { background:#fff; border:3px solid var(--ink); border-radius:10px; padding:6px 10px; }
+  .cheatgrid section.wide { grid-column:1/-1; }
+  .cheatgrid h3 { margin:0 0 3px; font-size:18px !important; }
+  @media (max-width:760px) { .cheatgrid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -352,32 +358,34 @@
 </div>
 
 <div id="helpOverlay" class="overlay hidden">
-  <div class="card panel" style="text-align:left;max-width:720px">
-    <h2 class="title" style="font-size:44px;text-align:center">HOW TO PLAY</h2>
-    <div class="cols">
-      <div>
-        <h3>THE GOAL</h3>
-        Be the first house to reach <b>12 Renown ★</b>. Hamlets give 1★, Keeps 2★, a dragon up to 2★, and the longest road or biggest army of Sellswords 2★ each.
-        <h3 style="margin-top:10px">HARVESTS</h3>
-        Every 30–60 s the Rune Stones are cast twice. Each region whose number comes up gives resources to every Hamlet (1) and Keep (2) on its corners. A <b>7</b> brings the Reavers.
-      </div>
-      <div>
-        <h3>CONTROLS (mouse or touch)</h3>
-        <b>Drag</b> to look around · <b>👁️ View</b> switches High / Behind you / First person<br>
-        <b>Walk:</b> click the ground or the map · arrow keys / WASD · 🎮 D-pad on touch screens<br>
-        <b>Build:</b> pick from the bar on the left, then click a <b>gold sign</b><br>
-        <b>Buttons</b> at the bottom: Trade · Scrolls · Dragon · Map · Home<br>
-        <b>Riding a dragon:</b> click where to fly, 🔥 Fire, Land
-        <h3 style="margin-top:10px">DUELS ⚔️</h3>
-        Meet a rival lord and press <b>Challenge</b> (or click them). AI lords may block <i>your</i> path too, especially on their land. Best of 3: Strike beats Feint, Feint beats Block, Block beats Strike. The winner takes 2–3 resources.
-        <h3 style="margin-top:10px">SIGNS</h3>
-        <b style="color:#c27c00">Gold</b> = you can build it now · <b>White</b> = allowed, need resources · <b>Faint ring</b> = a future Hamlet spot, one road away
-        <div class="muted" style="margin-top:8px">Keyboard shortcuts still work: WASD, 1–5, T, L, M, R, E, F, G.</div>
-      </div>
+  <div class="card panel cheat">
+    <h2 class="title" style="font-size:42px;text-align:center;margin-bottom:2px">RULES CHEAT SHEET</h2>
+    <div style="text-align:center;margin-bottom:10px"><b>Goal:</b> first house to <b>12 Renown ★</b></div>
+    <div class="cheatgrid">
+      <section><h3>RENOWN ★</h3>
+        Hamlet <b>1</b> · Keep <b>2</b> · Wyrmling <b>1</b> / grown dragon <b>2</b><br>
+        Great Highway <b>2</b> (5+ roads, longest)<br>Mightiest Host <b>2</b> (3+ Sellswords, most)<br>Renown Scroll <b>1</b> (secret)</section>
+      <section><h3>HARVESTS</h3>
+        Fast at first, then every <b>30–60 s</b>; Rune Stones cast <b>twice</b>.<br>
+        Matching regions pay <b>Hamlet 1 · Keep 2</b>.<br>
+        <b>7 = Reavers:</b> over 7 cards → lose half; the Horn-Bearer blocks a region and robs 1.</section>
+      <section><h3>COSTS</h3>
+        Road 🌲🪨 · Hamlet 🌲🪨🌾🐄<br>Keep 🌾🌾🔥🔥🔥 · Scroll 🌾🐄🔥<br>Roost 🪨🪨🔥🔥🌲 · Tower 🪨🪨🌲🔥<br>
+        <span class="muted">Hamlets: corners, not next to another settlement, touching your road</span></section>
+      <section><h3>TRADE</h3>
+        <b>Guild</b> 4 of one kind → 1 (<b>3:1 at dusk</b>)<br><b>Ravens</b>: any bundle to the AI houses; they take fair deals that help them</section>
+      <section><h3>SCROLLS</h3>
+        Play from the next harvest, one per harvest.<br>Sellsword · Renown (secret ★) · Road Builders · Bountiful Harvest · Royal Decree</section>
+      <section><h3>DRAGONS</h3>
+        Roost beside a Keep → egg from the volcano → 🔥 ×3 → <b>Wyrmling</b> (ride) → 🐄🐄 ×3 → <b>Grown</b>: Dragonfire + Dragon's Eye. Upkeep 🐄🔥 every 3rd harvest. Towers stop Dragonfire.</section>
+      <section><h3>DUELS ⚔️</h3>
+        Best of 3: <b>Strike › Feint › Block › Strike</b>; ties to the mightier.<br>Might = 1 + Sellswords + own land + grown dragon.<br>Winner takes 2–3 cards · Yield = pay 1.</section>
+      <section><h3>TIME OF DAY</h3>
+        🌅 <b>Dawn</b>: next harvest +1 per building<br>🌇 <b>Dusk</b>: Guild 3:1, fair deals accepted<br>🌙 <b>Night</b>: raid rival buildings (steal 1). Owner near → duel · tower → fails</section>
+      <section class="wide"><h3>CONTROLS</h3>
+        <b>Drag</b> to look · <b>click</b> the ground or map to walk · <b>click a gold sign</b> to build · build bar on the left · buttons at the bottom · WASD / arrows · 🎮 D-pad on touch · 👁️ View changes the camera</section>
     </div>
-    <h3>TIME OF DAY</h3>
-    <div style="margin-bottom:12px">🌅 <b>Dawn bounty</b>: the first harvest after dawn gives +1 to every producing Hamlet and Keep · 🌇 <b>Dusk market</b>: the Guild trades 3:1 and the houses take any fair deal · 🌙 <b>Night raids</b>: sneak up to a rival Hamlet or Keep and steal 1 resource (once per building per night). If its lord is near you must duel; a Scorpion Tower spots you and the raid fails.</div>
-    <div style="text-align:center"><button id="helpClose">GOT IT</button></div>
+    <div style="text-align:center;margin-top:10px"><button id="helpClose">GOT IT</button></div>
   </div>
 </div>
 
