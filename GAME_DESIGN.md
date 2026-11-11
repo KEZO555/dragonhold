@@ -165,7 +165,9 @@ Low-poly shapes drawn like an animated fantasy comic:
 - A full day lasts **~8 minutes** (about 4–6 days per match). Days are longer than nights for readability.
 - Dawn → morning → midday → afternoon → **painted sunset** → twilight → **starry night with a moon** → before dawn.
 - At night: windows and torches glow, the volcano's lava burns brighter, and the mist gets thicker (shorter sight).
-- *Gameplay ideas for later (not decided):* Reavers strike harder at night; dragons see in the dark; some Lore Scrolls only work at night.
+- **🌅 Dawn bounty:** the first harvest after dawn (both casts) gives +1 to every producing Hamlet and Keep
+- **🌇 Dusk market:** during dusk the Guild trades 3:1, and AI houses accept any fair raven deal
+- **🌙 Night raids:** at night a lord can raid a rival Hamlet or Keep within ~9 m to steal 1 random resource (once per building per night). If the owner's lord is within ~18 m the raider is caught and must duel; if the owner has a Scorpion Tower on or next to that corner, the raid fails and the raider is knocked back. AI lords raid too.
 
 ### Architecture per House
 | House | Sigil | Style | Hamlet | Keep |

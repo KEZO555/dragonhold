@@ -463,7 +463,7 @@ function harvestPopups(sum) {
     for (const cid of t.corners) {
       const c = corners[cid]; if (!c.building) continue;
       if (c.building.owner !== P && !c.tiles.some(id => visible.has(id))) continue;
-      const n = c.building.type === 'keep' ? 2 : 1;
+      const n = (c.building.type === 'keep' ? 2 : 1) + (state.dawnBounty ? 1 : 0);
       floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#ffe27a' : '#fff4dc');
     }
   }
@@ -929,12 +929,13 @@ function resolveHarvest() {
     if (t.scorchedUntil >= state.harvests) { if (t.corners.some(cid => owns(corners[cid]))) log(`🔥 ${BIOME[t.type].name} (${sum}) is scorched and yields nothing`); continue; }
     for (const cid of t.corners) {
       const c = corners[cid]; if (!c.building) continue;
-      const n = c.building.type === 'keep' ? 2 : 1;
+      const n = (c.building.type === 'keep' ? 2 : 1) + (state.dawnBounty ? 1 : 0);   // dawn bounty
       players[c.building.owner].res[t.type] += n;
       if (c.building.owner === P) gain[t.type] = (gain[t.type] || 0) + n;
     }
   }
   harvestPopups(sum);
+  if (state.dawnBounty) log('🌅 Dawn bounty: +1 for every producing Hamlet and Keep');
   const parts = Object.entries(gain).map(([k, n]) => { flashRes(k); return `+${n} ${RES[k].icon}`; });
   announce(`HARVEST ${state.rollNo || 1}/${ROLLS_PER_HARVEST} · ${sum}`, parts.length ? parts.join('  ') : 'Your lands yield nothing this time');
   log(`🎲 Rune Stones show ${d1} + ${d2} = ${sum}` + (parts.length ? ' → ' + parts.join(' ') : ''));
@@ -1113,6 +1114,7 @@ function aiThink(p) {
   const pid = p.id;
   if (aiPlayScroll(p)) { p.think = 1; return; }
   if (aiDragonPlans(p)) return;
+  if (aiRaidPlan(p)) return;
   if (canAfford('keep', pid) && !limitHit('keep', pid)) {
     const c = corners.filter(c => owns(c, pid) && c.building.type === 'hamlet').sort((a, b) => cornerScore(b, pid) - cornerScore(a, pid))[0];
     if (c) { p.task = { kind: 'keep', c }; return; }
@@ -1209,6 +1211,7 @@ function taskPos(task) {
 function aiExecute(p) {
   const t = p.task; p.task = null;
   if (t.kind === 'egg' || t.kind === 'deliver') return aiEggStep(p, t);
+  if (t.kind === 'raid') { if (!raidProblem(p.id, t.c, p.pos)) raid(p.id, t.c); return; }
   if (problemFor(t.kind, t, p.id)) return;          // someone took the spot, or resources were lost
   pay(t.kind, p.id);
   if (t.kind === 'hamlet') buildHamlet(t.c, p.id); else if (t.kind === 'keep') buildKeep(t.c, p.id);
@@ -1297,7 +1300,7 @@ function aiAccepts(p, give, get, from = P) {
   const nG = bundleSum(give), nR = bundleSum(get);
   if (nG < nR) return 'wants a fairer deal';
   const helps = RES_KEYS.some(k => (give[k] || 0) > 0 && aiWants(p, k));
-  if (!helps && nG < nR + 2) return 'has no need of it';
+  if (!helps && nG < nR + 2 && !isDusk()) return 'has no need of it';   // at dusk any fair deal will do
   return null;
 }
 function sendRaven(give, get) {
@@ -1425,6 +1428,8 @@ function tapAt(sx, sy) {
   // an egg in the Cradle?
   const egg = cradleEggs.find(e => !e.taken && Math.hypot(e.x - hit.x, e.z - hit.z) < 4);
   if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); return; }
+  const rb = isNight() && corners.find(c => c.building && c.building.owner !== P && Math.hypot(c.x - hit.x, c.z - hit.z) < 5);
+  if (rb) { if (Math.hypot(rb.x - player.pos.x, rb.z - player.pos.z) < RAID_RANGE) tryRaid(rb); else walkTo(at(rb)); return; }
   const foe = players.find(p => p.id !== P && p.avatar && p.avatar.visible && Math.hypot(p.pos.x - hit.x, p.pos.z - hit.z) < 3.5);
   if (foe) { if (Math.hypot(foe.pos.x - player.pos.x, foe.pos.z - player.pos.z) < DUEL_RANGE) challenge(foe.id); else walkTo({ x: foe.pos.x, z: foe.pos.z }); return; }
   const tgt = hit.d < 120 ? targetNear(hit) : null;
@@ -1834,10 +1839,14 @@ function nextGoal() {
   if (roostOf(P) && !d) { const egg = cradleEggs.find(e => !e.taken); if (egg) return { text: 'Fetch a <b>dragon egg</b> from the volcano and carry it to your Roost', target: { x: egg.x * 0.8, z: egg.z * 0.8 } }; }
   if (!roostOf(P) && me.built.keep > 0 && canAfford('roost')) { const c = corners.find(c => owns(c) && c.building.type === 'keep' && !roostProblem(c)); if (c) return { text: 'Build a <b>Dragon Roost</b> beside your Keep (🔨 Build → Dragon Roost)', target: at(c) }; }
   if (d && d.stage !== 'egg' && !d.restless && !state.riding) return { text: 'Your dragon is ready: press <b>Ride</b> to fly and scout through the mist', target: null };
+  if (isNight()) {
+    const c = corners.filter(c => c.building && c.building.owner !== P && c.raided !== dayCount).sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z))[0];
+    if (c && Math.hypot(c.x - player.pos.x, c.z - player.pos.z) < 120) return { text: '🌙 Night: sneak to a rival Hamlet and press <b>Raid</b> to steal 1 resource. Beware their towers and lords', target: at(c) };
+  }
   // what are we saving for, and can the Guild help?
   const goal = site || corners.some(c => !c.building && !c.adj.some(id => corners[id].building) && c.edges.some(id => !roadProblem(edges[id]))) ? 'hamlet' : me.built.hamlet ? 'keep' : 'road';
-  const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= 4);
-  if (lack.length && spare) return { text: `Trade at the Guild: 4 ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}`, target: null };
+  const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
+  if (lack.length && spare) return { text: `${isDusk() ? '🌇 Dusk market! ' : ''}Trade at the Guild: ${guildRate()} ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}`, target: null };
   if (canAfford('scroll') && deckCount() && resTotal(P) >= 6) return { text: 'Study a <b>Lore Scroll</b> (📜 Scrolls): Sellswords, secret Renown and more', target: null };
   const nums = [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
   void have;
@@ -1862,9 +1871,10 @@ const bundleTxt = o => RES_KEYS.filter(k => o[k] > 0).map(k => `${o[k]}${RES[k].
 function resetTrade() { RES_KEYS.forEach(k => { tgive[k] = 0; tget[k] = 0; }); }
 resetTrade();
 // Guild: 4 of one kind for each 1 of anything; the bundle may combine several such swaps
+const guildRate = () => isDusk() ? 3 : 4;
 function guildOK(give, get, res) {
-  const g = bundleSum(give), r = bundleSum(get);
-  return g > 0 && r > 0 && g === 4 * r && RES_KEYS.every(k => (give[k] || 0) % 4 === 0 && !(give[k] && get[k]) && res[k] >= (give[k] || 0));
+  const g = bundleSum(give), r = bundleSum(get), q = guildRate();
+  return g > 0 && r > 0 && g === q * r && RES_KEYS.every(k => (give[k] || 0) % q === 0 && !(give[k] && get[k]) && res[k] >= (give[k] || 0));
 }
 function renderTrade() {
   $('tradeTable').innerHTML = '<tr><th></th><th>have</th><th>you GIVE</th><th>you GET</th></tr>' + RES_KEYS.map(k => `<tr>
@@ -1872,7 +1882,8 @@ function renderTrade() {
     <td><button class="st" data-a="g-" data-k="${k}">−</button><b class="${tgive[k] ? 'on' : ''}">${tgive[k]}</b><button class="st" data-a="g+" data-k="${k}">+</button></td>
     <td><button class="st" data-a="r-" data-k="${k}">−</button><b class="${tget[k] ? 'on' : ''}">${tget[k]}</b><button class="st" data-a="r+" data-k="${k}">+</button></td></tr>`).join('');
   const g = bundleSum(tgive), r = bundleSum(tget);
-  $('tradeSummary').innerHTML = g || r ? `You give <b>${bundleTxt(tgive)}</b> → you get <b>${bundleTxt(tget)}</b>` + (g && r && !guildOK(tgive, tget, state.res) ? '<div class="muted">Guild: give 4 of one kind for each 1 you get</div>' : '') : '<span class="muted">Use + and − to build an offer</span>';
+  $('tradeInfo').innerHTML = `<b>Guild</b>: ${guildRate()} of one kind for each 1 of anything${isDusk() ? ' <b>(🌇 dusk market!)</b>' : ''}. <b>Ravens</b>: offer any bundle to the other houses; they accept if it helps them and is fair.`;
+  $('tradeSummary').innerHTML = g || r ? `You give <b>${bundleTxt(tgive)}</b> → you get <b>${bundleTxt(tget)}</b>` + (g && r && !guildOK(tgive, tget, state.res) ? `<div class="muted">Guild: give ${guildRate()} of one kind for each 1 you get</div>` : '') : '<span class="muted">Use + and − to build an offer</span>';
   const enough = RES_KEYS.every(k => state.res[k] >= tgive[k]);
   $('tradeBtn').disabled = !guildOK(tgive, tget, state.res); $('tradeBtn').style.opacity = $('tradeBtn').disabled ? 0.5 : 1;
   $('ravenBtn').disabled = !(g && r && enough); $('ravenBtn').style.opacity = $('ravenBtn').disabled ? 0.5 : 1;
@@ -2611,10 +2622,18 @@ const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(
 const _ca = new THREE.Color(), _cb = new THREE.Color();
 function lerpHex(a, b, k, out) { return out.copy(_ca.setHex(a)).lerp(_cb.setHex(b), k); }
 const sunAngle = t => t < 0.6 ? t / 0.6 * Math.PI : Math.PI + (t - 0.6) / 0.4 * Math.PI;   // longer days than nights
-let dayT = 0.57, dayCount = 1, night = 0;
+let dayT = 0.57, dayCount = 1, night = 0, lastTod = null;
+// time-of-day rules: dusk market (Guild 3:1), night raids, dawn bounty
+function isDusk() { return dayT >= 0.55 && dayT < 0.64; }
+function isNight() { return dayT >= 0.64; }
+function todAnnounce(tod) {
+  if (tod === 'dusk') announce('🌇 DUSK MARKET', 'Until nightfall the Guild trades 3:1 and the houses take any fair deal');
+  if (tod === 'night') announce('🌙 NIGHT FALLS', 'Raid rival Hamlets in the dark, but beware their towers and their lords');
+  if (tod === 'dawn') announce('🌅 DAWN', 'The next harvest is bountiful: +1 for every Hamlet and Keep');
+}
 const _sunDir = new THREE.Vector3();
 function updateDayNight(dt) {
-  if (state.phase === 'play' && !state.paused) { dayT += dt / DAY_LENGTH; if (dayT >= 1) { dayT -= 1; dayCount++; log(`🌅 Dawn of day ${dayCount}`); } }
+  if (state.phase === 'play' && (!state.paused || NET.online)) { dayT += dt / DAY_LENGTH; if (dayT >= 1) { dayT -= 1; dayCount++; log(`🌅 Dawn of day ${dayCount}`); if (!NET.guest) state.dawnBounty = true; } }
   let i = 0; while (DAYKEYS[i + 1][0] < dayT) i++;
   const A = DAYKEYS[i], Bk = DAYKEYS[i + 1], k = (dayT - A[0]) / (Bk[0] - A[0]);
   lerpHex(A[1], Bk[1], k, dayCols.top); lerpHex(A[2], Bk[2], k, dayCols.hor); lerpHex(A[3], Bk[3], k, dayCols.sun);
@@ -2638,7 +2657,9 @@ function updateDayNight(dt) {
   lavaLight.intensity = 350 + night * 900;
   if (state.phase === 'play') {
     const names = [[0.06, '🌅 Dawn'], [0.27, '☀️ Morning'], [0.38, '☀️ Midday'], [0.55, '🌤️ Afternoon'], [0.64, '🌇 Dusk'], [0.93, '🌙 Night'], [1.01, '🌌 Before dawn']];
-    $('clock').textContent = `Day ${dayCount} · ${names.find(n => dayT < n[0])[1]}`;
+    $('clock').textContent = `Day ${dayCount} · ${names.find(n => dayT < n[0])[1]}` + (isDusk() ? ' · Guild 3:1' : isNight() ? ' · raids possible' : state.dawnBounty ? ' · bountiful harvest next' : '');
+    const tod = isDusk() ? 'dusk' : isNight() ? 'night' : dayT < 0.06 ? 'dawn' : 'day';
+    if (tod !== lastTod) { if (lastTod) todAnnounce(tod); lastTod = tod; }
   }
 }
 
@@ -2679,6 +2700,7 @@ function simStep(dt, time) {
     runes.forEach((r, i) => { r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
     if (state.rolling <= 0) {
       resolveHarvest(); state.rollsLeft = (state.rollsLeft || 1) - 1;
+      if (state.rollsLeft <= 0) state.dawnBounty = false;   // the bounty lasts one harvest (both casts)
       state.harvestT = state.harvestLen = state.rollsLeft > 0 ? 3 : nextHarvestDelay();   // short pause, then the second cast
     }
   } else {
@@ -2725,7 +2747,7 @@ function snapFor(seat) {
       phase: state.phase, harvestT: state.harvestT, harvestLen: state.harvestLen, rolling: state.rolling, rollNo: state.rollNo, rollsLeft: state.rollsLeft,
       lastRoll: state.lastRoll, rollSeq: state.rollSeq || 0, dice: state.dice || null, hornIdx: state.hornIdx, order: state.order,
       setupQueue: state.setupQueue, setupTurn: state.setupTurn, highwayHolder: state.highwayHolder, hostHolder: state.hostHolder ?? null,
-      harvests: state.harvests, reaver: reaverTile.id, pickFor: state.pickFor ?? null, dayT, dayCount, deck: deck.length, winner: state.winner ?? null,
+      harvests: state.harvests, dawnBounty: !!state.dawnBounty, reaver: reaverTile.id, pickFor: state.pickFor ?? null, dayT, dayCount, deck: deck.length, winner: state.winner ?? null,
     },
     pl: players.map(p => ({
       id: p.id, res: p.res, built: p.built, longest: p.longest, knights: p.knights, freeRoads: p.freeRoads || 0, playedAt: p.playedAt,
@@ -2783,6 +2805,11 @@ function hostAct(pid, a) {
       const w = a.won ? pid : q.id, l = a.won ? q.id : pid;
       endDuelEffects(w, l, applyDuel(w, l, a.yield ? 1 : lootSize(w, l)));
       return;
+    }
+    case 'raid': {
+      const c = corners[a.c], prob = raidProblem(pid, c, p.rpos);
+      if (prob) return no(prob);
+      raid(pid, c); return;
     }
     case 'duel_human':
       if (players[a.target] && !players[a.target].ai && canDuel(pid, a.target)) autoDuel(pid, a.target);
@@ -2860,7 +2887,7 @@ function syncDragon(p, sd) {
 function applySnapshot(s) {
   const prev = NET.last; NET.last = s;
   const st = s.st;
-  for (const k of ['harvestT', 'harvestLen', 'rolling', 'rollNo', 'rollsLeft', 'lastRoll', 'hornIdx', 'order', 'setupQueue', 'setupTurn', 'highwayHolder', 'hostHolder', 'harvests', 'pickFor']) state[k] = st[k];
+  for (const k of ['harvestT', 'harvestLen', 'rolling', 'rollNo', 'rollsLeft', 'lastRoll', 'hornIdx', 'order', 'setupQueue', 'setupTurn', 'highwayHolder', 'hostHolder', 'harvests', 'pickFor', 'dawnBounty']) state[k] = st[k];
   dayT = st.dayT; dayCount = st.dayCount; NET.deckLeft = st.deck;
   for (const sp of s.pl) {
     const p = players[sp.id]; if (!p) continue;
@@ -3226,6 +3253,76 @@ function aiDuelCheck(p, dt) {
     if (Math.hypot(q.pos.x - p.pos.x, q.pos.z - p.pos.z) < 5 && canDuel(p.id, q.id) && rand() < 0.3) { autoDuel(p.id, q.id); return; }
   }
 }
+// ---------------------------------------------------------------- NIGHT RAIDS
+const RAID_RANGE = 9;
+function raidProblem(pid, c, at) {
+  if (!isNight()) return 'Raids only work at night';
+  if (!c || !c.building || c.building.owner === pid) return 'Pick a rival Hamlet or Keep';
+  if (c.raided === dayCount) return 'Already raided tonight';
+  if (!at || Math.hypot(at.x - c.x, at.z - c.z) > RAID_RANGE) return 'Get closer to the building';
+  if ((pid === P && state.riding) || players[pid].riding) return 'Land your dragon first';
+  return null;
+}
+// host / single player: resolve a raid by `pid` on corner `c`
+function raid(pid, c) {
+  const owner = c.building.owner, where = `${nameOf(owner)}'s ${c.building.type === 'keep' ? 'Keep' : 'Hamlet'}`;
+  c.raided = dayCount;
+  const op = lordAt(owner);
+  const ownerNear = op && Math.hypot(op.x - c.x, op.z - c.z) < 18 && !(owner === P ? state.riding : players[owner].riding);
+  const towerSees = [c, ...c.adj.map(id => corners[id])].some(x => x.tower === owner);
+  if (ownerNear) {   // caught red-handed: fight it out
+    if (pid === P) { announce('CAUGHT!', `${nameOf(owner)} catches you at ${where}. Fight!`); startDuel(owner, true); }
+    else if (owner === P) { announce('🌙 THIEF!', `You catch ${nameOf(pid)} raiding your ${c.building.type}. Fight!`); if (players[pid].ai) startDuel(pid, false); else autoDuel(owner, pid); }
+    else if (players[owner].ai && !players[pid].ai) { players[owner].duelWith = pid; players[owner].duelT = 30; tell(pid, { big: 'CAUGHT!', small: `${nameOf(owner)} catches you at ${where}. Fight!`, duel: owner }); }
+    else if (players[pid].ai && !players[owner].ai) { players[pid].duelWith = owner; players[pid].duelT = 30; tell(owner, { big: '🌙 THIEF!', small: `You catch ${nameOf(pid)} raiding your ${c.building.type}. Fight!`, duel: pid }); }
+    else autoDuel(pid, owner);
+    return 'caught';
+  }
+  if (towerSees) {
+    if (pid === P) { announce('SPOTTED!', `A Scorpion Tower guards ${where}: the raid fails`); knockDown({ x: c.x, z: c.z }); }
+    else tell(pid, { big: 'SPOTTED!', small: `A Scorpion Tower guards ${where}: the raid fails`, daze: true });
+    tell(owner, { log: `🏹 Your Scorpion Tower drove off ${nameOf(pid)}'s night raid` });
+    return 'tower';
+  }
+  const pool = RES_KEYS.flatMap(k => Array(Math.max(0, players[owner].res[k])).fill(k));
+  if (!pool.length) { tell(pid, { big: '🌙 RAID', small: `${where} has an empty storehouse` }); return 'empty'; }
+  const k = pick(pool); players[owner].res[k]--; players[pid].res[k]++;
+  floatText(`+1 ${RES[k].icon}`, c.x, c.y + 9, c.z, '#c9b8ff');
+  tell(pid, { big: '🌙 RAID!', small: `You steal 1 ${RES[k].icon} from ${where}`, log: `🌙 You steal 1 ${RES[k].icon} from ${where}`, flash: [k], sfx: 'build' });
+  tell(owner, { big: '🌙 THIEVES!', small: `${nameOf(pid)} stole 1 ${RES[k].icon} from your ${c.building.type}`, log: `🌙 ${nameOf(pid)} stole 1 ${RES[k].icon} from your ${c.building.type} in the night`, flash: [k], loss: true, sfx: 'raid' });
+  if (pid !== P && owner !== P && c.tiles.some(id => visible.has(id))) log(`🌙 ${nameOf(pid)} raids ${where}`);
+  updateHUD(); refreshMarkers();
+  return 'ok';
+}
+function tryRaid(c) {
+  const prob = raidProblem(P, c, player.pos);
+  if (prob) { log('⚠️ ' + prob); sfx('bad'); return; }
+  if (NET.guest) { netAct({ a: 'raid', c: c.id }); c.raided = dayCount; return; }
+  raid(P, c);
+}
+let raidTarget = null;
+function updateRaid() {
+  let best = null, bd = RAID_RANGE;
+  if (state.phase === 'play' && isNight() && !duel && !state.riding) for (const c of corners) {
+    if (!c.building || c.building.owner === P || c.raided === dayCount) continue;
+    const d = Math.hypot(c.x - player.pos.x, c.z - player.pos.z);
+    if (d < bd) { bd = d; best = c; }
+  }
+  if (best !== raidTarget) {
+    raidTarget = best; $('raidBtn').classList.toggle('hidden', !best);
+    if (best) $('raidBtn').innerHTML = `🌙 Raid ${players[best.building.owner].house.sigil} ${best.building.type === 'keep' ? 'Keep' : 'Hamlet'} <span class="muted">(steal 1 · beware towers & lords)</span>`;
+  }
+}
+$('raidBtn').addEventListener('click', () => { if (raidTarget) tryRaid(raidTarget); });
+// AI lords go thieving at night
+function aiRaidPlan(p) {
+  if (!isNight() || p.carrying || rand() > 0.12) return false;
+  const c = corners.filter(c => c.building && c.building.owner !== p.id && c.raided !== dayCount)
+    .sort((a, b) => Math.hypot(a.x - p.pos.x, a.z - p.pos.z) - Math.hypot(b.x - p.pos.x, b.z - p.pos.z))[0];
+  if (!c || Math.hypot(c.x - p.pos.x, c.z - p.pos.z) > 70) return false;
+  p.task = { kind: 'raid', c }; return true;
+}
+
 // a "Challenge" button appears when a rival lord stands close to you
 function updateChallenge() {
   let best = null, bd = DUEL_RANGE;
@@ -3308,7 +3405,7 @@ function loop() {
   if (beacon.visible) beacon.material.opacity = 0.22 + Math.sin(time * 2.5) * 0.1;
   for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt * 3; const k = Math.min(1, p.t); p.o.scale.setScalar(0.2 + 0.8 * k + Math.sin(k * Math.PI) * 0.2); if (p.t >= 1) { p.o.scale.setScalar(1); pops.splice(i, 1); } }
   for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s * 1.38, 1); if (p.t > 1.5) { p.s.scale.set(5, 6.9, 1); pulse.splice(i, 1); } }
-  updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge();
+  updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge(); updateRaid();
   if (annTimer > 0) { annTimer -= dt; if (annTimer <= 0) $('announce').classList.remove('show'); }
 
   inkU.fadeNear.value = scene.fog.near * 1.4; inkU.fadeFar.value = scene.fog.far * 1.1;
@@ -3319,4 +3416,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
