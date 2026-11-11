@@ -1502,8 +1502,47 @@ function updatePlayer(dt) {
   if (keys.Space && player.onGround) { player.vy = 9; player.onGround = false; }
   player.vy -= 28 * dt; player.pos.y += player.vy * dt;
   if (player.pos.y <= g) { player.pos.y = g; player.vy = 0; player.onGround = true; }
-  camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z);
-  camera.rotation.set(player.pitch, player.yaw, 0);
+  placeCamera(dt);
+}
+// ---------------------------------------------------------------- camera views
+// high (default): eyes raised to a rider's height with a wide view; hero: over the shoulder; first: classic first person
+const VIEWS = {
+  high:  { label: '👁️ View: High',   eye: 4.2, fov: 80 },
+  hero:  { label: '👁️ View: Behind', eye: 2.0, fov: 78, back: 8.5, up: 3.4 },
+  first: { label: '👁️ View: First',  eye: 1.7, fov: 70 },
+};
+let viewMode = 'high', meAvatar = null, meLast = { x: 0, z: 0 };
+try { const v = localStorage.getItem('dh-view'); if (VIEWS[v]) viewMode = v; } catch (_) {}
+function setView(m) {
+  viewMode = m; try { localStorage.setItem('dh-view', m); } catch (_) {}
+  camera.fov = VIEWS[m].fov; camera.updateProjectionMatrix();
+  $('btnView').textContent = VIEWS[m].label;
+}
+const _look = new THREE.Vector3();
+function placeCamera(dt) {
+  const v = VIEWS[viewMode];
+  if (viewMode === 'hero') {
+    const cp = Math.cos(player.pitch), dx = -Math.sin(player.yaw) * cp, dy = Math.sin(player.pitch), dz = -Math.cos(player.yaw) * cp;
+    const x = player.pos.x - dx * v.back, z = player.pos.z - dz * v.back;
+    const y = Math.max(player.pos.y + v.eye + v.up - dy * v.back, heightAt(x, z) + 1.2);
+    camera.position.set(x, y, z);
+    _look.set(player.pos.x + dx * 8, player.pos.y + v.eye + dy * 8, player.pos.z + dz * 8); camera.lookAt(_look);
+  } else {
+    camera.position.set(player.pos.x, player.pos.y + v.eye, player.pos.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+  }
+  // your own lord, seen from behind
+  if (!meAvatar && players[P]) {
+    meAvatar = makeAvatar(players[P].house);
+    meAvatar.children.forEach(o => { if (o.isSprite) o.visible = false; });
+  }
+  if (meAvatar) {
+    meAvatar.visible = viewMode === 'hero' && state.phase === 'play' && !state.riding;
+    const moving = Math.hypot(player.pos.x - meLast.x, player.pos.z - meLast.z) > 0.01; meLast = { x: player.pos.x, z: player.pos.z };
+    meAvatar.position.copy(player.pos); meAvatar.rotation.y = player.yaw + Math.PI;
+    meAvatar.userData.body.position.y = moving ? Math.abs(Math.sin(performance.now() / 110)) * 0.25 : 0;
+    meAvatar.userData.egg.visible = !!state.carrying;
+  }
 }
 
 // ---------------------------------------------------------------- aiming & ghosts
@@ -2078,7 +2117,7 @@ function endLanding() {
   const first = corners.find(c => owns(c)) || corners[0];
   const dx = -first.x, dz = -first.z, L = Math.hypot(dx, dz) || 1;
   const x = first.x + dx / L * 9, z = first.z + dz / L * 9;
-  player.pos.set(x, heightAt(x, z), z); player.yaw = Math.atan2(first.x - x, first.z - z) + Math.PI; player.pitch = -0.1;
+  player.pos.set(x, heightAt(x, z), z); player.yaw = Math.atan2(first.x - x, first.z - z) + Math.PI; player.pitch = -0.22;
   lockPointer();
 }
 
@@ -2450,6 +2489,7 @@ function updateFlight(dt) {
   player.pos.y = Math.min(g + (grown ? 160 : 70), Math.max(g + 5, player.pos.y));
   const L = Math.hypot(player.pos.x, player.pos.z); if (L > 430) { player.pos.x *= 430 / L; player.pos.z *= 430 / L; }
   camera.position.copy(player.pos); camera.rotation.set(player.pitch, player.yaw, 0);
+  if (meAvatar) meAvatar.visible = false;
 }
 
 // --- fire breath particles
@@ -3210,6 +3250,8 @@ function setDpad(on) {
   $('dpad').classList.toggle('hidden', !on); $('btnDpad').classList.toggle('on', on); $('hud').classList.toggle('dpad-on', on);
 }
 $('btnDpad').addEventListener('click', () => setDpad(!dpadOn));
+$('btnView').addEventListener('click', () => { const ks = Object.keys(VIEWS); setView(ks[(ks.indexOf(viewMode) + 1) % ks.length]); });
+setView(viewMode);
 setDpad(dpadOn);
 document.querySelectorAll('#dpad [data-k]').forEach(b => {
   const k = b.dataset.k;
