@@ -64,6 +64,8 @@ You are the heir of a noble house, landing on the ring of islands around **The C
 
 ## 4. Building Costs
 
+> **Roads are walls:** every "road" is built as a Great Wall–style stone wall (battlements, a walkway in the house colour, watchtowers at the ends). Lords can walk along the top. The longest-road award is called **The Great Wall** (+2★). Rules are unchanged.
+
 | Build | Cost | Renown | Notes |
 |---|---|---|---|
 | **Road** | 1 Timber, 1 Stone | 0 | On edges; connects your holdings |

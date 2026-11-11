@@ -652,21 +652,59 @@ const STYLES = {
 function withHouse(h, fn) { const prev = houseMat; houseMat = h.mat; try { return fn(); } finally { houseMat = prev; } }
 const makeHamlet = (h = HOUSE) => withHouse(h, () => STYLES[h.style].hamlet());
 const makeKeep = (h = HOUSE) => withHouse(h, () => STYLES[h.style].keep());
-function makeRoad(e, h = HOUSE) {
-  const g = new THREE.Group(), A = corners[e.a], B = corners[e.b];
-  const dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz), trim = 4, N = 6;
-  const stripe = h.mat;
-  for (let i = 0; i < N; i++) {
-    const t0 = (trim + (L - 2 * trim) * i / N) / L, t1 = (trim + (L - 2 * trim) * (i + 1) / N) / L;
-    const x0 = A.x + dx * t0, z0 = A.z + dz * t0, x1 = A.x + dx * t1, z1 = A.z + dz * t1;
-    const y0 = heightAt(x0, z0) + 0.15, y1 = heightAt(x1, z1) + 0.15;
-    const len = Math.hypot(x1 - x0, y1 - y0, z1 - z0) + 0.15;
-    const seg = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, len), roadMat);
-    seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); seg.lookAt(x1, y1, z1); g.add(seg);
-    if (i % 2 === 0) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, len * 0.6), stripe); s.position.copy(seg.position); s.quaternion.copy(seg.quaternion); s.position.y += 0.05; g.add(s); }
+// Walls in the style of the Great Wall: a stone wall with battlements on both edges, a walkway
+// on top in the house colour, and a small watchtower at each end. (Internally they are still "roads".)
+const WALL_H = 2.6, WALL_TRIM = 4.5;
+const wallStone = mat(0xb8ab94), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
+function mergeGeos(parts) {
+  const pos = [], nor = [];
+  for (const { geo, m } of parts) {
+    const g = (geo.index ? geo.toNonIndexed() : geo.clone()).applyMatrix4(m);
+    pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array); g.dispose();
   }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return out;
+}
+const WG = { body: new THREE.BoxGeometry(2.4, 1, 1), merlon: new THREE.BoxGeometry(0.42, 0.6, 0.7), walk: new THREE.BoxGeometry(0.7, 0.08, 1),
+  tower: new THREE.BoxGeometry(3.4, 1, 3.4), roof: new THREE.ConeGeometry(2.7, 2.2, 4).rotateY(Math.PI / 4) };
+function makeRoad(e, h = HOUSE) {
+  const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz), N = 6;
+  const stone = [], colour = [];
+  const at = (t) => { const x = A.x + dx * t, z = A.z + dz * t; return { x, y: heightAt(x, z), z }; };
+  for (let i = 0; i < N; i++) {
+    const t0 = (WALL_TRIM + (L - 2 * WALL_TRIM) * i / N) / L, t1 = (WALL_TRIM + (L - 2 * WALL_TRIM) * (i + 1) / N) / L;
+    const p0 = at(t0), p1 = at(t1), len = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z) + 0.2;
+    // segment frame: centred on the wall's mid-height, facing along the wall
+    _wo.position.set((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + WALL_H / 2 - 0.4, (p0.z + p1.z) / 2);
+    _wo.lookAt(p1.x, p1.y + WALL_H / 2 - 0.4, p1.z); _wo.scale.set(1, 1, 1); _wo.updateMatrix(); _wm.copy(_wo.matrix);
+    stone.push({ geo: WG.body, m: _wm.clone().multiply(_wt.makeScale(1, WALL_H + 0.8, len)) });
+    for (const side of [-1.0, 1.0]) for (const k of [-0.33, 0, 0.33])   // battlements
+      stone.push({ geo: WG.merlon, m: _wm.clone().multiply(_wt.makeTranslation(side, WALL_H / 2 + 0.7, k * len)) });
+    colour.push({ geo: WG.walk, m: _wm.clone().multiply(_wt.makeTranslation(0, WALL_H / 2 + 0.44, 0)).multiply(new THREE.Matrix4().makeScale(1, 1, len * 0.85)) });
+  }
+  for (const t of [WALL_TRIM / L, 1 - WALL_TRIM / L]) {   // watchtowers at both ends
+    const p = at(t), th = WALL_H + 2.4;
+    stone.push({ geo: WG.tower, m: new THREE.Matrix4().makeTranslation(p.x, p.y + th / 2 - 0.4, p.z).multiply(new THREE.Matrix4().makeScale(1, th, 1)) });
+    colour.push({ geo: WG.roof, m: new THREE.Matrix4().makeTranslation(p.x, p.y + th - 0.4 + 1.1, p.z) });
+  }
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(mergeGeos(stone), wallStone));
+  g.add(new THREE.Mesh(mergeGeos(colour), h.mat));
   g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
   return g;
+}
+// you can walk along the top of any wall, like the Great Wall
+function walkHeight(x, z) {
+  const base = heightAt(x, z);
+  for (const e of edges) {
+    if (e.road === null) continue;
+    const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz, L = Math.sqrt(L2);
+    const t = ((x - A.x) * dx + (z - A.z) * dz) / L2;
+    if (t < WALL_TRIM / L || t > 1 - WALL_TRIM / L) continue;
+    if (Math.hypot(A.x + dx * t - x, A.z + dz * t - z) < 1.3) return base + WALL_H + 0.4;
+  }
+  return base;
 }
 function ghostify(g, color) {
   const gm = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, depthWrite: false });
@@ -711,18 +749,18 @@ const owns = (c, pid = P) => !!c.building && c.building.owner === pid;
 function hamletProblem(c, pid = P) {
   if (c.building) return 'This corner is already claimed';
   if (c.adj.some(id => corners[id].building)) return 'Too close to another settlement';
-  if (state.phase === 'play' && !c.edges.some(id => edges[id].road === pid)) return 'Must connect to one of your roads';
+  if (state.phase === 'play' && !c.edges.some(id => edges[id].road === pid)) return 'Must connect to one of your walls';
   return null;
 }
 function roadProblem(e, pid = P) {
-  if (e.road !== null) return 'A road already runs here';
+  if (e.road !== null) return 'A wall already stands here';
   if (state.phase === 'setup') { const sc = PL(pid).setupCorner; return (sc != null && (e.a === sc || e.b === sc)) ? null : 'Must start at your new Hamlet'; }
   for (const cid of [e.a, e.b]) {
     const c = corners[cid];
     if (owns(c, pid)) return null;
     if (!c.building && c.edges.some(id => id !== e.id && edges[id].road === pid)) return null;
   }
-  return 'Must connect to your roads or Hamlets';
+  return 'Must connect to your walls or Hamlets';
 }
 function keepProblem(c, pid = P) {
   if (!owns(c, pid)) return 'Upgrade one of your own Hamlets';
@@ -780,7 +818,7 @@ function longestRoad(pid = P) {
   for (const e of mine) { dfs(e.a, 0); dfs(e.b, 0); }
   return best;
 }
-// The Great Highway: first to 5 connected roads; taken by anyone who builds a strictly longer one
+// The Great Wall: first to 5 connected roads; taken by anyone who builds a strictly longer one
 function updateHighway() {
   players.forEach(p => p.longest = longestRoad(p.id));
   state.longest = players[P] ? players[P].longest : 0;
@@ -793,8 +831,8 @@ function updateHighway() {
   }
   if (best !== h) {
     state.highwayHolder = best;
-    if (best === P) { announce('THE GREAT HIGHWAY', 'Your roads are the longest in Embervale. +2 Renown'); log('🛣️ You hold the Great Highway (+2★)'); }
-    else if (best !== null) { announce('HIGHWAY SEIZED!', `${nameOf(best)} now holds the Great Highway (+2★)`); log(`🛣️ ${nameOf(best)} takes the Great Highway`); }
+    if (best === P) { announce('THE GREAT WALL', 'Your walls are the longest in Embervale. +2 Renown'); log('🧱 You hold the Great Wall (+2★)'); }
+    else if (best !== null) { announce('GREAT WALL SEIZED!', `${nameOf(best)} now holds the Great Wall (+2★)`); log(`🧱 ${nameOf(best)} takes the Great Wall`); }
   }
 }
 
@@ -837,7 +875,7 @@ function tryBuild(tgt = currentTarget) {
   sfx('build');
   if (state.phase === 'setup') advanceSetup(tgt);
   else {
-    log({ road: '🛤️ Road built', hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Cradle (the volcano)', tower: '🏹 Scorpion Tower built: dragons cannot scorch the regions around it' }[kind]);
+    log({ road: '🧱 Wall built', hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Cradle (the volcano)', tower: '🏹 Scorpion Tower built: dragons cannot scorch the regions around it' }[kind]);
     if (kind === 'roost') announce('THE ROOST IS READY', 'Walk to the Cradle (the volcano), press E at an egg, and carry it home');
     if (state.mode && (!canAfford(state.mode) || limitHit(state.mode))) setMode(null);
     state.builtInPlay = true; updateObjective();
@@ -846,7 +884,7 @@ function tryBuild(tgt = currentTarget) {
 }
 function problemFor(kind, tgt, pid = P) {
   let p = kind === 'road' ? roadProblem(tgt.e, pid) : kind === 'hamlet' ? hamletProblem(tgt.c, pid) : kind === 'roost' ? roostProblem(tgt.c, pid) : kind === 'tower' ? towerProblem(tgt.c, pid) : keepProblem(tgt.c, pid);
-  if (!p && limitHit(kind, pid)) p = `No ${kind}s left in your supply`;
+  if (!p && limitHit(kind, pid)) p = `No ${kind === 'road' ? 'wall' : kind}s left in your supply`;
   if (!p) { const m = missing(kind, pid); if (m.length) p = 'Need ' + m.join(', '); }
   return p;
 }
@@ -1081,7 +1119,7 @@ function bestRoad(pid, noise = true) {
       else s = Math.max(s, 0.55 * Math.max(0, ...c.adj.map(id => corners[id]).filter(freeSpot).map(x => cornerScore(x, pid, have))));
     }
     s += noise ? rand() * 0.6 : 0;
-    if (players[pid].longest >= 3 && state.highwayHolder !== pid) s += 1;   // chase the Great Highway
+    if (players[pid].longest >= 3 && state.highwayHolder !== pid) s += 1;   // chase the Great Wall
     if (s > bs) { bs = s; best = e; }
   }
   return best;
@@ -1153,7 +1191,7 @@ function aiPlayScroll(p) {
 const SCROLLS = {
   sellsword: { name: 'Sellsword', icon: '⚔️', desc: 'Move the Reavers and rob a rival there. Counts toward the Mightiest Host.' },
   renown:    { name: 'Renown Scroll', icon: '👑', desc: '+1 Renown, kept secret from the other houses.' },
-  roads:     { name: 'Road Builders', icon: '🛤️', desc: 'Lay your next 2 roads for free.' },
+  roads:     { name: 'Wall Builders', icon: '🧱', desc: 'Build your next 2 walls for free.' },
   harvest:   { name: 'Bountiful Harvest', icon: '🌾', desc: 'Take any 2 resources.' },
   decree:    { name: 'Royal Decree', icon: '📯', desc: 'Name a resource: every other house gives you all of theirs.' },
 };
@@ -1189,8 +1227,8 @@ function playScroll(pid, idx, arg) {
     if (pid === P && arg == null) startReaverPick('sellsword'); else sendReavers(pid, arg != null ? tiles[arg] : aiChooseReaverTile(pid), '', 'SELLSWORDS!');
   } else if (card.type === 'roads') {
     p.freeRoads += 2;
-    log(`${S.icon} ${who} Road Builders: 2 free roads`);
-    if (pid === P) announce('ROAD BUILDERS', 'Your next 2 roads are free');
+    log(`${S.icon} ${who} Wall Builders: 2 free walls`);
+    if (pid === P) announce('WALL BUILDERS', 'Your next 2 walls are free');
   } else if (card.type === 'harvest') {
     arg.forEach(k => { p.res[k]++; if (pid === P) flashRes(k); });
     log(`${S.icon} ${who} Bountiful Harvest` + (pid === P ? `: +1 ${RES[arg[0]].icon} +1 ${RES[arg[1]].icon}` : ''));
@@ -1223,7 +1261,7 @@ function aiExecute(p) {
 function reportBuild(pid, t) {
   const tile = t.c ? t.c.tiles.map(id => tiles[id]) : [corners[t.e.a], corners[t.e.b]].flatMap(c => c.tiles.map(id => tiles[id]));
   const seen = tile.some(x => visible.has(x.id));
-  const what = { road: 'lays a road', hamlet: 'founds a Hamlet (+1★)', keep: 'raises a Keep (+1★)', roost: 'builds a Dragon Roost 🐉', tower: 'builds a Scorpion Tower 🏹' }[t.kind];
+  const what = { road: 'builds a wall', hamlet: 'founds a Hamlet (+1★)', keep: 'raises a Keep (+1★)', roost: 'builds a Dragon Roost 🐉', tower: 'builds a Scorpion Tower 🏹' }[t.kind];
   if (seen) { log(`👀 ${nameOf(pid)} ${what} nearby`); sfx('build'); }
   else if (t.kind !== 'road') log(`🐦 Ravens report: ${nameOf(pid)} ${what}`);
 }
@@ -1275,7 +1313,7 @@ function updateAI(dt, time) {
       if (d < 1.2) { if (p.task) aiExecute(p); else { p.wander = null; p.wait = rr(3, 9); } }
       else { const sp = Math.min(d, (p.task ? (p.carrying ? 6 : 9) : 4) * dt); p.pos.x += dx / d * sp; p.pos.z += dz / d * sp; p.avatar.rotation.y = Math.atan2(dx, dz); moving = true; }
     }
-    const y = heightAt(p.pos.x, p.pos.z);
+    const y = walkHeight(p.pos.x, p.pos.z);
     p.avatar.position.set(p.pos.x, y, p.pos.z);
     p.avatar.userData.body.position.y = moving ? Math.abs(Math.sin(time * 9 + p.id)) * 0.25 : 0;
     p.avatar.userData.egg.visible = !!p.carrying;
@@ -1503,7 +1541,7 @@ function updatePlayer(dt) {
     else if (heightAt(nx, player.pos.z) > 0.6) player.pos.x = nx;
     else if (heightAt(player.pos.x, nz) > 0.6) player.pos.z = nz;
   }
-  const g = heightAt(player.pos.x, player.pos.z);
+  const g = walkHeight(player.pos.x, player.pos.z);
   if (keys.Space && player.onGround) { player.vy = 9; player.onGround = false; }
   player.vy -= 28 * dt; player.pos.y += player.vy * dt;
   if (player.pos.y <= g) { player.pos.y = g; player.vy = 0; player.onGround = true; }
@@ -1626,7 +1664,7 @@ function showTarget(best, tip) {
   } else {
     const g = ghosts[best.kind]; placeAtCorner(g, best.c); g.visible = showGhost; g.scale.setScalar(1); g.userData.gm.color.setHex(col);
   }
-  const names = { road: 'Road', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower' };
+  const names = { road: 'Wall', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower' };
   const where = best.c ? '   ' + best.c.tiles.map(id => tiles[id]).map(t => t.num ? `${RES[t.type]?.icon || ''}${t.num}` : '🌋').join(' ') : '';
   tip.classList.remove('hidden', 'ok', 'bad');
   tip.classList.add(best.problem ? 'bad' : 'ok');
@@ -1653,7 +1691,7 @@ function signTexture(icon, title, cost, ok) {
 }
 const costIcons = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join('');
 const signMats = {};
-for (const [kind, icon, title] of [['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep ⬆'], ['road', '🛤️', 'Road'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']])
+for (const [kind, icon, title] of [['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep ⬆'], ['road', '🧱', 'Wall'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']])
   for (const ok of [true, false])
     signMats[kind + ok] = new THREE.SpriteMaterial({ map: signTexture(icon, title, costIcons(kind), ok), transparent: true, depthWrite: false });
 
@@ -1721,7 +1759,7 @@ function refreshMarkers() {
 const $ = id => document.getElementById(id);
 $('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
 const costStr = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join(' ');
-$('buildMenu').innerHTML = [['road', '🛤️', 'Road'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
+$('buildMenu').innerHTML = [['road', '🧱', 'Wall'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
   `<div class="slot" id="b-${k}" data-k="${k}"><i>${ic}</i><div><b>${nm}</b><div class="c">${costStr(k).replace(/ /g, '')}</div></div></div>`).join('');
 $('buildMenu').addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (!k || state.phase !== 'play') return; setMode(state.mode === k ? null : k); });
 function closeMenus() {}
@@ -1772,7 +1810,7 @@ function updateHUD() {
   $('actLore').classList.toggle('poor', state.phase === 'play' && !canAfford('scroll') && !(me && me.scrolls.some(c => canPlay(me, c))));
   $('actBuild').classList.toggle('ready', state.phase === 'play' && ['road', 'hamlet', 'keep', 'roost', 'tower'].some(k => canAfford(k) && !limitHit(k)));
   $('modeChip').classList.toggle('hidden', !state.mode || state.phase !== 'play');
-  if (state.mode) $('modeChip').textContent = `Placing: ${{ road: 'Road', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower' }[state.mode]}  ✕`;
+  if (state.mode) $('modeChip').textContent = `Placing: ${{ road: 'Wall', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower' }[state.mode]}  ✕`;
   if (me) {
     const d = dragonOf(P);
     $('actDragonLabel').textContent = state.riding ? 'Land' : d && d.stage !== 'egg' ? 'Ride' : state.carrying ? 'Carrying' : d ? 'Egg' : roostOf(P) ? 'Get egg' : 'Dragon';
@@ -1781,21 +1819,21 @@ function updateHUD() {
     $('actHome').classList.toggle('hidden', !!state.riding);
     document.querySelectorAll('#dpad .fly').forEach(b => b.classList.toggle('hidden', !state.riding));
   }
-  if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🛤️ ${me.freeRoads} free roads` : '');
-  $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Roads ${state.built.road}/${LIMITS.road}`;
-  $('highway').textContent = state.highwayHolder === P ? `🛣️ Great Highway held (${state.longest} roads) +2★` : `Longest road: ${state.longest} (Highway: 5+ and the longest)`;
+  if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🧱 ${me.freeRoads} free walls` : '');
+  $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Walls ${state.built.road}/${LIMITS.road}`;
+  $('highway').textContent = state.highwayHolder === P ? `🧱 Great Wall held (${state.longest} walls) +2★` : `Longest wall: ${state.longest} (Great Wall: 5+ and the longest)`;
   const bearer = state.order.length && state.hornIdx >= 0 ? hornBearer() : null;
   $('scores').innerHTML = players.map(p => `<div class="row ${p.id === P ? 'me' : ''}" style="--hc:${p.house.css}"><span class="sw"></span>${p.house.sigil} ${p.id === P ? 'You' : (!p.ai && p.name ? p.name : p.house.name.replace('House ', '')) + (!p.ai ? ' 👤' : '')}` +
-    `<span class="tags">${p.dragon ? { egg: '🥚', wyrmling: '🐲', grown: '🐉' }[p.dragon.stage] : ''}${p.scrolls?.length && p.id !== P ? '📜' + p.scrolls.length : ''}${state.highwayHolder === p.id ? '🛣️' : ''}${state.hostHolder === p.id ? '⚔️' : ''}${bearer === p.id ? '🎺' : ''}</span><b>${p.id === P ? totalRenown(p.id) : renown(p.id)}★</b></div>`).join('');
+    `<span class="tags">${p.dragon ? { egg: '🥚', wyrmling: '🐲', grown: '🐉' }[p.dragon.stage] : ''}${p.scrolls?.length && p.id !== P ? '📜' + p.scrolls.length : ''}${state.highwayHolder === p.id ? '🧱' : ''}${state.hostHolder === p.id ? '⚔️' : ''}${bearer === p.id ? '🎺' : ''}</span><b>${p.id === P ? totalRenown(p.id) : renown(p.id)}★</b></div>`).join('');
 }
 function updateObjective() {
   const o = $('objective');
   let html = null, go = null;
   if (state.phase === 'setup') {
     const msgs = ['Click a <b>gold dot</b> on the map to place your first Hamlet. More dots under the numbers = more harvests',
-      'Click a <b>gold dot</b> next to your Hamlet to lay a road',
+      'Click a <b>gold dot</b> next to your Hamlet to build a wall',
       'Place your <b>second Hamlet</b>. Its lands give your starting supplies',
-      'Lay a road from your second Hamlet. Then the mist rolls in'];
+      'Build a wall from your second Hamlet. Then the mist rolls in'];
     html = myLandingTurn() ? `🎯 <b>Your turn</b> · ${msgs[players[P]?.setupStep || 0]}` : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
   } else if (state.reaverPick) {
     html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Reavers block it and rob a rival there';
@@ -1834,7 +1872,7 @@ function nextGoal() {
   if (site && canAfford('hamlet')) return { text: 'Found a new <b>Hamlet</b> on the gold ring (+1★)', target: at(site) };
   if (canAfford('road') && !limitHit('road') && !(site && missing('hamlet').length <= 1)) {
     const e = bestRoad(P, false);
-    if (e) return { text: 'Lay a <b>Road</b> toward a new Hamlet spot: click the gold dashed line', target: { x: e.mx * 0.92, z: e.mz * 0.92 } };
+    if (e) return { text: 'Build a <b>Wall</b> toward a new Hamlet spot: click the gold dashed line', target: { x: e.mx * 0.92, z: e.mz * 0.92 } };
   }
   if (roostOf(P) && !d) { const egg = cradleEggs.find(e => !e.taken); if (egg) return { text: 'Fetch a <b>dragon egg</b> from the volcano and carry it to your Roost', target: { x: egg.x * 0.8, z: egg.z * 0.8 } }; }
   if (!roostOf(P) && me.built.keep > 0 && canAfford('roost')) { const c = corners.find(c => owns(c) && c.building.type === 'keep' && !roostProblem(c)); if (c) return { text: 'Build a <b>Dragon Roost</b> beside your Keep (🔨 Build → Dragon Roost)', target: at(c) }; }
@@ -1846,11 +1884,11 @@ function nextGoal() {
   // what are we saving for, and can the Guild help?
   const goal = site || corners.some(c => !c.building && !c.adj.some(id => corners[id].building) && c.edges.some(id => !roadProblem(edges[id]))) ? 'hamlet' : me.built.hamlet ? 'keep' : 'road';
   const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
-  if (lack.length && spare) return { text: `${isDusk() ? '🌇 Dusk market! ' : ''}Trade at the Guild: ${guildRate()} ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}`, target: null };
+  if (lack.length && spare) return { text: `${isDusk() ? '🌇 Dusk market! ' : ''}Trade at the Guild: ${guildRate()} ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Wall'}`, target: null };
   if (canAfford('scroll') && deckCount() && resTotal(P) >= 6) return { text: 'Study a <b>Lore Scroll</b> (📜 Scrolls): Sellswords, secret Renown and more', target: null };
   const nums = [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
   void have;
-  return { text: `Save up for a <b>${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Road'}</b> (need ${needTxt(goal) || 'nothing'}). Your lands harvest on <b>${nums.join(', ') || '—'}</b>`, target: null };
+  return { text: `Save up for a <b>${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Wall'}</b> (need ${needTxt(goal) || 'nothing'}). Your lands harvest on <b>${nums.join(', ') || '—'}</b>`, target: null };
 }
 setInterval(() => { if (state.phase === 'play') updateObjective(); }, 700);
 function flashRes(k, loss) {
@@ -2107,7 +2145,7 @@ function drawMinimap() {
     mctx.strokeStyle = ok ? '#7dff8a' : '#ff5040'; mctx.fillStyle = ok ? 'rgba(125,255,138,.35)' : 'rgba(255,80,64,.35)'; mctx.lineWidth = 3 * u;
     if (mapHover.e) { const A = corners[mapHover.e.a], B = corners[mapHover.e.b]; mctx.lineWidth = 7 * u; mctx.beginPath(); mctx.moveTo(X(A.x), Y(A.z)); mctx.lineTo(X(B.x), Y(B.z)); mctx.stroke(); }
     else { mctx.beginPath(); mctx.arc(X(mapHover.c.x), Y(mapHover.c.z), 10 * u, 0, 7); mctx.fill(); mctx.stroke(); }
-    const txt = mapHover.problem ? '✖ ' + mapHover.problem : mapHover.c ? cornerInfo(mapHover.c) : 'Click to lay this road';
+    const txt = mapHover.problem ? '✖ ' + mapHover.problem : mapHover.c ? cornerInfo(mapHover.c) : 'Click to build this wall';
     mctx.font = `${fs * 1.05}px Georgia`; const tw = mctx.measureText(txt).width + 30;
     mctx.fillStyle = 'rgba(22,16,12,.85)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
     mctx.fillStyle = ok ? '#f3e9d2' : '#ff9a8a'; mctx.fillText(txt, W / 2, W - fs * 2.1);
@@ -2720,7 +2758,7 @@ function updateHumanAvatars(dt) {
     p.pos = p.pos || { x: src.x, z: src.z };
     const k = Math.min(1, dt * 10);
     p.pos.x += (src.x - p.pos.x) * k; p.pos.z += (src.z - p.pos.z) * k;
-    p.avatar.position.set(p.pos.x, heightAt(p.pos.x, p.pos.z), p.pos.z);
+    p.avatar.position.set(p.pos.x, walkHeight(p.pos.x, p.pos.z), p.pos.z);
     p.avatar.rotation.y = src.ry || 0;
     p.avatar.userData.egg.visible = !!p.carrying;
     const t = tileAtWorld(p.pos.x, p.pos.z);
@@ -2949,9 +2987,9 @@ function guestEvents(prev, s) {
     else if (state.phase === 'play') reportBuild(owner, { kind, c: corners[i] });
     else log(`${nameOf(owner)} lands at ${corners[i].tiles.map(id => tiles[id]).map(t => t.num ? RES[t.type].icon + t.num : '🌋').join(' ')}`);
   });
-  s.e.forEach((r, i) => { if (r >= 0 && prev.e[i] < 0) { if (r === P) log('🛤️ Road built'); else if (state.phase === 'play') reportBuild(r, { kind: 'road', e: edges[i] }); } });
+  s.e.forEach((r, i) => { if (r >= 0 && prev.e[i] < 0) { if (r === P) log('🧱 Wall built'); else if (state.phase === 'play') reportBuild(r, { kind: 'road', e: edges[i] }); } });
   if (st.highwayHolder !== prev.st.highwayHolder && st.highwayHolder != null)
-    announce(st.highwayHolder === P ? 'THE GREAT HIGHWAY' : 'HIGHWAY SEIZED!', st.highwayHolder === P ? 'Your roads are the longest in Embervale. +2 Renown' : `${nameOf(st.highwayHolder)} now holds the Great Highway (+2★)`);
+    announce(st.highwayHolder === P ? 'THE GREAT WALL' : 'GREAT WALL SEIZED!', st.highwayHolder === P ? 'Your walls are the longest in Embervale. +2 Renown' : `${nameOf(st.highwayHolder)} now holds the Great Wall (+2★)`);
   if (st.hostHolder !== prev.st.hostHolder && st.hostHolder != null)
     announce(st.hostHolder === P ? 'THE MIGHTIEST HOST' : 'A MIGHTY HOST!', st.hostHolder === P ? 'Your Sellswords are the strongest force. +2 Renown' : `${nameOf(st.hostHolder)} commands the Mightiest Host (+2★)`);
   s.pl.forEach((sp, i) => {
@@ -3416,4 +3454,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

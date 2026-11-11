@@ -8,13 +8,13 @@
 | Hamlet | 1 |
 | Keep (upgraded Hamlet) | 2 |
 | Wyrmling / Grown dragon | 1 / 2 |
-| Great Highway: 5+ connected roads, and the longest | 2 |
+| Great Wall: 5+ connected walls, and the longest | 2 |
 | Mightiest Host: 3+ Sellswords played, and the most | 2 |
 | Renown Scroll (kept secret) | 1 each |
 
 ## Start: landing
 - The whole island is shown **only now**, on the war map.
-- Houses take turns in snake order (1-2-3-4-4-3-2-1). Each places a **Hamlet + Road**, twice.
+- Houses take turns in snake order (1-2-3-4-4-3-2-1). Each places a **Hamlet + Wall**, twice.
 - Your **2nd Hamlet** gives you starting resources. Then the **mist** hides what you haven't explored.
 
 ## Harvests
@@ -25,14 +25,14 @@
 ## Costs (supply limit)
 | Build | Cost | Limit |
 |---|---|---|
-| Road | 🌲🪨 | 15 |
+| Wall | 🌲🪨 | 15 |
 | Hamlet | 🌲🪨🌾🐄 | 5 |
 | Keep (upgrade) | 🌾🌾🔥🔥🔥 | 4 |
 | Lore Scroll | 🌾🐄🔥 | 25 in the library |
 | Dragon Roost (beside a Keep) | 🪨🪨🔥🔥🌲 | 1 |
 | Scorpion Tower | 🪨🪨🌲🔥 | 3 |
 
-**Placement:** Hamlets go on corners, never next to another settlement, and must touch your road. Roads extend your roads or settlements.
+**Placement:** Hamlets go on corners, never next to another settlement, and must touch your wall. Walls extend your walls or settlements.
 
 ## Trading
 - **Guild:** 4 of one kind → 1 of anything (**3:1 at dusk**).
@@ -40,7 +40,7 @@
 
 ## Lore Scrolls
 - You can play a scroll from the **next harvest** on, **one per harvest**.
-- **Sellsword** (move the Reavers + rob) · **Renown Scroll** (+1★ secret) · **Road Builders** (2 free roads) · **Bountiful Harvest** (take 2) · **Royal Decree** (claim everyone's stock of one resource)
+- **Sellsword** (move the Reavers + rob) · **Renown Scroll** (+1★ secret) · **Wall Builders** (2 free walls) · **Bountiful Harvest** (take 2) · **Royal Decree** (claim everyone's stock of one resource)
 
 ## Dragons
 1. Build a **Roost** beside a Keep.
