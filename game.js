@@ -1548,48 +1548,137 @@ function reportBuild(pid, t) {
 // AI lords walk the isles in person
 // A lord on horseback: a horse in a caparison of the house colour, an armoured rider with a plumed helm,
 // a crest shield and a lance with the house banner.
-const COATS = { varn: 0x1e1a18, calder: 0x7a7a80, morrow: 0x5a3e26, ashby: 0xc8bea8 };
+// A lord on horseback, in some detail: a barded warhorse and an armoured knight with crest shield, lance and cloak.
+const COATS = { varn: { coat: 0x1e1a18, socks: false }, calder: { coat: 0x7a7a82, socks: true }, morrow: { coat: 0x5a3e26, socks: false }, ashby: { coat: 0xc8bea8, socks: true } };
+const KM = {};   // shared materials per house (built once)
+function knightMats(h) {
+  if (KM[h.key]) return KM[h.key];
+  const c = COATS[h.key] || COATS.morrow;
+  return (KM[h.key] = {
+    coat: mat(c.coat), sock: mat(c.socks ? 0xe8e0cc : c.coat), mane: mat(0x15110e), hoof: mat(0x241c16),
+    steel: mat(0x9ea2ac), darkSteel: mat(0x55585f), leather: mat(0x4a3020), gold: mat(0xb8913a), skin: mat(0xc89a78),
+    cloth: h.mat, clothDS: new THREE.MeshToonMaterial({ color: h.color, gradientMap: toonRamp, side: THREE.DoubleSide }),
+    crestDS: new THREE.MeshToonMaterial({ map: h.crestMat.map, gradientMap: toonRamp, side: THREE.DoubleSide }),
+    eye: new THREE.MeshBasicMaterial({ color: 0x0a0806 }),
+  });
+}
+const KG = {   // shared geometry
+  sphere: new THREE.SphereGeometry(1, 12, 9), hemi: new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+};
+function mesh(geo, m, x = 0, y = 0, z = 0, sx = 1, sy = 1, sz = 1) { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.set(sx, sy, sz); return o; }
+function tube(r1, r2, h, m, seg = 8) { return new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg), m); }
+function normalizeUV(geo) {
+  geo.computeBoundingBox(); const b = geo.boundingBox, p = geo.attributes.position, uv = [];
+  for (let i = 0; i < p.count; i++) uv.push((p.getX(i) - b.min.x) / (b.max.x - b.min.x), (p.getY(i) - b.min.y) / (b.max.y - b.min.y));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return geo;
+}
+function kiteShape(s = 1) {
+  const k = new THREE.Shape();
+  k.moveTo(-0.3 * s, 0.35 * s); k.quadraticCurveTo(0, 0.45 * s, 0.3 * s, 0.35 * s); k.lineTo(0.28 * s, 0);
+  k.quadraticCurveTo(0.2 * s, -0.3 * s, 0, -0.52 * s); k.quadraticCurveTo(-0.2 * s, -0.3 * s, -0.28 * s, 0); k.closePath();
+  return k;
+}
 function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
+  const m = knightMats(h);
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
-  const horse = mat(COATS[h.key] ?? 0x5a3e26), mane = mat(0x15110e), steel = mat(0x9a9ea8), dark = M.iron, skin = mat(0xc89a78), gold = mat(0xb8913a);
-  // horse
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.5, 4, 8), horse); torso.rotation.x = Math.PI / 2; torso.position.y = 1.6; body.add(torso);
-  const neck = B(0.48, 1.25, 0.62, horse, 0, 1.45, 1.0); neck.rotation.x = -0.65; body.add(neck);
-  const head = B(0.42, 0.45, 1.0, horse, 0, 2.25, 1.55); head.rotation.x = 0.4; body.add(head);
-  for (const sx of [-1, 1]) { const ear = cone(0.08, 0.3, 4, horse, sx * 0.13, 2.7, 1.28); body.add(ear); }
-  const crin = B(0.12, 1.0, 0.5, mane, 0, 1.85, 0.82); crin.rotation.x = -0.65; body.add(crin);
-  const tail = cone(0.2, 1.2, 5, mane, 0, 0.8, -1.3); tail.rotation.x = 2.7; body.add(tail);
-  body.add(B(1.28, 0.8, 2.05, h.mat, 0, 0.95, 0));                       // caparison
-  body.add(B(1.3, 0.12, 2.07, gold, 0, 0.95, 0));                         // gold hem
-  for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.55), h.crestMat); c.position.set(sx * 0.66, 1.45, 0); c.rotation.y = sx * Math.PI / 2; body.add(c); }
-  body.add(B(0.85, 0.22, 0.75, M.woodDark, 0, 2.05, -0.1));               // saddle
-  const legs = [];
-  for (const [x, z] of [[-0.32, 0.72], [0.32, 0.72], [-0.32, -0.72], [0.32, -0.72]]) {
-    const pv = new THREE.Group(); pv.position.set(x, 1.3, z); body.add(pv);
-    pv.add(B(0.2, 1.15, 0.24, horse, 0, -1.15, 0)); pv.add(B(0.24, 0.2, 0.28, mane, 0, -1.3, 0));
-    legs.push(pv);
+  // ---- the horse (faces +z)
+  body.add(mesh(KG.sphere, m.coat, 0, 1.75, 0, 0.6, 0.64, 1.12));          // barrel
+  body.add(mesh(KG.sphere, m.coat, 0, 1.85, 0.82, 0.56, 0.62, 0.55));      // chest
+  body.add(mesh(KG.sphere, m.coat, 0, 1.88, -0.82, 0.6, 0.6, 0.6));        // hindquarters
+  const neck = new THREE.Group(); neck.position.set(0, 2.05, 1.05); neck.rotation.x = 0.62; body.add(neck);
+  const nk = tube(0.21, 0.34, 1.2, m.coat); nk.position.y = 0.55; neck.add(nk);
+  for (let i = 0; i < 6; i++) { const mn = mesh(new THREE.BoxGeometry(0.09, 0.22, 0.2), m.mane, 0, 0.05 + i * 0.2, -0.27 + i * 0.012); mn.rotation.x = -0.25; neck.add(mn); }
+  const head = new THREE.Group(); head.position.y = 1.08; head.rotation.x = 1.55; neck.add(head);
+  head.add(mesh(new THREE.BoxGeometry(0.38, 0.46, 0.42), m.coat, 0, 0.12, 0));
+  const muzzle = tube(0.15, 0.22, 0.62, m.coat); muzzle.position.set(0, 0.62, 0.03); head.add(muzzle);
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.26, 4), m.coat); ear.position.set(sx * 0.12, -0.02, -0.24); ear.rotation.x = -Math.PI / 2; head.add(ear);
+    head.add(mesh(KG.sphere, m.eye, sx * 0.2, 0.22, -0.06, 0.05, 0.05, 0.05));
+    head.add(mesh(KG.sphere, m.eye, sx * 0.07, 0.93, 0.07, 0.035, 0.035, 0.035));                          // nostrils
   }
-  // rider
-  const rider = new THREE.Group(); rider.position.set(0, 2.2, -0.12); body.add(rider);
-  for (const sx of [-1, 1]) { const l = B(0.22, 0.75, 0.26, steel, sx * 0.4, -0.55, 0.12); l.rotation.z = sx * 0.35; rider.add(l); }
-  rider.add(B(0.64, 0.82, 0.42, steel, 0, 0, 0));                         // cuirass
-  rider.add(B(0.5, 0.8, 0.06, h.mat, 0, -0.05, 0.22));                    // tabard
-  rider.add(B(0.68, 0.1, 0.46, M.woodDark, 0, 0.05, 0));                  // belt
-  rider.add(B(0.84, 0.22, 0.46, steel, 0, 0.72, 0));                      // pauldrons
-  const headR = new THREE.Mesh(new THREE.SphereGeometry(0.21, 8, 6), skin); headR.position.y = 1.05; rider.add(headR);
-  rider.add(cyl(0.25, 0.27, 0.42, 8, steel, 0, 0.9, 0));                  // great helm
-  rider.add(B(0.3, 0.05, 0.05, dark, 0, 1.12, 0.26));                     // visor slit
-  const plume = cone(0.1, 0.62, 5, h.mat, 0, 1.3, -0.05); plume.rotation.x = -0.5; rider.add(plume);
-  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.25), new THREE.MeshToonMaterial({ color: h.color, gradientMap: toonRamp, side: THREE.DoubleSide }));
-  cape.position.set(0, 0.1, -0.26); cape.rotation.x = 0.18; rider.add(cape);
-  const shield = new THREE.Group(); shield.position.set(0.47, 0.22, 0.12); shield.rotation.y = Math.PI / 2; rider.add(shield);
-  shield.add(B(0.62, 0.78, 0.07, M.woodDark, 0, -0.39, 0));
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.72), h.crestMat); face.position.z = 0.04; shield.add(face);
-  const lance = cyl(0.045, 0.06, 3.8, 5, M.woodDark, -0.45, -0.6, 0.2); lance.rotation.x = 0.12; rider.add(lance);
-  rider.add(cone(0.07, 0.35, 4, steel, -0.45, 3.2, 0.62));
-  const pen = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.62), new THREE.MeshToonMaterial({ map: h.crestMat.map, gradientMap: toonRamp, side: THREE.DoubleSide }));
-  pen.position.set(-0.45, 2.7, 0.08); pen.rotation.y = Math.PI / 2; rider.add(pen);
-  const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.85, 0); egg.visible = false; rider.add(egg);
+  const chan = mesh(new THREE.BoxGeometry(0.26, 0.74, 0.04), m.steel, 0, 0.44, -0.2); chan.rotation.x = 0.1; head.add(chan);   // chanfron
+  head.add(mesh(new THREE.BoxGeometry(0.28, 0.05, 0.05), m.gold, 0, 0.08, -0.23));
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.25, 4), m.gold); spike.position.set(0, 0.16, -0.27); spike.rotation.x = -Math.PI / 2; head.add(spike);
+  const bridle = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.025, 4, 12), m.leather); bridle.rotation.x = Math.PI / 2; bridle.position.y = 0.6; head.add(bridle);
+  // barding: steel peytral across the chest, a flowing caparison with the crest, saddle and stirrups
+  const pey = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.3, 12, 1, true, -Math.PI / 2, Math.PI), m.darkSteel); pey.position.set(0, 1.66, 0.98); pey.scale.z = 0.62; body.add(pey);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.78, 0.95, 14, 1, true), m.clothDS); cap.position.set(0, 1.28, -0.05); cap.scale.z = 1.75; body.add(cap);
+  const hem = new THREE.Mesh(new THREE.CylinderGeometry(0.785, 0.79, 0.1, 14, 1, true), m.gold); hem.position.set(0, 0.84, -0.05); hem.scale.z = 1.75; body.add(hem);
+  for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.62), m.crestDS); c.position.set(sx * 0.74, 1.3, -0.1); c.rotation.y = sx * Math.PI / 2; c.rotation.z = sx * 0.06; body.add(c); }
+  body.add(mesh(new THREE.BoxGeometry(1.0, 0.06, 1.0), m.gold, 0, 2.36, -0.1));
+  body.add(mesh(new THREE.BoxGeometry(0.62, 0.12, 0.72), m.leather, 0, 2.43, -0.1));
+  body.add(mesh(new THREE.BoxGeometry(0.58, 0.36, 0.1), m.leather, 0, 2.58, -0.46));                      // cantle
+  body.add(mesh(new THREE.BoxGeometry(0.36, 0.26, 0.1), m.leather, 0, 2.5, 0.28));                       // pommel
+  for (const sx of [-1, 1]) {
+    body.add(mesh(new THREE.BoxGeometry(0.03, 0.75, 0.04), m.leather, sx * 0.55, 2.0, 0.12));
+    const st = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.02, 4, 8), m.darkSteel); st.position.set(sx * 0.55, 1.6, 0.12); body.add(st);
+  }
+  // legs: hip → knee/hock → hoof
+  const legs = [];
+  for (const [x, z, front] of [[-0.3, 0.85, 1], [0.3, 0.85, 1], [-0.3, -0.85, 0], [0.3, -0.85, 0]]) {
+    const hip = new THREE.Group(); hip.position.set(x, 1.42, z); body.add(hip);
+    const up = tube(0.12, 0.17, 0.62, m.coat); up.position.y = -0.3; hip.add(up);
+    const knee = new THREE.Group(); knee.position.y = -0.62; hip.add(knee);
+    const low = tube(0.075, 0.1, 0.56, m.sock, 6); low.position.y = -0.27; knee.add(low);
+    knee.add(mesh(KG.sphere, m.sock, 0, -0.56, 0, 0.1, 0.1, 0.1));
+    const hoof = tube(0.12, 0.14, 0.15, m.hoof, 8); hoof.position.y = -0.66; knee.add(hoof);
+    legs.push({ hip, knee, front });
+  }
+  const tail = new THREE.Group(); tail.position.set(0, 2.05, -1.38); body.add(tail);
+  for (const [rx, ry, l] of [[2.55, 0, 1.15], [2.75, 0.18, 1.0], [2.7, -0.18, 1.0]]) {
+    const t = new THREE.Mesh(new THREE.ConeGeometry(0.14, l, 5), m.mane); t.rotation.set(rx, ry, 0); t.position.set(0, -l * 0.42, -0.25); tail.add(t);
+  }
+  // ---- the knight
+  const rider = new THREE.Group(); rider.position.set(0, 2.5, -0.1); body.add(rider);
+  for (const sx of [-1, 1]) {   // armoured legs in the stirrups
+    const th = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.22), m.steel); th.position.set(sx * 0.33, -0.12, 0.16); th.rotation.set(-1.0, 0, sx * 0.25); rider.add(th);
+    const gr = tube(0.08, 0.1, 0.6, m.steel, 6); gr.position.set(sx * 0.5, -0.62, 0.3); rider.add(gr);
+    rider.add(mesh(new THREE.BoxGeometry(0.15, 0.1, 0.3), m.darkSteel, sx * 0.53, -0.95, 0.36));
+  }
+  rider.add(mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.3, 8), m.steel, 0, 0.08, 0));                  // fauld
+  rider.add(mesh(new THREE.CylinderGeometry(0.34, 0.3, 0.62, 8), m.steel, 0, 0.5, 0));                   // breastplate
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66), m.crestDS); tab.position.set(0, 0.42, 0.33); rider.add(tab);   // tabard with crest
+  const tabB = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66), m.clothDS); tabB.position.set(0, 0.42, -0.33); rider.add(tabB);
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.035, 4, 12), m.leather); belt.rotation.x = Math.PI / 2; belt.position.y = 0.2; rider.add(belt);
+  const sword = new THREE.Group(); sword.position.set(0.36, 0.1, 0.05); sword.rotation.z = 0.35; rider.add(sword);   // sword at the hip
+  sword.add(mesh(new THREE.BoxGeometry(0.07, 0.8, 0.1), m.leather, 0, -0.4, 0));
+  sword.add(mesh(new THREE.BoxGeometry(0.26, 0.04, 0.05), m.steel, 0, 0.02, 0));
+  sword.add(mesh(new THREE.BoxGeometry(0.04, 0.16, 0.04), m.leather, 0, 0.12, 0));
+  sword.add(mesh(KG.sphere, m.gold, 0, 0.22, 0, 0.045, 0.045, 0.045));
+  for (const sx of [-1, 1]) rider.add(mesh(KG.hemi, m.steel, sx * 0.36, 0.74, 0, 0.19, 0.17, 0.2));     // pauldrons
+  rider.add(mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.12, 8), m.steel, 0, 0.84, 0));                 // gorget
+  // great helm with eye slit, gold cross and plume
+  rider.add(mesh(new THREE.CylinderGeometry(0.2, 0.21, 0.36, 10), m.steel, 0, 1.06, 0));
+  rider.add(mesh(KG.hemi, m.steel, 0, 1.24, 0, 0.2, 0.12, 0.2));
+  rider.add(mesh(new THREE.BoxGeometry(0.34, 0.035, 0.06), m.eye, 0, 1.1, 0.19));
+  rider.add(mesh(new THREE.BoxGeometry(0.04, 0.3, 0.03), m.gold, 0, 1.0, 0.21));
+  rider.add(mesh(new THREE.BoxGeometry(0.2, 0.035, 0.03), m.gold, 0, 0.98, 0.21));
+  for (const [ry, l] of [[0, 0.7], [0.3, 0.55], [-0.3, 0.55]]) { const pl = new THREE.Mesh(new THREE.ConeGeometry(0.07, l, 5), m.cloth); pl.position.set(0, 1.42, -0.06); pl.rotation.set(-0.55, ry, 0); pl.translateY(l / 2); rider.add(pl); }
+  // arms: right holds the lance, left holds the shield
+  const armR = new THREE.Group(); armR.position.set(-0.4, 0.68, 0); armR.rotation.set(0.35, 0, 0.15); rider.add(armR);
+  const uR = tube(0.075, 0.065, 0.4, m.steel, 6); uR.position.y = -0.2; armR.add(uR);
+  const foreR = new THREE.Group(); foreR.position.y = -0.4; foreR.rotation.x = -1.1; armR.add(foreR);
+  const lR = tube(0.065, 0.055, 0.36, m.steel, 6); lR.position.y = -0.18; foreR.add(lR);
+  foreR.add(mesh(KG.sphere, m.darkSteel, 0, -0.38, 0, 0.08, 0.08, 0.08));
+  const lance = new THREE.Group(); lance.position.set(-0.42, 0.25, 0.42); lance.rotation.x = 0.18; rider.add(lance);
+  const shaft = tube(0.035, 0.06, 4.2, m.leather, 6); shaft.position.y = 1.2; lance.add(shaft);
+  const vamp = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.32, 8), m.steel); vamp.position.y = 0.2; vamp.rotation.x = Math.PI; lance.add(vamp);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.32, 5), m.steel); tip.position.y = 3.45; lance.add(tip);
+  const pShape = new THREE.Shape(); pShape.moveTo(0, 0); pShape.lineTo(1.05, 0); pShape.lineTo(0.82, -0.27); pShape.lineTo(1.05, -0.54); pShape.lineTo(0, -0.54); pShape.closePath();
+  const pen = new THREE.Mesh(normalizeUV(new THREE.ShapeGeometry(pShape)), m.crestDS); pen.position.set(0, 3.15, 0); pen.rotation.y = Math.PI / 2; lance.add(pen);
+  const armL = new THREE.Group(); armL.position.set(0.4, 0.68, 0); armL.rotation.set(0.2, 0, -0.25); rider.add(armL);
+  const uL = tube(0.075, 0.065, 0.42, m.steel, 6); uL.position.y = -0.21; armL.add(uL);
+  const shield = new THREE.Group(); shield.position.set(0.56, 0.3, 0.12); shield.rotation.set(0, Math.PI / 2 - 0.25, 0); rider.add(shield);
+  const rim = new THREE.Mesh(new THREE.ExtrudeGeometry(kiteShape(1.08), { depth: 0.05, bevelEnabled: false }), m.gold); rim.position.z = -0.05; shield.add(rim);
+  shield.add(new THREE.Mesh(new THREE.ExtrudeGeometry(kiteShape(1), { depth: 0.06, bevelEnabled: false }), m.leather));
+  const face = new THREE.Mesh(normalizeUV(new THREE.ShapeGeometry(kiteShape(0.96))), m.crestDS); face.position.z = 0.065; shield.add(face);
+  // cloak with folds
+  const cg = new THREE.PlaneGeometry(0.9, 1.3, 6, 6), cp = cg.attributes.position;
+  for (let i = 0; i < cp.count; i++) cp.setZ(i, Math.sin(cp.getX(i) * 14) * 0.05 * (0.6 - cp.getY(i)));
+  cg.computeVertexNormals();
+  const cloak = new THREE.Mesh(cg, m.clothDS); cloak.position.set(0, 0.2, -0.3); cloak.rotation.x = 0.22; rider.add(cloak);
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.06, 0.03), m.gold); trim.position.set(0, -0.62, 0); cloak.add(trim);
+  const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.8, 0); egg.visible = false; rider.add(egg);
   // name plaque
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const x = cv.getContext('2d');
   x.fillStyle = '#1e1712'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#0d0a08'; x.stroke();
@@ -1597,16 +1686,26 @@ function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   x.fillStyle = '#e3c98a'; x.font = "bold 28px Cinzel, Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthWrite: false, transparent: true }));
-  tag.scale.set(4.4, 1.0, 1); tag.position.y = 5.0; g.add(tag);
-  g.userData = { body, legs, egg, rider };
+  tag.scale.set(4.4, 1.0, 1); tag.position.y = 5.3; g.add(tag);
+  g.userData = { body, legs, egg, rider, neck, tail, cloak, pen };
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.scale.setScalar(1.05); scene.add(g); return g;
 }
-// trot: legs swing in diagonal pairs, the body bobs
+// trot: legs swing in diagonal pairs with the knees and hocks folding, the head nods, the tail and cloak sway
 function animateAvatar(av, moving, time) {
-  const u = av.userData;
-  u.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time * 11 + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.55 : 0; });
-  u.body.position.y = moving ? Math.abs(Math.sin(time * 11)) * 0.1 : 0;
+  const u = av.userData, w = 10;
+  u.legs.forEach((l, i) => {
+    const ph = time * w + (i === 0 || i === 3 ? 0 : Math.PI), sw = Math.sin(ph);
+    l.hip.rotation.x = moving ? sw * 0.5 : 0;
+    const fold = moving ? Math.max(0, -sw) * 0.95 : 0;
+    l.knee.rotation.x = l.front ? fold : -fold * 0.8;
+  });
+  u.body.position.y = moving ? Math.abs(Math.sin(time * w)) * 0.09 : Math.sin(time * 1.6) * 0.012;   // trot bounce / breathing
+  u.neck.rotation.x = 0.62 + (moving ? Math.sin(time * w * 2) * 0.05 : Math.sin(time * 0.7) * 0.04);
+  u.tail.rotation.y = Math.sin(time * (moving ? 6 : 1.5)) * 0.18; u.tail.rotation.x = moving ? -0.25 : 0;
+  u.rider.position.y = 2.5 + (moving ? Math.abs(Math.sin(time * w + 0.6)) * 0.05 : 0);
+  u.cloak.rotation.x = 0.22 + (moving ? 0.3 : 0) + Math.sin(time * 3.2) * 0.05;
+  u.pen.rotation.x = Math.sin(time * 4) * 0.12;
 }
 function spawnAvatars() {
   for (const p of players) {
