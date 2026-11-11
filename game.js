@@ -7,7 +7,12 @@ const HEX_R = 30;                 // hex corner radius (world units ≈ metres)
 const SQ3 = Math.sqrt(3);
 const HARVEST_MIN = 30, HARVEST_MAX = 60;    // each harvest arrives at a random time in this range
 const ROLLS_PER_HARVEST = 2;                  // the Rune Stones are cast twice every harvest
-const nextHarvestDelay = () => HARVEST_MIN + Math.random() * (HARVEST_MAX - HARVEST_MIN);
+// Early on there is little to do, so harvests come quickly (12–20 s) and slow down to 30–60 s over the first ~8 harvests.
+function nextHarvestDelay() {
+  const ramp = Math.min(1, Math.max(0, ((typeof state === 'object' ? state.harvests : 8) - 1) / 7));
+  const lo = 12 + (HARVEST_MIN - 12) * ramp, hi = 20 + (HARVEST_MAX - 20) * ramp;
+  return lo + Math.random() * (hi - lo);
+}
 const GOAL = 12;
 const EYE = 1.7;
 let P = 0;                        // local player's seat (0 = host / single player)
@@ -884,7 +889,7 @@ function advanceSetup(tgt, pid = P) {
 }
 function finishSetup() {
   state.phase = 'play'; setMode(null);
-  state.harvestT = state.harvestLen = 15;   // a quick first harvest to get going
+  state.harvestT = state.harvestLen = 8;    // a quick first harvest to get going
   const got = state.startGot || [];
   announce('THE HOUSES HAVE LANDED', got.length ? 'Your starting supplies: ' + got.join(' ') : 'Let the harvests begin');
   log('🎺 Landing complete. The mist rolls in… explore to reveal the isles.');
@@ -1694,6 +1699,7 @@ $('actDragon').addEventListener('click', () => {
 });
 $('modeChip').addEventListener('click', () => setMode(null));
 $('ravenYes').addEventListener('click', () => answerRaven(true));
+$('hurryBtn').addEventListener('click', () => { if (!NET.online && state.phase === 'play' && state.harvestT > 1) { state.harvestT = 0.6; log('⏩ You call the harvest early'); } });
 $('ravenNo').addEventListener('click', () => answerRaven(false));
 $('houseToggle').addEventListener('click', () => $('details').classList.toggle('hidden'));
 // help overlay and the beginner guide
@@ -3236,6 +3242,10 @@ function loop() {
     $('harvestLabel').textContent = state.rolling > 0 ? `🎲 The Rune Stones are cast… (${state.rollNo}/${ROLLS_PER_HARVEST})` : state.rollsLeft > 0 ? '🎲 Second cast coming…' :
       `🎺 Next harvest in ${Math.ceil(state.harvestT)}s` + (state.lastRoll ? ` · last roll ${state.lastRoll}` : '');
     $('harvestFill').style.width = (state.rolling > 0 ? 100 : 100 * (1 - state.harvestT / state.harvestLen)) + '%';
+    // single player: nothing to build or buy? call the harvest now instead of waiting
+    const idle = !NET.online && !state.rolling && !(state.rollsLeft > 0) && state.harvestT > 3 && !state.riding
+      && !['road', 'hamlet', 'keep', 'roost', 'tower', 'scroll'].some(k => canAfford(k) && (k === 'scroll' || !limitHit(k)));
+    $('hurryBtn').classList.toggle('hidden', !idle);
   } else if (state.phase === 'setup') $('harvestLabel').textContent = 'Landing: found your first two Hamlets';
 
   updateDayNight(dt); computeVisibility(); applyFogToWorld(dt);
@@ -3267,4 +3277,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

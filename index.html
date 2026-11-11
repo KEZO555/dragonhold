@@ -215,6 +215,7 @@
   .dp.up { left:60px; top:0; } .dp.left { left:0; top:60px; } .dp.right { left:120px; top:60px; } .dp[data-k="KeyS"] { left:60px; top:120px; }
   .dp.climb { left:200px; top:20px; } .dp.dive { left:200px; top:100px; }
   @media (max-width:760px) { #buildMenu { top:200px; transform:scale(.8); transform-origin:top left; } #dpad { bottom:12px; transform:scale(.8); transform-origin:bottom left; } }
+  #harvest { pointer-events:auto; } #hurryBtn { margin:6px 0 8px; font-size:15px; padding:3px 12px; }
 </style>
 </head>
 <body>
@@ -236,6 +237,7 @@
   <div id="harvest" class="panel">
     <div class="label" id="harvestLabel">Landing…</div>
     <div class="bar"><div class="fill" id="harvestFill"></div></div>
+    <button id="hurryBtn" class="small hidden">⏩ Harvest now</button>
     <div class="label" id="clock" style="margin-top:5px;opacity:.85;font-size:12px"></div>
   </div>
   <div id="objective" class="panel"></div>

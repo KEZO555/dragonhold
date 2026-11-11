@@ -240,7 +240,8 @@ AI lords move around the world physically, so you **see** them walking to claim 
 ---
 
 ## 11b. Pacing (measured in AI-only simulations)
-- Harvest every 30–60 s, Rune Stones cast twice, goal **12 Renown**
+- Harvests start fast and slow down: first harvest after 8 s, then 12–20 s, ramping to 30–60 s by the 8th harvest; Rune Stones cast twice, goal **12 Renown**
+- Single player: a **⏩ Harvest now** button appears whenever you can't build or buy anything
 - 3 AI houses reached 12 after **29–35 harvests ≈ 23–28 min**; with a human player (trading, pauses, competition) expect ~30–40 min
 
 ## 12. Open Questions
