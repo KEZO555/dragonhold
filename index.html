@@ -142,6 +142,12 @@
   .slot .c { font-size:11px; white-space:nowrap; letter-spacing:0; }
   #resources { bottom:78px; }
   #help { top:262px; bottom:auto; }
+  .online { margin-top:16px; padding-top:12px; border-top:2px dashed rgba(23,17,13,.3); }
+  .online h3 { margin:0 0 8px; }
+  .online input { font-family:inherit; font-size:15px; padding:7px 10px; border:3px solid var(--ink); border-radius:8px; width:170px; }
+  .code { font-family:'Bangers',Impact,sans-serif; font-size:34px; letter-spacing:3px; background:var(--yellow); border:3px solid var(--ink); border-radius:8px; padding:0 10px; box-shadow:3px 3px 0 var(--ink); }
+  .seat { display:flex; align-items:center; gap:8px; padding:6px 10px; margin:5px auto; max-width:420px; background:#fff; border:3px solid var(--ink); border-left:10px solid var(--hc, #888); border-radius:8px; text-align:left; }
+  .seat.ai { opacity:.6; border-left-color:#888; } .seat .sig { font-size:22px; }
 </style>
 </head>
 <body>
@@ -208,7 +214,16 @@
     <h3 style="color:var(--gold);letter-spacing:1px;margin:4px 0 8px;font-size:15px">CHOOSE YOUR HOUSE</h3>
     <div id="housePick" class="houses"></div>
     <div id="rivalPick" class="rivals">AI rival houses: <span data-n="1">1</span><span data-n="2">2</span><span data-n="3" class="sel">3</span></div>
-    <button id="startBtn">RAISE THE BANNER</button>
+    <button id="startBtn">PLAY VS AI</button>
+    <div class="online">
+      <h3>PLAY ONLINE WITH FRIENDS</h3>
+      <input id="netName" placeholder="Your name" maxlength="16">
+      <button id="createBtn" class="small">CREATE GAME</button>
+      <span class="muted" style="margin:0 6px">or</span>
+      <input id="joinCode" placeholder="CODE (e.g. WOLF-42)" maxlength="9" style="width:150px;text-transform:uppercase">
+      <button id="joinBtn" class="small">JOIN</button>
+      <div id="netStatus" class="muted" style="margin-top:6px;min-height:18px"></div>
+    </div>
     <p class="muted">Prototype · Milestone 1: “Walk the Isles”. AI rivals and dragons come in the next milestones.</p>
   </div>
 </div>
@@ -233,6 +248,21 @@
     <button id="ravenBtn">🐦 RAVEN 1:1</button>
     <button id="tradeClose" class="small" style="margin-left:10px">Close (T)</button>
     <div id="ravenStatus" style="margin-top:10px;min-height:20px"></div>
+  </div>
+</div>
+
+<div id="lobby" class="overlay hidden">
+  <div class="card panel" style="min-width:560px">
+    <h2 class="title" style="font-size:48px;letter-spacing:4px">WAR COUNCIL</h2>
+    <div style="font-size:18px">Invite code: <span id="lobbyCode" class="code"></span></div>
+    <div style="margin:6px 0 12px"><span id="lobbyLink" class="muted"></span> <button id="copyLink" class="small">COPY LINK</button></div>
+    <div id="lobbySeats"></div>
+    <div id="lobbyHost" class="hidden">
+      <div class="rivals" id="aiFill" style="margin:12px 0">AI houses for empty seats: <span data-n="0">0</span><span data-n="1" class="sel">1</span><span data-n="2">2</span><span data-n="3">3</span></div>
+      <button id="lobbyStart">START THE GAME</button>
+    </div>
+    <div id="lobbyGuest" class="hidden muted" style="margin-top:12px">The host starts the game when everyone is here.</div>
+    <div id="lobbyStatus" class="muted" style="margin-top:10px;min-height:18px"></div>
   </div>
 </div>
 

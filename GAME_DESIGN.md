@@ -222,9 +222,14 @@ AI lords move around the world physically, so you **see** them walking to claim 
 - **Scorpion Tower** (key 5, 🪨🪨🌲🔥, up to 3): regions touching it cannot be scorched by rival dragons
 - **AI:** builds Roosts (at 4+ Renown), fetches eggs, raises dragons, scorches the leader's best regions, builds towers when rival dragons appear
 
-**Milestone 4: "Online"**
-- WebSocket server, lobby with invite code, seats filled by AI
-
+**Milestone 4: "Online"** ✅ (prototype)
+- One Render web service (`render.yaml`) serves the game and relays messages over WebSockets
+- **CREATE GAME** gives an invite code (e.g. `WOLF-42`) and a link; friends **JOIN** with their name; up to 4 players
+- The **host's browser is authoritative**: it runs rules, dice, AI and dragons and sends each friend a snapshot 10×/s; friends send actions that the host validates again
+- Friends load the same island from the host's world seed; other houses' Lore Scrolls stay hidden in snapshots
+- Empty seats → AI houses; a friend who leaves is replaced by an AI steward
+- Online games never pause (panels and Reaver choices don't stop the world); a remote Horn-Bearer has 25 s to choose
+- *Not yet:* proximity voice, player-to-player raven trades, rejoining after a disconnect, the host leaving ends the game
 ---
 
 ## 11b. Pacing (measured in AI-only simulations)

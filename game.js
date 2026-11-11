@@ -10,7 +10,7 @@ const ROLLS_PER_HARVEST = 2;                  // the Rune Stones are cast twice 
 const nextHarvestDelay = () => HARVEST_MIN + Math.random() * (HARVEST_MAX - HARVEST_MIN);
 const GOAL = 12;
 const EYE = 1.7;
-const P = 0;                      // local player index
+let P = 0;                        // local player's seat (0 = host / single player)
 const LIMITS = { road: 15, hamlet: 5, keep: 4, roost: 1, tower: 3 };
 const COST = {
   road:   { timber: 1, stone: 1 },
@@ -46,7 +46,8 @@ let HOUSE = HOUSES.varn;
 const DAY_LENGTH = 480;            // seconds for a full day + night
 
 // ---------------------------------------------------------------- rng & noise
-let seed = (Math.random() * 2 ** 31) | 0;
+const URLQ = new URLSearchParams(location.search);
+let seed = URLQ.get('seed') ? (+URLQ.get('seed') | 0) : ((Math.random() * 2 ** 31) | 0);   // guests load the host's world
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const rand = mulberry32(seed);
 const rr = (a, b) => a + rand() * (b - a);
@@ -658,7 +659,7 @@ const explored = new Set(), visible = new Set();
 const SIGHT = 48;            // how far you can see on foot (tile centres within this radius)
 const buildingObjs = new Map();   // corner id -> Object3D
 const PL = pid => players[pid] || { res: state.res, built: state.built };
-const nameOf = pid => `${players[pid].house.sigil} ${players[pid].house.name}`;
+const nameOf = pid => { const p = players[pid]; return `${p.house.sigil} ${!p.ai && p.name ? `${p.name} of ${p.house.name.replace('House ', '')}` : p.house.name}`; };
 
 // ---------------------------------------------------------------- rules (pid = which house; defaults to you)
 const owns = (c, pid = P) => !!c.building && c.building.owner === pid;
@@ -670,7 +671,7 @@ function hamletProblem(c, pid = P) {
 }
 function roadProblem(e, pid = P) {
   if (e.road !== null) return 'A road already runs here';
-  if (state.phase === 'setup') return (pid === P && (e.a === state.setupCorner || e.b === state.setupCorner)) ? null : 'Must start at your new Hamlet';
+  if (state.phase === 'setup') { const sc = PL(pid).setupCorner; return (sc != null && (e.a === sc || e.b === sc)) ? null : 'Must start at your new Hamlet'; }
   for (const cid of [e.a, e.b]) {
     const c = corners[cid];
     if (owns(c, pid)) return null;
@@ -781,6 +782,7 @@ function tryBuild(tgt = currentTarget) {
   if (!kind || (kind === 'road') !== !!tgt.e) return;
   tgt.problem = problemFor(kind, tgt);
   if (tgt.problem) { log('⚠️ ' + tgt.problem); sfx('bad'); return; }
+  if (NET.guest) { netAct({ a: 'build', kind, c: tgt.c?.id, e: tgt.e?.id }); sfx('build'); currentTarget = null; return; }
   pay(kind);
   if (kind === 'hamlet') buildHamlet(tgt.c);
   else if (kind === 'keep') buildKeep(tgt.c);
@@ -812,7 +814,7 @@ function beginSetup() {
   cradleEggs.forEach((e, i) => { if (i >= players.length) { e.taken = true; e.mesh.visible = false; } });   // one egg per house
   state.order = shuffle(players.map(p => p.id));
   state.setupQueue = [...state.order, ...state.order.slice().reverse()];
-  state.setupTurn = 0; state.setupStep = 0;
+  state.setupTurn = 0; players.forEach(p => { p.setupStep = 0; p.setupCorner = null; });
   log('📜 Landing order: ' + state.order.map(id => players[id].house.sigil).join(' → ') + ' then back again');
   nextSetupTurn();
 }
@@ -822,19 +824,21 @@ function nextSetupTurn() {
   if (players[pid].ai) {
     state.mode = null; refreshMarkers(); updateObjective();
     setTimeout(() => { if (state.phase !== 'setup') return; aiSetupPlace(pid); sfx('build'); state.setupTurn++; nextSetupTurn(); }, 1300);
-  } else { setMode('hamlet'); updateObjective(); }
+  } else if (pid === P) { setMode('hamlet'); updateObjective(); }
+  else { state.mode = null; refreshMarkers(); updateObjective(); }   // a friend's turn: wait for their click
 }
 function grantStart(pid, c) {
   const got = [];
   for (const tid of c.tiles) { const t = tiles[tid]; if (RES[t.type]) { players[pid].res[t.type]++; got.push(RES[t.type].icon); } }
   return got;
 }
-function advanceSetup(tgt) {
-  state.setupStep++;
-  if (state.setupStep % 2 === 1) { state.setupCorner = tgt.c.id; setMode('road'); }
+function advanceSetup(tgt, pid = P) {
+  const p = players[pid];
+  p.setupStep++;
+  if (p.setupStep % 2 === 1) { p.setupCorner = tgt.c.id; if (pid === P) setMode('road'); }
   else {
-    if (state.setupStep === 4) state.startGot = grantStart(P, corners[state.setupCorner]);
-    state.setupCorner = null; state.mode = null; state.setupTurn++; nextSetupTurn();
+    if (p.setupStep === 4) { const got = grantStart(pid, corners[p.setupCorner]); if (pid === P) state.startGot = got; else tell(pid, { startGot: got }); }
+    p.setupCorner = null; if (pid === P) state.mode = null; state.setupTurn++; nextSetupTurn();
   }
   updateObjective();
 }
@@ -846,10 +850,11 @@ function finishSetup() {
   log('🎺 Landing complete. The mist rolls in… explore to reveal the isles.');
   endLanding(); spawnAvatars(); updateHUD(); updateObjective();
   setTimeout(() => { if (!pointerLocked && state.phase === 'play' && !state.reaverPick) { state.paused = true; $('pause').classList.remove('hidden'); } }, 500);
+  if (NET.host) wsSend({ t: 'close' });
 }
 
 function setMode(m) {
-  if (m && state.phase === 'setup') m = myLandingTurn() ? (state.setupStep % 2 === 0 ? 'hamlet' : 'road') : null;
+  if (m && state.phase === 'setup') m = myLandingTurn() ? ((players[P]?.setupStep || 0) % 2 === 0 ? 'hamlet' : 'road') : null;
   state.mode = m; currentTarget = null; refreshMarkers(); updateHUD();
 }
 
@@ -869,7 +874,7 @@ function resolveHarvest() {
   const d1 = 1 + Math.floor(Math.random() * 6), d2 = 1 + Math.floor(Math.random() * 6), sum = d1 + d2;
   runes[0].material.map = runeTex[d1]; runes[1].material.map = runeTex[d2];
   runes.forEach(r => { r.material.rotation = 0; r.material.needsUpdate = true; });
-  state.lastRoll = sum;
+  state.lastRoll = sum; state.rollSeq = (state.rollSeq || 0) + 1; state.dice = [d1, d2];
   clearTimeout(state.runeHide); state.runeHide = setTimeout(() => runes.forEach(r => r.visible = false), 2600);
   if (sum === 7) return reaverRaid();
   const gain = {};
@@ -911,10 +916,10 @@ function reaverRaid() {
   if (players[bearer].ai) {
     const t = aiChooseReaverTile(bearer);
     sendReavers(bearer, t, lostTxt);
-  } else {
+  } else if (bearer === P) {
     announce('REAVER RAID!', lostTxt + 'You hold the Horn: choose where the Reavers strike.');
     startReaverPick();
-  }
+  } else { state.pickFor = bearer; state.pickT = 25; log(`🎺 ${nameOf(bearer)} holds the Horn and chooses where the Reavers strike…`); }
   updateHUD(); refreshMarkers();
 }
 function sendReavers(pid, t, prefix = '', title = 'REAVER RAID!') {
@@ -930,6 +935,8 @@ function sendReavers(pid, t, prefix = '', title = 'REAVER RAID!') {
     if (pid === P) steal = ` You steal 1 ${RES[k].icon} from ${nameOf(v)}!`;
     else if (v === P) { steal = ` ${nameOf(pid)} steals 1 ${RES[k].icon} from you!`; flashRes(k, true); }
     else if (seen) steal = ` ${nameOf(pid)} robs ${nameOf(v)}.`;
+    if (pid !== P) tell(pid, { log: `🏴 Your Reavers rob ${nameOf(v)}: +1 ${RES[k].icon}`, flash: [k] });
+    if (v !== P) tell(v, { big: title, small: `${nameOf(pid)} steals 1 ${RES[k].icon} from you!`, flash: [k], loss: true });
   }
   const who = pid === P ? 'Your Reavers make camp' : `${nameOf(pid)} sends the Reavers. They make camp`;
   announce(title, `${prefix}${who} ${where}.${steal}`);
@@ -937,11 +944,15 @@ function sendReavers(pid, t, prefix = '', title = 'REAVER RAID!') {
   updateHUD(); refreshMarkers();
 }
 function startReaverPick(reason = 'raid') {
-  state.reaverReason = reason; state.reaverPick = true; state.paused = true;
+  state.reaverReason = reason; state.reaverPick = true; state.paused = !NET.online;
   document.exitPointerLock?.(); setWarMap(true); updateObjective();
 }
 function finishReaverPick(t) {
   state.reaverPick = false; state.paused = false; setWarMap(false); updateObjective();
+  if (NET.guest) {   // tell the host where our Reavers go
+    if (state.reaverReason === 'sellsword') netAct({ a: 'scroll_play', idx: state.sellswordIdx, arg: t.id }); else netAct({ a: 'reaver_pick', t: t.id });
+    lockPointer(); return;
+  }
   sendReavers(P, t, '', state.reaverReason === 'sellsword' ? 'SELLSWORDS!' : 'REAVER RAID!'); lockPointer();
 }
 const pulse = [];
@@ -950,7 +961,10 @@ function checkWin() {
   if (state.phase !== 'play') return;
   const winner = players.find(p => totalRenown(p.id) >= GOAL);
   if (!winner) return;
-  state.phase = 'won';
+  state.phase = 'won'; state.winner = winner.id;
+  showWin(winner);
+}
+function showWin(winner) {
   document.exitPointerLock?.();
   const mins = ((performance.now() - state.startTime) / 60000).toFixed(1);
   const me = winner.id === P;
@@ -1125,7 +1139,7 @@ function playScroll(pid, idx, arg) {
   if (card.type === 'sellsword') {
     p.knights++; updateHost();
     log(`${S.icon} ${who} a Sellsword`);
-    if (pid === P) startReaverPick('sellsword'); else sendReavers(pid, aiChooseReaverTile(pid), '', 'SELLSWORDS!');
+    if (pid === P && arg == null) startReaverPick('sellsword'); else sendReavers(pid, arg != null ? tiles[arg] : aiChooseReaverTile(pid), '', 'SELLSWORDS!');
   } else if (card.type === 'roads') {
     p.freeRoads += 2;
     log(`${S.icon} ${who} Road Builders: 2 free roads`);
@@ -1154,16 +1168,19 @@ function aiExecute(p) {
   pay(t.kind, p.id);
   if (t.kind === 'hamlet') buildHamlet(t.c, p.id); else if (t.kind === 'keep') buildKeep(t.c, p.id);
   else if (t.kind === 'roost') buildRoost(t.c, p.id); else if (t.kind === 'tower') buildTower(t.c, p.id); else buildRoad(t.e, p.id);
-  // news travels: you see it if you can see the spot; otherwise ravens report settlements
+  reportBuild(p.id, t);
+  refreshMarkers(); updateHUD(); checkWin();
+}
+// news travels: you see it if you can see the spot; otherwise ravens report settlements
+function reportBuild(pid, t) {
   const tile = t.c ? t.c.tiles.map(id => tiles[id]) : [corners[t.e.a], corners[t.e.b]].flatMap(c => c.tiles.map(id => tiles[id]));
   const seen = tile.some(x => visible.has(x.id));
   const what = { road: 'lays a road', hamlet: 'founds a Hamlet (+1★)', keep: 'raises a Keep (+1★)', roost: 'builds a Dragon Roost 🐉', tower: 'builds a Scorpion Tower 🏹' }[t.kind];
-  if (seen) { log(`👀 ${nameOf(p.id)} ${what} nearby`); sfx('build'); }
-  else if (t.kind !== 'road') log(`🐦 Ravens report: ${nameOf(p.id)} ${what}`);
-  refreshMarkers(); updateHUD(); checkWin();
+  if (seen) { log(`👀 ${nameOf(pid)} ${what} nearby`); sfx('build'); }
+  else if (t.kind !== 'road') log(`🐦 Ravens report: ${nameOf(pid)} ${what}`);
 }
 // AI lords walk the isles in person
-function makeAvatar(h) {
+function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   const g = new THREE.Group(), body = new THREE.Group();
   body.add(cyl(0.45, 0.7, 1.5, 7, h.mat, 0, 0, 0));
   body.add(cyl(0.5, 0.5, 0.5, 7, M.iron, 0, 1.45, 0));
@@ -1174,7 +1191,7 @@ function makeAvatar(h) {
   g.add(body); g.userData.body = body;
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d');
   x.fillStyle = '#fff4dc'; x.beginPath(); x.roundRect(4, 4, 248, 56, 14); x.fill(); x.lineWidth = 5; x.strokeStyle = '#17110d'; x.stroke();
-  x.fillStyle = h.css; x.font = '30px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(`${h.sigil} ${h.name}`, 128, 34);
+  x.fillStyle = h.css; x.font = '30px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 128, 34);
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthWrite: false, transparent: true }));
   tag.scale.set(5, 1.25, 1); tag.position.y = 4.4; g.add(tag);
   const egg = makeEgg(); egg.scale.set(0.55, 0.75, 0.55); egg.position.y = 3.3; egg.visible = false; body.add(egg); g.userData.egg = egg;
@@ -1183,9 +1200,9 @@ function makeAvatar(h) {
 }
 function spawnAvatars() {
   for (const p of players) {
-    if (!p.ai) continue;
-    const c = corners.find(c => owns(c, p.id)), L = Math.hypot(c.x, c.z) || 1;
-    p.avatar = makeAvatar(p.house); p.pos = { x: c.x - c.x / L * 6, z: c.z - c.z / L * 6 };
+    if (p.id === P || p.avatar) continue;
+    const c = corners.find(c => owns(c, p.id)) || corners[0], L = Math.hypot(c.x, c.z) || 1;
+    p.avatar = makeAvatar(p.house, !p.ai && p.name ? `${p.house.sigil} ${p.name}` : undefined); p.pos = { x: c.x - c.x / L * 6, z: c.z - c.z / L * 6 };
     p.think = rr(1, 4); p.task = null; p.wander = null; p.wait = 0;
   }
 }
@@ -1222,8 +1239,8 @@ function updateAI(dt, time) {
 let ravenOffer = null;
 function aiWants(p, k) { const goal = aiGoal(p.id); return p.res[k] < needOf(goal, k) || p.res[k] === 0; }
 function aiSpare(p, k) { return p.res[k] - needOf(aiGoal(p.id), k) >= 1 && p.res[k] >= 1; }
-function aiAccepts(p, receive, give) {
-  if (renown(P) >= renown(p.id) + 3) return 'refuses to aid the mightiest house';
+function aiAccepts(p, receive, give, from = P) {
+  if (renown(from) >= renown(p.id) + 3) return 'refuses to aid the mightiest house';
   if (!aiSpare(p, give)) return 'has none to spare';
   if (!aiWants(p, receive)) return 'has no need of it';
   return null;
@@ -1231,19 +1248,24 @@ function aiAccepts(p, receive, give) {
 function sendRaven(give, get) {
   if (state.res[give] < 1) return;
   $('ravenStatus').textContent = '🐦 Your ravens fly to the other houses…';
-  setTimeout(() => {
-    const replies = [];
-    for (const p of shuffle(players.filter(p => p.ai))) {
-      const no = aiAccepts(p, give, get);
-      if (!no && state.res[give] >= 1) {
-        state.res[give]--; state.res[get]++; p.res[give]++; p.res[get]--;
-        const msg = `🤝 ${nameOf(p.id)} accepts: your 1 ${RES[give].icon} for their 1 ${RES[get].icon}`;
-        $('ravenStatus').textContent = msg; log(msg); flashRes(get); sfx('build'); updateHUD(); refreshMarkers(); renderTrade(); return;
-      }
-      replies.push(`${p.house.sigil} ${no}`);
+  if (NET.guest) { netAct({ a: 'raven', give, get }); return; }
+  setTimeout(() => ravenDeal(P, give, get), 1500);
+}
+function ravenDeal(from, give, get) {   // the AI houses answer a 1:1 offer
+  const me = players[from], replies = [];
+  for (const p of shuffle(players.filter(p => p.ai))) {
+    const no = aiAccepts(p, give, get, from);
+    if (!no && me.res[give] >= 1) {
+      me.res[give]--; me.res[get]++; p.res[give]++; p.res[get]--;
+      const msg = `🤝 ${nameOf(p.id)} accepts: your 1 ${RES[give].icon} for their 1 ${RES[get].icon}`;
+      if (from === P) { $('ravenStatus').textContent = msg; log(msg); flashRes(get); sfx('build'); updateHUD(); refreshMarkers(); renderTrade(); }
+      else tell(from, { raven: msg, log: msg, flash: [get], sfx: 'build' });
+      return;
     }
-    $('ravenStatus').textContent = '✖ No takers. ' + replies.join(' · ');
-  }, 1500);
+    replies.push(`${p.house.sigil} ${no}`);
+  }
+  const msg = '✖ No takers. ' + (replies.join(' · ') || 'no other house will trade');
+  if (from === P) $('ravenStatus').textContent = msg; else tell(from, { raven: msg });
 }
 function aiRavenOffer(p) {
   if (ravenOffer || state.phase !== 'play' || renown(P) >= renown(p.id) + 3) return;
@@ -1575,7 +1597,7 @@ function updateHUD() {
   $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Roads ${state.built.road}/${LIMITS.road}`;
   $('highway').textContent = state.highwayHolder === P ? `🛣️ Great Highway held (${state.longest} roads) +2★` : `Longest road: ${state.longest} (Highway: 5+ and the longest)`;
   const bearer = state.order.length && state.hornIdx >= 0 ? hornBearer() : null;
-  $('scores').innerHTML = players.map(p => `<div class="row ${p.id === P ? 'me' : ''}" style="--hc:${p.house.css}"><span class="sw"></span>${p.house.sigil} ${p.id === P ? 'You' : p.house.name.replace('House ', '')}` +
+  $('scores').innerHTML = players.map(p => `<div class="row ${p.id === P ? 'me' : ''}" style="--hc:${p.house.css}"><span class="sw"></span>${p.house.sigil} ${p.id === P ? 'You' : (!p.ai && p.name ? p.name : p.house.name.replace('House ', '')) + (!p.ai ? ' 👤' : '')}` +
     `<span class="tags">${p.dragon ? { egg: '🥚', wyrmling: '🐲', grown: '🐉' }[p.dragon.stage] : ''}${p.scrolls?.length && p.id !== P ? '📜' + p.scrolls.length : ''}${state.highwayHolder === p.id ? '🛣️' : ''}${state.hostHolder === p.id ? '⚔️' : ''}${bearer === p.id ? '🎺' : ''}</span><b>${p.id === P ? totalRenown(p.id) : renown(p.id)}★</b></div>`).join('');
 }
 function updateObjective() {
@@ -1585,7 +1607,7 @@ function updateObjective() {
       'Click a gold marker to lay a road from your first Hamlet',
       'Found your SECOND Hamlet (its lands give your starting supplies)',
       'Lay a road from your second Hamlet. Then the mist rolls in.'];
-    o.textContent = myLandingTurn() ? `Your turn · ` + msgs[state.setupStep] : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
+    o.textContent = myLandingTurn() ? `Your turn · ` + msgs[players[P]?.setupStep || 0] : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
     o.classList.remove('hidden');
   } else if (state.reaverPick) {
     o.innerHTML = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the war map to send the Reavers (they block it and rob a rival there)';
@@ -1620,6 +1642,7 @@ $('giveGrid').addEventListener('click', e => { const k = e.target.closest('.pick
 $('getGrid').addEventListener('click', e => { const k = e.target.closest('.pick')?.dataset.k; if (k && k !== give) { get = k; renderTrade(); } });
 $('tradeBtn').addEventListener('click', () => {
   if (!(give && get && state.res[give] >= 4)) return;
+  if (NET.guest) { netAct({ a: 'guild', give, get }); give = null; renderTrade(); return; }
   state.res[give] -= 4; state.res[get] += 1; log(`⚖️ Guild trade: 4 ${RES[give].icon} → 1 ${RES[get].icon}`); sfx('build');
   if (state.res[give] < 1) give = null;
   renderTrade(); updateHUD(); refreshMarkers();
@@ -1630,7 +1653,7 @@ function toggleTrade(force) {
   const el = $('trade'), open = force ?? el.classList.contains('hidden');
   if (open) {
     if (state.phase === 'setup') { log('⚠️ Finish your landing first'); return; }
-    el.classList.remove('hidden'); state.paused = true; give = get = null; $('ravenStatus').textContent = ''; renderTrade(); document.exitPointerLock?.();
+    el.classList.remove('hidden'); state.paused = !NET.online; give = get = null; $('ravenStatus').textContent = ''; renderTrade(); document.exitPointerLock?.();
   } else {
     el.classList.add('hidden'); state.paused = false; $('pause').classList.add('hidden'); lockPointer();
   }
@@ -1640,8 +1663,8 @@ function toggleTrade(force) {
 let lorePick = null;   // { idx, type, picks: [] } while choosing resources for Bountiful Harvest / Royal Decree
 function renderLore() {
   const me = players[P];
-  $('deckLeft').textContent = `${deck.length} scrolls left in the library · cost ${costStr('scroll')}`;
-  $('buyScroll').disabled = !deck.length || !canAfford('scroll'); $('buyScroll').style.opacity = $('buyScroll').disabled ? 0.5 : 1;
+  $('deckLeft').textContent = `${deckCount()} scrolls left in the library · cost ${costStr('scroll')}`;
+  $('buyScroll').disabled = !deckCount() || !canAfford('scroll'); $('buyScroll').style.opacity = $('buyScroll').disabled ? 0.5 : 1;
   $('hand').innerHTML = me.scrolls.length ? me.scrolls.map((c, i) => {
     const S = SCROLLS[c.type];
     const btn = c.type === 'renown' ? '<div class="muted">kept secret · +1★</div>'
@@ -1657,6 +1680,7 @@ function renderLore() {
   } else $('lorePick').innerHTML = '';
 }
 $('buyScroll').addEventListener('click', () => {
+  if (NET.guest) { if (canAfford('scroll')) { netAct({ a: 'scroll_buy' }); $('loreStatus').textContent = '📜 Unrolling…'; } return; }
   const t = buyScroll(P); if (!t) return;
   const S = SCROLLS[t];
   $('loreStatus').textContent = `📜 You unroll a scroll: ${S.icon} ${S.name}!`; log(`📜 You buy a Lore Scroll: ${S.icon} ${S.name}`); sfx('build');
@@ -1666,7 +1690,8 @@ $('hand').addEventListener('click', e => {
   const b = e.target.closest('[data-play]'); if (!b) return;
   const i = +b.dataset.play, c = players[P].scrolls[i];
   if (c.type === 'harvest' || c.type === 'decree') { lorePick = { idx: i, type: c.type, picks: [] }; renderLore(); return; }
-  if (c.type === 'sellsword') { $('lore').classList.add('hidden'); playScroll(P, i); return; }   // opens the war map
+  if (c.type === 'sellsword') { $('lore').classList.add('hidden'); if (NET.guest) { state.sellswordIdx = i; startReaverPick('sellsword'); } else playScroll(P, i); return; }   // opens the war map
+  if (NET.guest) { netAct({ a: 'scroll_play', idx: i }); return; }
   playScroll(P, i); renderLore();
 });
 $('lorePick').addEventListener('click', e => {
@@ -1674,7 +1699,8 @@ $('lorePick').addEventListener('click', e => {
   lorePick.picks.push(k);
   if (lorePick.type === 'decree' || lorePick.picks.length === 2) {
     const { idx, picks, type } = lorePick; lorePick = null;
-    playScroll(P, idx, type === 'decree' ? picks[0] : picks);
+    if (NET.guest) netAct({ a: 'scroll_play', idx, arg: type === 'decree' ? picks[0] : picks });
+    else playScroll(P, idx, type === 'decree' ? picks[0] : picks);
   }
   renderLore();
 });
@@ -1683,7 +1709,7 @@ function toggleLore(force) {
   const el = $('lore'), open = force ?? el.classList.contains('hidden');
   if (open) {
     if (state.phase !== 'play') return;
-    el.classList.remove('hidden'); state.paused = true; lorePick = null; $('loreStatus').textContent = ''; renderLore(); document.exitPointerLock?.();
+    el.classList.remove('hidden'); state.paused = !NET.online; lorePick = null; $('loreStatus').textContent = ''; renderLore(); document.exitPointerLock?.();
   } else {
     el.classList.add('hidden'); state.paused = false; $('pause').classList.add('hidden'); lockPointer();
   }
@@ -1789,7 +1815,7 @@ function drawMinimap() {
     mctx.beginPath(); c.building.type === 'keep' ? mctx.rect(X(c.x) - s, Y(c.z) - s, s * 2, s * 2) : mctx.arc(X(c.x), Y(c.z), s, 0, 7); mctx.fill(); mctx.stroke();
   }
   // rival lords you can currently see
-  for (const p of players) if (p.ai && p.avatar && p.avatar.visible && state.phase === 'play') {
+  for (const p of players) if (p.id !== P && p.avatar && p.avatar.visible && state.phase === 'play') {
     mctx.fillStyle = p.house.css; mctx.strokeStyle = '#17110d'; mctx.lineWidth = 2 * u;
     mctx.beginPath(); mctx.arc(X(p.pos.x), Y(p.pos.z), 7 * u, 0, 7); mctx.fill(); mctx.stroke();
     mctx.font = `${9 * u}px serif`; mctx.fillText(p.house.sigil, X(p.pos.x), Y(p.pos.z) + 0.5 * u);
@@ -1866,21 +1892,30 @@ $('rivalPick').addEventListener('click', e => {
   document.querySelectorAll('#rivalPick [data-n]').forEach(x => x.classList.toggle('sel', +x.dataset.n === rivalCount));
 });
 $('startBtn').addEventListener('click', () => {
-  HOUSE = HOUSES[chosen]; houseMat = HOUSE.mat; buildGhosts(); dayT = 0.1;
+  const seats = [{ id: 0, house: chosen, name: '', ai: false }];
+  shuffle(Object.values(HOUSES).filter(h => h.key !== chosen)).slice(0, rivalCount).forEach((h, i) => seats.push({ id: i + 1, house: h.key, ai: true }));
+  startMatch(seats);
+});
+// seats: [{ id, house (key), name, ai, remote }]
+function startMatch(seats) {
   players.length = 0;
-  players.push({ id: 0, house: HOUSE, ai: false, res: state.res, built: state.built, longest: 0, scrolls: [], knights: 0, freeRoads: 0, playedAt: -1 });
-  makeDeck();
-  shuffle(Object.values(HOUSES).filter(h => h !== HOUSE)).slice(0, rivalCount).forEach((h, i) =>
-    players.push({ id: i + 1, house: h, ai: true, res: { timber: 0, stone: 0, wheat: 0, cattle: 0, ember: 0 }, built: { road: 0, hamlet: 0, keep: 0, roost: 0, tower: 0 }, longest: 0, scrolls: [], knights: 0, freeRoads: 0, playedAt: -1 }));
-  document.querySelector('#house .name').textContent = `${HOUSE.sigil} ${HOUSE.name}`;
-  $('start').classList.add('hidden'); $('hud').classList.remove('hidden');
+  for (const st of seats) players.push({
+    id: st.id, house: HOUSES[st.house], name: st.name || '', ai: !!st.ai, remote: !!st.remote,
+    res: st.id === P ? state.res : { timber: 0, stone: 0, wheat: 0, cattle: 0, ember: 0 },
+    built: st.id === P ? state.built : { road: 0, hamlet: 0, keep: 0, roost: 0, tower: 0 },
+    longest: 0, scrolls: [], knights: 0, freeRoads: 0, playedAt: -1, setupStep: 0, setupCorner: null,
+  });
+  HOUSE = players[P].house; houseMat = HOUSE.mat; buildGhosts(); dayT = 0.1;
+  if (!NET.guest) makeDeck();
+  document.querySelector('#house .name').textContent = `${HOUSE.sigil} ${players[P].name || HOUSE.name}`;
+  $('start').classList.add('hidden'); $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
   state.phase = 'setup'; state.startTime = performance.now();
   spawn(); setWarMap(true); updateHUD();
   announce('THE WAR TABLE', 'Study the isles now. Once you land, the mist rolls in.');
-  beginSetup();
+  if (!NET.guest) beginSetup();
   log('⚓ Your longships reach Embervale. The whole isle is visible from the sea.');
   sfx('horn');
-});
+}
 $('againBtn').addEventListener('click', () => location.reload());
 
 // ---------------------------------------------------------------- DRAGONS (Milestone 3)
@@ -2016,6 +2051,7 @@ function tryEgg() {
   if (!roostOf(P)) { log('⚠️ First build a Dragon Roost beside one of your Keeps (key 4)'); return; }
   const e = cradleEggs.find(e => !e.taken && Math.hypot(e.x - player.pos.x, e.z - player.pos.z) < 6);
   if (!e) { log('⚠️ Walk right up to a glowing egg in the Cradle (the volcano), then press E'); return; }
+  if (NET.guest) { netAct({ a: 'egg', i: cradleEggs.indexOf(e) }); return; }
   e.taken = true; e.mesh.visible = false; state.carrying = true; carryEgg.visible = true; sfx('build');
   announce('A DRAGON EGG!', 'Carry it home to your Roost. You walk slower while carrying it');
   log('🥚 You lift a dragon egg. Bring it to your Roost!'); updateHUD();
@@ -2107,11 +2143,14 @@ function scorch(pid, t) {
   if (pid === P) { announce('DRAGONFIRE!', `${where} burns: it yields nothing next harvest`); log(`🔥 You scorch ${where}`); }
   else if (victims.includes(P)) { announce('DRAGONFIRE!', `${nameOf(pid)}'s dragon scorches your ${where}!`); log(`🔥 ${nameOf(pid)}'s dragon scorches ${where}`); }
   else if (visible.has(t.id)) log(`🔥 ${nameOf(pid)}'s dragon scorches ${where}`);
+  if (pid !== P) tell(pid, { big: 'DRAGONFIRE!', small: `${where} burns: it yields nothing next harvest` });
+  victims.forEach(v => { if (v !== P) tell(v, { big: 'DRAGONFIRE!', small: `${nameOf(pid)}'s dragon scorches your ${where}!` }); });
   sfx('raid');
 }
 function dragonfire() {
   const t = tileAtWorld(camera.position.x, camera.position.z), prob = scorchProblem(P, t);
   if (prob) { log('⚠️ ' + prob); sfx('bad'); return; }
+  if (NET.guest) { netAct({ a: 'fire', t: t.id }); return; }
   scorch(P, t);
   const d = dragonOf(P), from = new THREE.Vector3(); d.mesh.userData.head.getWorldPosition(from);
   breathe(from, new THREE.Vector3(camera.position.x, heightAt(camera.position.x, camera.position.z), camera.position.z));
@@ -2189,6 +2228,7 @@ function updateFlight(dt) {
 const fireParts = [], fireGeo = new THREE.IcosahedronGeometry(0.8, 0);
 const fireCols = [0xfff07a, 0xffa22a, 0xff5a12];
 function breathe(from, to) {
+  if (NET.host) NET.fx.push({ seq: ++NET.fxSeq, f: [from.x, from.y, from.z], t: [to.x, to.y, to.z] });   // guests see the fire too
   const dir = to.clone().sub(from), len = dir.length(); dir.normalize();
   for (let i = 0; i < 46; i++) {
     const m = new THREE.Mesh(fireGeo, new THREE.MeshBasicMaterial({ color: fireCols[i % 3], transparent: true, depthWrite: false }));
@@ -2212,6 +2252,15 @@ const _hp = new THREE.Vector3();
 function updateDragons(dt, time) {
   const mine = dragonOf(P);
   state.dragonEye = !!(mine && mine.stage === 'grown' && !mine.restless);
+  for (const p of players) {   // friends carrying eggs home (host only)
+    if (p.ai || p.id === P || !p.carrying || !p.rpos) continue;
+    const c = roostOf(p.id), n = c && nestPos(c);
+    if (n && Math.hypot(n.x - p.rpos.x, n.z - p.rpos.z) < 11) {
+      p.carrying = false; hatchery(p.id, c);
+      tell(p.id, { big: 'THE EGG IS HOME', small: `It needs ${iconsOf(DRAGON_FEED.egg)} at each of the next 3 harvests to hatch`, sfx: 'win' });
+      log(`🐦 Ravens report: ${nameOf(p.id)} has a dragon egg in its Roost 🥚`);
+    }
+  }
   if (state.carrying) {   // deliver a carried egg
     const c = roostOf(P), n = c && nestPos(c);
     if (n && Math.hypot(n.x - player.pos.x, n.z - player.pos.z) < 11) {
@@ -2223,7 +2272,14 @@ function updateDragons(dt, time) {
     const d = p.dragon; if (!d || !d.mesh) continue;
     const g = d.mesh, ud = g.userData, grown = d.stage === 'grown';
     let flap = 3.2;
-    if (p.id === P && state.riding) {
+    const rider = p.id === P && state.riding ? { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: player.yaw, pitch: player.pitch }
+      : (!p.ai && p.riding && p.rpos) ? p.rpos : null;
+    if (rider) {
+      const s = g.scale.x;
+      g.position.set(rider.x + Math.sin(rider.yaw) * 1.5 * s, rider.y - 7.2 * s, rider.z + Math.cos(rider.yaw) * 1.5 * s);
+      g.rotation.set(-(rider.pitch || 0) * 0.6, rider.yaw + Math.PI, 0);
+      d.pos.copy(g.position); flap = 4.5;
+    } else if (false) {
       const s = g.scale.x;
       // rider sits high behind the head: the neck and horns sit low in view, the world stays visible
       g.position.set(camera.position.x + Math.sin(player.yaw) * 1.5 * s, camera.position.y - 7.2 * s, camera.position.z + Math.cos(player.yaw) * 1.5 * s);
@@ -2318,6 +2374,435 @@ function updateDayNight(dt) {
   }
 }
 
+// ---------------------------------------------------------------- ONLINE (Milestone 4)
+// The host's browser runs the whole game (rules, dice, AI houses, dragons) and sends each friend a
+// snapshot 10× a second. Friends ("guests") render the snapshot and send their actions back.
+// The Render server (server/server.js) only relays messages inside a room and serves these files.
+const NET = { online: false, host: false, guest: false, ws: null, code: null, seats: [], lobby: null, last: null, fx: [], fxSeq: 0, fxSeen: 0, t: 0, deckLeft: 25, name: '', aiFill: 1, prevKey: '' };
+const deckCount = () => NET.guest ? NET.deckLeft : deck.length;
+const wsSend = m => { if (NET.ws && NET.ws.readyState === 1) NET.ws.send(JSON.stringify(m)); };
+const netAct = a => wsSend({ t: 'up', msg: { t: 'act', ...a } });
+const seatCid = pid => NET.seats.find(s => s.seat === pid)?.cid;
+// send a personal message (log line, announcement, flashes) to one player
+function tell(pid, m) {
+  if (pid === P) return applyTell(m);
+  if (NET.host && players[pid] && !players[pid].ai) { const cid = seatCid(pid); if (cid) wsSend({ t: 'to', cid, msg: { t: 'msg', ...m } }); }
+}
+function applyTell(m) {
+  if (m.log) log(m.log);
+  if (m.big) announce(m.big, m.small || '');
+  if (m.flash) m.flash.forEach(k => flashRes(k, m.loss));
+  if (m.lore) $('loreStatus').textContent = m.lore;
+  if (m.raven) $('ravenStatus').textContent = m.raven;
+  if (m.startGot) state.startGot = m.startGot;
+  if (m.sfx) sfx(m.sfx);
+}
+
+// ---- the simulation (single player and host)
+function simStep(dt, time) {
+  updateAI(dt, time); updateDragons(dt, time); updateHumanAvatars(dt);
+  if (state.pickFor != null && (state.pickT -= dt) <= 0) {   // a friend took too long with the Horn
+    const pid = state.pickFor; state.pickFor = null; sendReavers(pid, aiChooseReaverTile(pid));
+  }
+  if (state.rolling > 0) {
+    state.rolling -= dt;
+    runes.forEach((r, i) => { r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
+    if (state.rolling <= 0) {
+      resolveHarvest(); state.rollsLeft = (state.rollsLeft || 1) - 1;
+      state.harvestT = state.harvestLen = state.rollsLeft > 0 ? 3 : nextHarvestDelay();   // short pause, then the second cast
+    }
+  } else {
+    state.harvestT -= dt;
+    if (state.harvestT <= 0) state.rollsLeft > 0 ? startRoll() : startHarvest();
+  }
+}
+// browsers stop animating hidden tabs: keep the host's world turning anyway
+setInterval(() => { if (document.hidden && NET.host && state.phase === 'play') { simStep(0.1, performance.now() / 1000); netTick(0.1); } }, 100);
+
+// friends (and, on guests, every other house) are shown as lords walking the isles
+function updateHumanAvatars(dt) {
+  for (const p of players) {
+    if (p.id === P || !p.avatar || (p.ai && !NET.guest)) continue;
+    const src = NET.guest ? p.netPos : p.rpos && { x: p.rpos.x, z: p.rpos.z, ry: p.rpos.yaw + Math.PI };
+    if (!src) continue;
+    p.pos = p.pos || { x: src.x, z: src.z };
+    const k = Math.min(1, dt * 10);
+    p.pos.x += (src.x - p.pos.x) * k; p.pos.z += (src.z - p.pos.z) * k;
+    p.avatar.position.set(p.pos.x, heightAt(p.pos.x, p.pos.z), p.pos.z);
+    p.avatar.rotation.y = src.ry || 0;
+    p.avatar.userData.egg.visible = !!p.carrying;
+    const t = tileAtWorld(p.pos.x, p.pos.z);
+    p.avatar.visible = !p.riding && (state.dragonEye || Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < SIGHT + 10 || (t && visible.has(t.id)));
+  }
+}
+
+// ---- network clock: host sends snapshots, guests send where they are
+function netTick(dt) {
+  if ((NET.t += dt) < 0.1) return; NET.t = 0;
+  if (NET.host && ['setup', 'play', 'won'].includes(state.phase)) {
+    if (NET.fx.length > 20) NET.fx.splice(0, NET.fx.length - 20);
+    for (const s of NET.seats) if (players[s.seat] && !players[s.seat].ai) wsSend({ t: 'to', cid: s.cid, msg: snapFor(s.seat) });
+  }
+  if (NET.guest && state.phase === 'play') netAct({ a: 'pos', x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, riding: !!state.riding });
+}
+function snapFor(seat) {
+  const posOf = p => p.id === P ? { x: player.pos.x, y: player.pos.y, z: player.pos.z, ry: player.yaw + Math.PI }
+    : p.ai ? (p.pos ? { x: p.pos.x, y: 0, z: p.pos.z, ry: p.avatar ? p.avatar.rotation.y : 0 } : null)
+    : (p.rpos ? { x: p.rpos.x, y: p.rpos.y, z: p.rpos.z, ry: p.rpos.yaw + Math.PI } : null);
+  return {
+    t: 'snap',
+    st: {
+      phase: state.phase, harvestT: state.harvestT, harvestLen: state.harvestLen, rolling: state.rolling, rollNo: state.rollNo, rollsLeft: state.rollsLeft,
+      lastRoll: state.lastRoll, rollSeq: state.rollSeq || 0, dice: state.dice || null, hornIdx: state.hornIdx, order: state.order,
+      setupQueue: state.setupQueue, setupTurn: state.setupTurn, highwayHolder: state.highwayHolder, hostHolder: state.hostHolder ?? null,
+      harvests: state.harvests, reaver: reaverTile.id, pickFor: state.pickFor ?? null, dayT, dayCount, deck: deck.length, winner: state.winner ?? null,
+    },
+    pl: players.map(p => ({
+      id: p.id, res: p.res, built: p.built, longest: p.longest, knights: p.knights, freeRoads: p.freeRoads || 0, playedAt: p.playedAt,
+      setupStep: p.setupStep || 0, setupCorner: p.setupCorner ?? null, ai: p.ai,
+      scrolls: p.id === seat ? p.scrolls : p.scrolls.map(() => ({ type: 'hidden', boughtAt: 0 })),   // other hands stay secret
+      pos: posOf(p), carrying: p.id === P ? !!state.carrying : !!p.carrying, riding: p.id === P ? !!state.riding : !!p.riding,
+      dragon: p.dragon ? { stage: p.dragon.stage, progress: p.dragon.progress, restless: p.dragon.restless, fireCD: p.dragon.fireCD, roost: p.dragon.roost.id,
+        pos: [p.dragon.pos.x, p.dragon.pos.y, p.dragon.pos.z], ry: p.dragon.mesh ? p.dragon.mesh.rotation.y : 0 } : null,
+    })),
+    c: corners.map(c => c.building ? [c.building.owner, c.building.type === 'keep' ? 2 : 1, c.roost ?? -1, c.tower ?? -1] : 0),
+    e: edges.map(e => e.road ?? -1),
+    sc: tiles.map(t => t.scorchedUntil ?? -1),
+    eggs: cradleEggs.map(e => e.taken ? 1 : 0),
+    fx: NET.fx.slice(-6),
+  };
+}
+
+// ---- host: apply a friend's action (every rule is checked again here)
+function hostAct(pid, a) {
+  const p = players[pid]; if (!p || p.ai) return;
+  const no = msg => tell(pid, { log: '⚠️ ' + msg, sfx: 'bad' });
+  switch (a.a) {
+    case 'pos':
+      p.rpos = { x: +a.x || 0, y: +a.y || 0, z: +a.z || 0, yaw: +a.yaw || 0, pitch: +a.pitch || 0 };
+      p.riding = !!a.riding && !!p.dragon && p.dragon.stage !== 'egg' && !p.dragon.restless;
+      return;
+    case 'build': {
+      const t = { kind: a.kind, c: a.c != null ? corners[a.c] : undefined, e: a.e != null ? edges[a.e] : undefined };
+      if (!['road', 'hamlet', 'keep', 'roost', 'tower'].includes(t.kind) || (t.kind === 'road' ? !t.e : !t.c)) return;
+      if (state.phase === 'setup') {
+        if (setupPid() !== pid) return no('Wait for your turn on the war table');
+        if (t.kind !== (p.setupStep % 2 === 0 ? 'hamlet' : 'road')) return;
+      } else if (state.phase !== 'play') return;
+      const prob = problemFor(t.kind, t, pid); if (prob) return no(prob);
+      pay(t.kind, pid);
+      ({ hamlet: () => buildHamlet(t.c, pid), keep: () => buildKeep(t.c, pid), roost: () => buildRoost(t.c, pid), tower: () => buildTower(t.c, pid), road: () => buildRoad(t.e, pid) })[t.kind]();
+      if (state.phase === 'setup') advanceSetup(t, pid); else reportBuild(pid, t);
+      refreshMarkers(); updateHUD(); checkWin();
+      return;
+    }
+    case 'guild':
+      if (RES[a.give] && RES[a.get] && a.give !== a.get && p.res[a.give] >= 4) {
+        p.res[a.give] -= 4; p.res[a.get]++;
+        tell(pid, { log: `⚖️ Guild trade: 4 ${RES[a.give].icon} → 1 ${RES[a.get].icon}`, flash: [a.get], sfx: 'build' });
+      }
+      return;
+    case 'raven':
+      if (RES[a.give] && RES[a.get] && a.give !== a.get) setTimeout(() => ravenDeal(pid, a.give, a.get), 1500);
+      return;
+    case 'scroll_buy': {
+      if (state.phase !== 'play') return;
+      if (!buyScroll(pid)) return no('You cannot study a scroll right now');
+      log(`📜 ${nameOf(pid)} buys a Lore Scroll`); updateHUD(); checkWin();
+      return;
+    }
+    case 'scroll_play': {
+      const c = p.scrolls[a.idx]; if (!c || !canPlay(p, c)) return no('That scroll cannot be played now');
+      let arg = a.arg;
+      if (c.type === 'harvest' && !(Array.isArray(arg) && arg.length === 2 && arg.every(k => RES[k]))) return;
+      if (c.type === 'decree' && !RES[arg]) return;
+      if (c.type === 'sellsword' && (!tiles[arg] || tiles[arg] === reaverTile)) arg = null;
+      playScroll(pid, a.idx, arg);
+      return;
+    }
+    case 'reaver_pick':
+      if (state.pickFor === pid && tiles[a.t] && tiles[a.t] !== reaverTile) { state.pickFor = null; sendReavers(pid, tiles[a.t]); }
+      return;
+    case 'egg': {
+      const e = cradleEggs[a.i];
+      if (!e || e.taken || p.dragon || p.carrying || !roostOf(pid) || !p.rpos || Math.hypot(e.x - p.rpos.x, e.z - p.rpos.z) > 8) return no('You cannot take that egg');
+      e.taken = true; e.mesh.visible = false; p.carrying = true;
+      if (Math.hypot(p.rpos.x - player.pos.x, p.rpos.z - player.pos.z) < SIGHT + 20) log(`👀 ${nameOf(pid)} carries off a dragon egg!`);
+      return;
+    }
+    case 'fire': {
+      const t = tiles[a.t], prob = scorchProblem(pid, t); if (prob) return no(prob);
+      scorch(pid, t);
+      const from = new THREE.Vector3(); p.dragon.mesh.userData.head.getWorldPosition(from);
+      breathe(from, new THREE.Vector3(t.x, heightAt(t.x, t.z), t.z)); updateHUD();
+      return;
+    }
+  }
+}
+
+// ---- guest: mirror the host's world
+function addFlames(t) {
+  const g = new THREE.Group();
+  for (let i = 0; i < 9; i++) {
+    const p = placeIn(t, 4, HEX_R * 0.7), f = new THREE.Mesh(new THREE.ConeGeometry(rr(0.8, 1.5), rr(2.5, 4.5), 5), flameMat);
+    f.position.set(p.x, p.y + 1.5, p.z); g.add(f);
+    const s = new THREE.Sprite(glowMat); s.scale.set(7, 7, 1); s.position.set(p.x, p.y + 2, p.z); g.add(s);
+  }
+  scene.add(g); t.flames = g; if (t.banner) t.banner.material.color.setHex(0xff6a3a);
+}
+function removeFlames(t) { scene.remove(t.flames); t.flames = null; if (t.banner) t.banner.material.color.setHex(0xffffff); }
+function syncCorner(c, v) {
+  if (!v) return;
+  const [owner, lvl, roost, tower] = v, type = lvl === 2 ? 'keep' : 'hamlet';
+  if (!c.building || c.building.type !== type) {
+    if (buildingObjs.get(c.id)) scene.remove(buildingObjs.get(c.id));
+    c.building = { owner, type };
+    const o = (type === 'keep' ? makeKeep : makeHamlet)(players[owner].house);
+    o.traverse(m => { m.castShadow = true; m.receiveShadow = true; }); placeAtCorner(o, c); scene.add(o); buildingObjs.set(c.id, o); popIn(o);
+  }
+  if (roost >= 0 && c.roost == null) { c.roost = roost; const o = makeRoost(players[roost].house); placeAtCorner(o, c); scene.add(o); popIn(o); }
+  if (tower >= 0 && c.tower == null) { c.tower = tower; const o = makeTower(players[tower].house); placeAtCorner(o, c); scene.add(o); popIn(o); }
+}
+function syncDragon(p, sd) {
+  if (!sd) return;
+  let d = p.dragon;
+  if (!d) d = p.dragon = { roost: corners[sd.roost], mesh: null, egg: null, pos: new THREE.Vector3(...sd.pos), net: new THREE.Vector3(...sd.pos), ry: 0 };
+  Object.assign(d, { stage: sd.stage, progress: sd.progress, restless: sd.restless, fireCD: sd.fireCD, ry: sd.ry }); d.net.set(...sd.pos);
+  if (d.stage === 'egg' && !d.egg) { d.egg = makeEgg(); d.egg.position.copy(nestPos(d.roost)); d.egg.position.y += 0.4; scene.add(d.egg); }
+  if (d.stage !== 'egg') {
+    if (d.egg) { scene.remove(d.egg); d.egg = null; }
+    if (!d.mesh) { d.mesh = makeDragon(p.house); d.pos.copy(d.net); }
+    d.mesh.scale.setScalar(d.stage === 'grown' ? 1 : 0.45);
+  }
+}
+function applySnapshot(s) {
+  const prev = NET.last; NET.last = s;
+  const st = s.st;
+  for (const k of ['harvestT', 'harvestLen', 'rolling', 'rollNo', 'rollsLeft', 'lastRoll', 'hornIdx', 'order', 'setupQueue', 'setupTurn', 'highwayHolder', 'hostHolder', 'harvests', 'pickFor']) state[k] = st[k];
+  dayT = st.dayT; dayCount = st.dayCount; NET.deckLeft = st.deck;
+  for (const sp of s.pl) {
+    const p = players[sp.id]; if (!p) continue;
+    Object.assign(p.res, sp.res); Object.assign(p.built, sp.built);
+    Object.assign(p, { longest: sp.longest, knights: sp.knights, freeRoads: sp.freeRoads, playedAt: sp.playedAt, setupStep: sp.setupStep, setupCorner: sp.setupCorner, ai: sp.ai, scrolls: sp.scrolls, netPos: sp.pos, carrying: sp.carrying, riding: sp.riding });
+    syncDragon(p, sp.dragon);
+  }
+  state.longest = players[P].longest;
+  if (!!state.carrying !== !!s.pl[P].carrying) { state.carrying = s.pl[P].carrying; carryEgg.visible = state.carrying; }
+  corners.forEach((c, i) => syncCorner(c, s.c[i]));
+  edges.forEach((e, i) => { const r = s.e[i]; if (r >= 0 && e.road === null) { e.road = r; const o = makeRoad(e, players[r].house); scene.add(o); popIn(o); } });
+  tiles.forEach((t, i) => { t.scorchedUntil = s.sc[i]; const burning = s.sc[i] >= state.harvests; if (burning && !t.flames) addFlames(t); if (!burning && t.flames) removeFlames(t); });
+  if (st.reaver !== reaverTile.id) placeReavers(tiles[st.reaver]);
+  cradleEggs.forEach((e, i) => { e.taken = !!s.eggs[i]; e.mesh.visible = !e.taken; });
+  for (const f of s.fx) if (f.seq > NET.fxSeen) { NET.fxSeen = f.seq; if (prev) breathe(new THREE.Vector3(...f.f), new THREE.Vector3(...f.t)); }
+  if (prev) guestEvents(prev, s);
+  if (st.phase !== state.phase) {
+    if (st.phase === 'play' && state.phase === 'setup') guestEnterPlay();
+    else if (st.phase === 'won') { state.phase = 'won'; showWin(players[st.winner]); }
+    else state.phase = st.phase;
+  }
+  if (state.phase === 'setup') {
+    const want = myLandingTurn() ? (players[P].setupStep % 2 === 0 ? 'hamlet' : 'road') : null;
+    if (state.mode !== want) setMode(want);
+    updateObjective();
+  }
+  if (st.pickFor === P && !state.reaverPick) { announce('REAVER RAID!', 'You hold the Horn: choose where the Reavers strike (25 s)'); startReaverPick('raid'); }
+  else if (st.pickFor !== P && state.reaverPick && state.reaverReason === 'raid') { state.reaverPick = false; setWarMap(false); updateObjective(); }
+  const key = JSON.stringify([state.res, s.c, s.e, state.harvests, state.phase]);
+  if (key !== NET.prevKey) { NET.prevKey = key; refreshMarkers(); }
+  updateHUD();
+}
+// a guest works out its own news from what changed between two snapshots
+function guestEvents(prev, s) {
+  const st = s.st, me = s.pl[P], pm = prev.pl[P];
+  const delta = RES_KEYS.map(k => [k, me.res[k] - pm.res[k]]);
+  if (st.rollSeq !== prev.st.rollSeq && st.dice) {
+    const [d1, d2] = st.dice, sum = d1 + d2;
+    runes[0].material.map = runeTex[d1]; runes[1].material.map = runeTex[d2];
+    runes.forEach(r => { r.visible = true; r.material.rotation = 0; r.material.needsUpdate = true; });
+    clearTimeout(state.runeHide); state.runeHide = setTimeout(() => runes.forEach(r => r.visible = false), 2600);
+    if (sum === 7) {
+      const lost = delta.filter(([, n]) => n < 0); lost.forEach(([k]) => flashRes(k, true));
+      announce('REAVER RAID!', lost.length ? 'They plunder your Hold: ' + lost.map(([k, n]) => `${n} ${RES[k].icon}`).join(' ') : 'The Reavers come ashore');
+      log(`🎲 Rune Stones show ${d1} + ${d2} = 7: Reaver Raid!`); sfx('raid');
+    } else {
+      const gain = delta.filter(([, n]) => n > 0); gain.forEach(([k]) => flashRes(k));
+      const parts = gain.map(([k, n]) => `+${n} ${RES[k].icon}`);
+      announce(`HARVEST ${st.rollNo || 1}/${ROLLS_PER_HARVEST} · ${sum}`, parts.length ? parts.join('  ') : 'Your lands yield nothing this time');
+      log(`🎲 Rune Stones show ${d1} + ${d2} = ${sum}` + (parts.length ? ' → ' + parts.join(' ') : ''));
+      if ((st.rollNo || 1) === 1) sfx('horn');
+    }
+  }
+  s.c.forEach((v, i) => {
+    const pv = prev.c[i]; if (!v || (pv && pv[1] === v[1] && pv[2] === v[2] && pv[3] === v[3])) return;
+    const owner = v[0], kind = !pv ? 'hamlet' : pv[1] !== v[1] ? 'keep' : pv[2] !== v[2] ? 'roost' : 'tower';
+    if (owner === P) log({ hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Cradle (the volcano)', tower: '🏹 Scorpion Tower built' }[kind]);
+    else if (state.phase === 'play') reportBuild(owner, { kind, c: corners[i] });
+    else log(`${nameOf(owner)} lands at ${corners[i].tiles.map(id => tiles[id]).map(t => t.num ? RES[t.type].icon + t.num : '🌋').join(' ')}`);
+  });
+  s.e.forEach((r, i) => { if (r >= 0 && prev.e[i] < 0) { if (r === P) log('🛤️ Road built'); else if (state.phase === 'play') reportBuild(r, { kind: 'road', e: edges[i] }); } });
+  if (st.highwayHolder !== prev.st.highwayHolder && st.highwayHolder != null)
+    announce(st.highwayHolder === P ? 'THE GREAT HIGHWAY' : 'HIGHWAY SEIZED!', st.highwayHolder === P ? 'Your roads are the longest in Embervale. +2 Renown' : `${nameOf(st.highwayHolder)} now holds the Great Highway (+2★)`);
+  if (st.hostHolder !== prev.st.hostHolder && st.hostHolder != null)
+    announce(st.hostHolder === P ? 'THE MIGHTIEST HOST' : 'A MIGHTY HOST!', st.hostHolder === P ? 'Your Sellswords are the strongest force. +2 Renown' : `${nameOf(st.hostHolder)} commands the Mightiest Host (+2★)`);
+  s.pl.forEach((sp, i) => {
+    const pp = prev.pl[i]; if (!pp) return;
+    const mine = sp.id === P, was = pp.dragon?.stage, now = sp.dragon?.stage;
+    if (now && now !== was) {
+      if (now === 'egg' && !mine) log(`🐦 Ravens report: ${nameOf(sp.id)} has a dragon egg in its Roost 🥚`);
+      if (now === 'wyrmling') { announce(mine ? 'THE EGG HATCHES!' : 'A DRAGON IS BORN', mine ? 'Your Wyrmling is here (+1★). Press F to ride it!' : `${nameOf(sp.id)} has hatched a Wyrmling (+1★)`); sfx('win'); }
+      if (now === 'grown') { announce(mine ? 'DRAGON ASCENDANT!' : 'BEWARE THE SKIES!', mine ? "Your dragon is grown (+2★): Dragonfire (G) and the Dragon's Eye are yours" : `${nameOf(sp.id)}'s dragon is fully grown. Scorpion Towers (key 5) keep its fire away`); sfx('win'); }
+    }
+    if (mine && sp.dragon && pp.dragon && sp.dragon.restless !== pp.dragon.restless)
+      announce(sp.dragon.restless ? 'YOUR DRAGON IS RESTLESS!' : 'YOUR DRAGON IS CALM', sp.dragon.restless ? `It needs ${iconsOf(UPKEEP)}. No riding, fire or Dragon's Eye until fed` : 'Fed again: its powers return');
+    if (!mine && sp.knights > pp.knights) log(`⚔️ ${nameOf(sp.id)} plays a Sellsword`);
+    if (!mine && sp.scrolls.length > pp.scrolls.length) log(`📜 ${nameOf(sp.id)} buys a Lore Scroll`);
+    if (mine && sp.scrolls.length > pp.scrolls.length) {
+      const c = sp.scrolls[sp.scrolls.length - 1], S = SCROLLS[c.type];
+      if (S) { $('loreStatus').textContent = `📜 You unroll a scroll: ${S.icon} ${S.name}!`; log(`📜 You buy a Lore Scroll: ${S.icon} ${S.name}`); sfx('build'); }
+      if (!$('lore').classList.contains('hidden')) renderLore();
+    }
+    if (mine && sp.scrolls.length < pp.scrolls.length && !$('lore').classList.contains('hidden')) renderLore();
+    if (mine && sp.carrying && !pp.carrying) { announce('A DRAGON EGG!', 'Carry it home to your Roost. You walk slower while carrying it'); log('🥚 You lift a dragon egg. Bring it to your Roost!'); }
+  });
+}
+function guestEnterPlay() {
+  state.phase = 'play'; setMode(null);
+  const got = state.startGot || [];
+  announce('THE HOUSES HAVE LANDED', got.length ? 'Your starting supplies: ' + got.join(' ') : 'Let the harvests begin');
+  log('🎺 Landing complete. The mist rolls in… explore to reveal the isles.');
+  endLanding(); spawnAvatars(); updateHUD(); updateObjective();
+  setTimeout(() => { if (!pointerLocked && state.phase === 'play' && !state.reaverPick) { state.paused = true; $('pause').classList.remove('hidden'); } }, 500);
+}
+function guestStep(dt, time) {
+  const mine = dragonOf(P);
+  state.dragonEye = !!(mine && mine.stage === 'grown' && !mine.restless);
+  if (state.riding && (!mine || mine.restless || mine.stage === 'egg')) forceLand();
+  if (state.rolling > 0) {
+    state.rolling -= dt;
+    runes.forEach((r, i) => { r.visible = true; r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
+  }
+  for (const p of players) {
+    const d = p.dragon; if (!d || !d.mesh) continue;
+    const g = d.mesh, ud = g.userData; let flap = 3.2;
+    if (p.id === P && state.riding) {
+      const s = g.scale.x;
+      g.position.set(camera.position.x + Math.sin(player.yaw) * 1.5 * s, camera.position.y - 7.2 * s, camera.position.z + Math.cos(player.yaw) * 1.5 * s);
+      g.rotation.set(-player.pitch * 0.6, player.yaw + Math.PI, 0); d.pos.copy(g.position); flap = 4.5;
+    } else { d.pos.lerp(d.net, Math.min(1, dt * 8)); g.position.copy(d.pos); g.rotation.set(0, d.ry || 0, 0); if (d.restless) flap = 0.6; }
+    ud.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(time * flap + p.id) * 0.6; });
+    ud.tail.forEach((s2, i) => { s2.rotation.y = Math.sin(time * 1.8 + i * 0.6 + p.id) * 0.12; });
+    g.visible = p.id === P || state.dragonEye || Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z) < 230;
+  }
+  updateHumanAvatars(dt);
+}
+
+// ---- lobby
+function lobbyStatus(t) { $('netStatus').textContent = t; $('lobbyStatus').textContent = t; }
+function netConnect(then) {
+  if (!/^https?:$/.test(location.protocol)) return lobbyStatus('Online play needs the Dragonhold server (see the README).');
+  lobbyStatus('Connecting…');
+  let ws;
+  try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host); }
+  catch (e) { return lobbyStatus('Could not reach the Dragonhold server.'); }
+  NET.ws = ws;
+  ws.onopen = then;
+  ws.onerror = () => lobbyStatus('Could not reach the Dragonhold server. Online play works from the game\'s Render link.');
+  ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch { return; } netMsg(m); };
+  ws.onclose = () => { if (NET.online && state.phase !== 'won' && state.phase !== 'title') { announce('CONNECTION LOST', 'The link to the other houses was cut'); log('⚠️ Connection to the server lost'); } };
+}
+const myName = () => ($('netName').value.trim() || 'Lord').slice(0, 16);
+$('createBtn').addEventListener('click', () => { NET.name = myName(); netConnect(() => wsSend({ t: 'create', seed })); });
+$('joinBtn').addEventListener('click', () => {
+  const code = $('joinCode').value.trim().toUpperCase();
+  if (!code) return lobbyStatus('Type the code your friend gave you');
+  NET.name = myName(); netConnect(() => wsSend({ t: 'peek', code }));
+});
+if (URLQ.get('join')) {   // opened from an invite link
+  $('joinCode').value = URLQ.get('join');
+  if (URLQ.get('name')) { $('netName').value = URLQ.get('name'); setTimeout(() => $('joinBtn').click(), 300); }
+  else { lobbyStatus('You were invited! Type your name and press JOIN.'); setTimeout(() => $('netName').focus(), 300); }
+}
+function lobbySeatsList() {
+  if (NET.host) return [{ name: NET.name, house: chosen, host: true }, ...NET.seats.map(s => ({ name: s.name, house: s.house }))];
+  return NET.lobby ? NET.lobby.seats : [];
+}
+function renderLobby() {
+  const code = NET.host ? NET.code : NET.lobby?.code || NET.code;
+  $('lobbyCode').textContent = code || '…';
+  $('lobbyLink').textContent = `${location.origin}/?join=${code}`;
+  const seats = lobbySeatsList(), aiFill = NET.host ? NET.aiFill : (NET.lobby?.aiFill ?? 1);
+  $('lobbySeats').innerHTML = seats.map((s, i) => { const h = HOUSES[s.house]; return `<div class="seat" style="--hc:${h.css}"><span class="sig">${h.sigil}</span><b>${s.name}</b> <span class="muted">${h.name}${s.host ? ' · host' : ''}${!NET.host && i === P ? ' · you' : ''}</span></div>`; }).join('') +
+    Array.from({ length: Math.min(aiFill, 4 - seats.length) }, () => '<div class="seat ai"><span class="sig">🤖</span><b>AI house</b> <span class="muted">fills an empty seat</span></div>').join('');
+  $('lobbyHost').classList.toggle('hidden', !NET.host);
+  $('lobbyGuest').classList.toggle('hidden', NET.host);
+  document.querySelectorAll('#aiFill [data-n]').forEach(x => { const n = +x.dataset.n; x.classList.toggle('sel', n === NET.aiFill); x.style.display = n <= 4 - seats.length ? '' : 'none'; });
+}
+function lobbyBroadcast() {
+  const seats = lobbySeatsList();
+  wsSend({ t: 'bcast', msg: { t: 'lobby', code: NET.code, seats, aiFill: NET.aiFill } });
+  renderLobby();
+}
+function showLobby() { $('start').classList.add('hidden'); $('lobby').classList.remove('hidden'); renderLobby(); }
+$('aiFill').addEventListener('click', e => { const b = e.target.closest('[data-n]'); if (!b || !NET.host) return; NET.aiFill = +b.dataset.n; lobbyBroadcast(); });
+$('copyLink').addEventListener('click', () => { navigator.clipboard?.writeText($('lobbyLink').textContent).then(() => lobbyStatus('Invite link copied!'), () => lobbyStatus('Copy the link above by hand')); });
+$('lobbyStart').addEventListener('click', () => {
+  if (!NET.host) return;
+  const seats = [{ id: 0, house: chosen, name: NET.name, ai: false }];
+  NET.seats.forEach(s => seats.push({ id: s.seat, house: s.house, name: s.name, ai: false, remote: true }));
+  const used = new Set(seats.map(s => s.house));
+  shuffle(Object.keys(HOUSES).filter(k => !used.has(k))).slice(0, Math.max(0, Math.min(NET.aiFill, 4 - seats.length)))
+    .forEach(k => seats.push({ id: seats.length, house: k, ai: true }));
+  if (seats.length < 2) return lobbyStatus('Wait for a friend to join, or add at least one AI house');
+  NET.seats.forEach(s => wsSend({ t: 'to', cid: s.cid, msg: { t: 'start', seats, you: s.seat } }));
+  wsSend({ t: 'close' });
+  startMatch(seats);
+});
+function netMsg(m) {
+  switch (m.t) {
+    case 'error': lobbyStatus('✖ ' + m.error); break;
+    // --- host side
+    case 'created': NET.online = NET.host = true; NET.code = m.code; NET.seats = []; showLobby(); lobbyStatus('Share the code or the link with your friends'); break;
+    case 'join': {
+      if (state.phase !== 'title' || NET.seats.length >= 3) return;
+      const taken = new Set([chosen, ...NET.seats.map(s => s.house)]);
+      const free = Object.keys(HOUSES).find(k => !taken.has(k)); if (!free) return;
+      const seat = { cid: m.cid, name: m.name, house: free, seat: NET.seats.length + 1 };
+      NET.seats.push(seat);
+      wsSend({ t: 'to', cid: m.cid, msg: { t: 'welcome', code: NET.code } });
+      lobbyBroadcast(); lobbyStatus(`${m.name} joined as ${HOUSES[free].name}`); sfx('build');
+      break;
+    }
+    case 'left': {
+      const s = NET.seats.find(x => x.cid === m.cid); if (!s) return;
+      if (state.phase === 'title') { NET.seats = NET.seats.filter(x => x !== s); NET.seats.forEach((x, i) => x.seat = i + 1); lobbyBroadcast(); lobbyStatus(`${s.name} left`); return; }
+      const p = players[s.seat]; if (!p || p.ai) return;
+      Object.assign(p, { ai: true, think: 1, task: null, wander: null, wait: 0, carrying: false, riding: false });
+      if (p.rpos) p.pos = { x: p.rpos.x, z: p.rpos.z };
+      announce('A LORD DEPARTS', `${s.name} left: an AI steward now rules ${p.house.name}`); log(`👋 ${s.name} left the game; an AI steward takes over`);
+      if (state.phase === 'setup' && setupPid() === p.id) {
+        if (p.setupStep % 2 === 1) { const e = corners[p.setupCorner].edges.map(id => edges[id]).find(e => e.road === null); if (e) buildRoad(e, p.id); p.setupCorner = null; state.setupTurn++; }
+        nextSetupTurn();
+      }
+      break;
+    }
+    case 'up': { const s = NET.seats.find(x => x.cid === m.cid); if (s && m.msg && m.msg.t === 'act') hostAct(s.seat, m.msg); break; }
+    // --- guest side
+    case 'peeked':
+      if ((m.seed | 0) !== seed) location.replace(`?seed=${m.seed}&join=${encodeURIComponent(m.code)}&name=${encodeURIComponent(NET.name)}`);   // load the host's world first
+      else wsSend({ t: 'join', code: m.code, name: NET.name });
+      break;
+    case 'welcome': NET.online = NET.guest = true; NET.code = m.code; showLobby(); lobbyStatus('You are in! Waiting for the host to start'); break;
+    case 'lobby': NET.lobby = m; renderLobby(); break;
+    case 'start': P = m.you; NET.last = null; startMatch(m.seats); break;
+    case 'snap': if (NET.guest && state.phase !== 'title') applySnapshot(m); break;
+    case 'msg': applyTell(m); break;
+    case 'hostgone':
+      lobbyStatus('The host left the game.');
+      if (state.phase !== 'title') { announce('THE HOST HAS LEFT', 'This game cannot continue without them'); log('⚠️ The host left the game'); }
+      break;
+  }
+}
+
 // title-screen camera orbit
 let orbit = 0;
 const clock = new THREE.Clock();
@@ -2327,25 +2812,16 @@ function loop() {
     orbit += dt * 0.05;
     camera.position.set(Math.sin(orbit) * 210, 85, Math.cos(orbit) * 210);
     camera.lookAt(0, 8, 0);
-  } else if (!state.paused) {
-    updatePlayer(dt);
-    if (state.phase === 'play') { updateAI(dt, time); updateDragons(dt, time); }
-    if (state.phase === 'play') {
-      if (state.rolling > 0) {
-        state.rolling -= dt;
-        runes.forEach((r, i) => { r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
-        if (state.rolling <= 0) {
-          resolveHarvest(); state.rollsLeft = (state.rollsLeft || 1) - 1;
-          state.harvestT = state.harvestLen = state.rollsLeft > 0 ? 3 : nextHarvestDelay();   // short pause, then the second cast
-        }
-      } else {
-        state.harvestT -= dt;
-        if (state.harvestT <= 0) state.rollsLeft > 0 ? startRoll() : startHarvest();
-      }
+  } else {
+    if (!state.paused) updatePlayer(dt);
+    if (state.phase === 'play' && !NET.guest && (NET.online || !state.paused)) simStep(dt, time);
+    if (state.phase === 'play' && NET.guest) guestStep(dt, time);
+    if (!state.paused) {
+      state.recallCD = Math.max(0, state.recallCD - dt);
+      if (ravenOffer && (ravenOffer.t -= dt) <= 0) { ravenOffer = null; $('raven').classList.add('hidden'); }
     }
-    state.recallCD = Math.max(0, state.recallCD - dt);
-    if (ravenOffer && (ravenOffer.t -= dt) <= 0) { ravenOffer = null; $('raven').classList.add('hidden'); }
   }
+  if (NET.online) netTick(dt);
   // harvest bar
   if (state.phase === 'play') {
     $('harvestLabel').textContent = state.rolling > 0 ? `🎲 The Rune Stones are cast… (${state.rollNo}/${ROLLS_PER_HARVEST})` : state.rollsLeft > 0 ? '🎲 Second cast coming…' :
