@@ -694,6 +694,45 @@ function makeRoad(e, h = HOUSE) {
   g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
   return g;
 }
+// Walls protect their owner: no rival lord can cross them (or walk into them). Only the owner crosses.
+function distSeg(x, z, A, B) {
+  const dx = B.x - A.x, dz = B.z - A.z, t = Math.max(0, Math.min(1, ((x - A.x) * dx + (z - A.z) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(A.x + dx * t - x, A.z + dz * t - z);
+}
+function crosses(x0, z0, x1, z1, A, B) {
+  const s = (ax, az, bx, bz, cx, cz) => (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
+  const d1 = s(A.x, A.z, B.x, B.z, x0, z0), d2 = s(A.x, A.z, B.x, B.z, x1, z1), d3 = s(x0, z0, x1, z1, A.x, A.z), d4 = s(x0, z0, x1, z1, B.x, B.z);
+  return d1 * d2 < 0 && d3 * d4 < 0;
+}
+// the rival wall (if any) that stops `pid` moving from (x0,z0) to (x1,z1)
+function wallBlocks(pid, x0, z0, x1, z1, crossOnly = false) {
+  for (const e of edges) {
+    if (e.road === null || e.road === pid) continue;
+    const A = corners[e.a], B = corners[e.b];
+    if (crosses(x0, z0, x1, z1, A, B)) return e;
+    if (crossOnly) continue;
+    const dn = distSeg(x1, z1, A, B);
+    if (dn < 1.5 && dn < distSeg(x0, z0, A, B)) return e;   // can't walk into the wall itself
+  }
+  return null;
+}
+let wallMsgT = 0;
+function blockedByWall(e) {
+  player.autoTarget = null; destMarker.visible = false;
+  if (performance.now() > wallMsgT) { wallMsgT = performance.now() + 4000; log(`🧱 ${nameOf(e.road)}'s wall blocks your way: walk around it`); }
+}
+// AI lords look for a way around: past the nearer open end of the wall; if the wall line is closed, they give up
+function aiDetour(p, e, target) {
+  const A = corners[e.a], B = corners[e.b];
+  const fenceGoesOn = c => c.edges.some(id => id !== e.id && edges[id].road === e.road);
+  const ends = [[A, B], [B, A]].filter(([c]) => !fenceGoesOn(c))
+    .sort((u, v) => Math.hypot(u[0].x - target.x, u[0].z - target.z) - Math.hypot(v[0].x - target.x, v[0].z - target.z));
+  p.detours = (p.detours || 0) + 1;
+  if (!ends.length || p.detours > 3) { p.task = null; p.wander = null; p.detour = null; p.wait = rr(2, 5); p.detours = 0; return; }
+  const [c, o] = ends[0], L = Math.hypot(c.x - o.x, c.z - o.z) || 1;
+  p.detour = { x: c.x + (c.x - o.x) / L * 7, z: c.z + (c.z - o.z) / L * 7 };
+}
+
 // you can walk along the top of any wall, like the Great Wall
 function walkHeight(x, z) {
   const base = heightAt(x, z);
@@ -1299,19 +1338,24 @@ function updateAI(dt, time) {
     if (p.duelWith != null) { p.avatar.position.set(p.pos.x, heightAt(p.pos.x, p.pos.z), p.pos.z); continue; }   // fighting: stand and face the foe
     p.think -= dt;
     if (p.think <= 0) { p.think = rr(2, 4); aiThink(p); if (Math.random() < 0.08) aiRavenOffer(p); }
-    let target = p.task ? taskPos(p.task) : p.wander;
+    let target = p.detour || (p.task ? taskPos(p.task) : p.wander);
     if (!target) {
       if ((p.wait -= dt) <= 0) {   // stroll between your own holdings
         const mine = corners.filter(c => owns(c, p.id)), c = pick(mine), L = Math.hypot(c.x, c.z) || 1;
         p.wander = { x: c.x - c.x / L * rr(5, 12) + rr(-4, 4), z: c.z - c.z / L * rr(5, 12) + rr(-4, 4) };
       }
     }
-    target = p.task ? taskPos(p.task) : p.wander;
+    target = p.detour || (p.task ? taskPos(p.task) : p.wander);
     let moving = false;
     if (target) {
       const dx = target.x - p.pos.x, dz = target.z - p.pos.z, d = Math.hypot(dx, dz);
-      if (d < 1.2) { if (p.task) aiExecute(p); else { p.wander = null; p.wait = rr(3, 9); } }
-      else { const sp = Math.min(d, (p.task ? (p.carrying ? 6 : 9) : 4) * dt); p.pos.x += dx / d * sp; p.pos.z += dz / d * sp; p.avatar.rotation.y = Math.atan2(dx, dz); moving = true; }
+      if (d < 1.2) { if (p.detour) p.detour = null; else if (p.task) { p.detours = 0; aiExecute(p); } else { p.wander = null; p.wait = rr(3, 9); } }
+      else {
+        const sp = Math.min(d, (p.task ? (p.carrying ? 6 : 9) : 4) * dt), nx = p.pos.x + dx / d * sp, nz = p.pos.z + dz / d * sp;
+        const w = wallBlocks(p.id, p.pos.x, p.pos.z, nx, nz);
+        if (w) aiDetour(p, w, p.task ? taskPos(p.task) : (p.wander || target));
+        else { p.pos.x = nx; p.pos.z = nz; p.avatar.rotation.y = Math.atan2(dx, dz); moving = true; }
+      }
     }
     const y = walkHeight(p.pos.x, p.pos.z);
     p.avatar.position.set(p.pos.x, y, p.pos.z);
@@ -1525,7 +1569,9 @@ function updatePlayer(dt) {
       player.yaw += dy * Math.min(1, dt * 4);
       const sp = (d > 30 ? 15 : 10) * (onOwnRoad(player.pos.x, player.pos.z) ? 1.5 : 1) * (state.carrying ? 0.7 : 1) * dt;
       const nx = player.pos.x + dx / d * Math.min(sp, d), nz = player.pos.z + dz / d * Math.min(sp, d);
-      if (heightAt(nx, nz) > 0.6) { player.pos.x = nx; player.pos.z = nz; } else { player.autoTarget = null; destMarker.visible = false; }
+      const w = wallBlocks(P, player.pos.x, player.pos.z, nx, nz);
+      if (w) blockedByWall(w);
+      else if (heightAt(nx, nz) > 0.6) { player.pos.x = nx; player.pos.z = nz; } else { player.autoTarget = null; destMarker.visible = false; }
     }
   }
   const len = Math.hypot(fx, fz);
@@ -1537,9 +1583,11 @@ function updatePlayer(dt) {
     const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
     const mx = (fx * cos + fz * sin) * speed * dt, mz = (-fx * sin + fz * cos) * speed * dt;
     const nx = player.pos.x + mx, nz = player.pos.z + mz;
-    if (heightAt(nx, nz) > 0.6) { player.pos.x = nx; player.pos.z = nz; }
-    else if (heightAt(nx, player.pos.z) > 0.6) player.pos.x = nx;
-    else if (heightAt(player.pos.x, nz) > 0.6) player.pos.z = nz;
+    const ok = (x, z) => heightAt(x, z) > 0.6 && !wallBlocks(P, player.pos.x, player.pos.z, x, z);
+    if (ok(nx, nz)) { player.pos.x = nx; player.pos.z = nz; }
+    else if (ok(nx, player.pos.z)) player.pos.x = nx;          // slide along walls and coasts
+    else if (ok(player.pos.x, nz)) player.pos.z = nz;
+    else { const w = wallBlocks(P, player.pos.x, player.pos.z, nx, nz); if (w) blockedByWall(w); }
   }
   const g = walkHeight(player.pos.x, player.pos.z);
   if (keys.Space && player.onGround) { player.vy = 9; player.onGround = false; }
@@ -3277,7 +3325,7 @@ function aiDuelCheck(p, dt) {
   for (const h of players) {
     if (h.ai || h === p) continue;
     const hp = lordAt(h.id); if (!hp) continue;
-    if (Math.hypot(hp.x - p.pos.x, hp.z - p.pos.z) > 6 || !canDuel(p.id, h.id)) continue;
+    if (Math.hypot(hp.x - p.pos.x, hp.z - p.pos.z) > 6 || !canDuel(p.id, h.id) || wallBlocks(p.id, p.pos.x, p.pos.z, hp.x, hp.z)) continue;   // safe behind your walls
     if (h.id === P && (duel || state.paused || state.reaverPick)) continue;
     const aggro = 0.25 + (renown(h.id) >= renown(p.id) + 2 ? 0.25 : 0) + (homeGround(p.id, p.pos) ? 0.3 : 0) + (resTotal(h.id) >= 5 ? 0.15 : 0);
     if (rand() > aggro) { duelCD[pairKey(p.id, h.id)] = duelClock + 20; continue; }   // lets you pass this time
@@ -3288,7 +3336,7 @@ function aiDuelCheck(p, dt) {
   }
   for (const q of players) {
     if (!q.ai || q === p || q.duelWith != null || !q.pos) continue;
-    if (Math.hypot(q.pos.x - p.pos.x, q.pos.z - p.pos.z) < 5 && canDuel(p.id, q.id) && rand() < 0.3) { autoDuel(p.id, q.id); return; }
+    if (Math.hypot(q.pos.x - p.pos.x, q.pos.z - p.pos.z) < 5 && canDuel(p.id, q.id) && !wallBlocks(p.id, p.pos.x, p.pos.z, q.pos.x, q.pos.z) && rand() < 0.3) { autoDuel(p.id, q.id); return; }
   }
 }
 // ---------------------------------------------------------------- NIGHT RAIDS
@@ -3298,6 +3346,7 @@ function raidProblem(pid, c, at) {
   if (!c || !c.building || c.building.owner === pid) return 'Pick a rival Hamlet or Keep';
   if (c.raided === dayCount) return 'Already raided tonight';
   if (!at || Math.hypot(at.x - c.x, at.z - c.z) > RAID_RANGE) return 'Get closer to the building';
+  const wb = wallBlocks(pid, at.x, at.z, c.x, c.z, true); if (wb && wb.road === c.building.owner) return 'Their wall protects it';
   if ((pid === P && state.riding) || players[pid].riding) return 'Land your dragon first';
   return null;
 }
@@ -3344,7 +3393,7 @@ function updateRaid() {
   if (state.phase === 'play' && isNight() && !duel && !state.riding) for (const c of corners) {
     if (!c.building || c.building.owner === P || c.raided === dayCount) continue;
     const d = Math.hypot(c.x - player.pos.x, c.z - player.pos.z);
-    if (d < bd) { bd = d; best = c; }
+    if (d < bd && !raidProblem(P, c, player.pos)) { bd = d; best = c; }
   }
   if (best !== raidTarget) {
     raidTarget = best; $('raidBtn').classList.toggle('hidden', !best);
@@ -3367,7 +3416,7 @@ function updateChallenge() {
   if (state.phase === 'play' && !duel && !state.riding) for (const p of players) {
     if (p.id === P || !p.avatar || !p.avatar.visible || !p.pos) continue;
     const d = Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z);
-    if (d < bd && canDuel(P, p.id)) { bd = d; best = p; }
+    if (d < bd && canDuel(P, p.id) && !wallBlocks(P, player.pos.x, player.pos.z, p.pos.x, p.pos.z)) { bd = d; best = p; }
   }
   const id = best ? best.id : null;
   if (id !== challengeTarget) {
@@ -3454,4 +3503,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

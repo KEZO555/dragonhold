@@ -34,6 +34,8 @@
 
 **Placement:** Hamlets go on corners, never next to another settlement, and must touch your wall. Walls extend your walls or settlements.
 
+**🧱 Walls protect you:** rival lords can't cross your walls; only you can (and you can walk along the top). Nobody can challenge you to a duel or raid your buildings through your wall. Dragons fly over walls.
+
 ## Trading
 - **Guild:** 4 of one kind → 1 of anything (**3:1 at dusk**).
 - **Ravens:** offer any bundle to the AI houses. They accept fair deals that help them, and refuse if you lead by 3+.
