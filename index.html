@@ -224,6 +224,8 @@
   .cheatgrid section.wide { grid-column:1/-1; }
   .cheatgrid h3 { margin:0 0 3px; font-size:18px !important; }
   @media (max-width:760px) { .cheatgrid { grid-template-columns:1fr; } }
+  #tollBtn { position:absolute; bottom:290px; left:50%; transform:translateX(-50%); pointer-events:auto; font-size:20px; padding:8px 18px; background:#ffd84a; }
+  #tollBtn .muted { font-family:'Nunito',sans-serif; font-size:12px; color:var(--ink); }
 </style>
 </head>
 <body>
@@ -269,6 +271,7 @@
   <div id="topBtns"><button id="btnHelp" class="tb">❓ Help</button><button id="btnGuide" class="tb on">🎓 Guide: ON</button><button id="btnDpad" class="tb">🎮 D-pad</button><button id="btnView" class="tb">👁️ View: High</button></div>
   <button id="challengeBtn" class="hidden"></button>
   <button id="raidBtn" class="hidden"></button>
+  <button id="tollBtn" class="hidden"></button>
   <div id="dpad" class="hidden">
     <button class="dp up" data-k="KeyW">▲</button>
     <button class="dp left" data-k="KeyA">◀</button>
@@ -371,7 +374,7 @@
         <b>7 = Reavers:</b> over 7 cards → lose half; the Horn-Bearer blocks a region and robs 1.</section>
       <section><h3>COSTS</h3>
         Wall 🌲🪨 · Hamlet 🌲🪨🌾🐄<br>Keep 🌾🌾🔥🔥🔥 · Scroll 🌾🐄🔥<br>Roost 🪨🪨🔥🔥🌲 · Tower 🪨🪨🌲🔥<br>
-        <span class="muted">Hamlets: corners, not next to another settlement, touching your wall.</span><br>🧱 <b>Walls block rival lords</b>: only you cross your own walls. Rivals can't duel or raid you through them.</section>
+        <span class="muted">Hamlets: corners, not next to another settlement, touching your wall.</span><br>🧱 <b>Walls block rival lords</b>; you cross your own walls at their 🚪 <b>gate</b> (middle) or beside your own settlement; rivals may pass a gate by <b>paying its owner 1 resource</b>. No duels or raids through walls.</section>
       <section><h3>TRADE</h3>
         <b>Guild</b> 4 of one kind → 1 (<b>3:1 at dusk</b>)<br><b>Ravens</b>: any bundle to the AI houses; they take fair deals that help them</section>
       <section><h3>SCROLLS</h3>

@@ -34,7 +34,7 @@
 
 **Placement:** Hamlets go on corners, never next to another settlement, and must touch your wall. Walls extend your walls or settlements.
 
-**🧱 Walls protect you:** rival lords can't cross your walls; only you can (and you can walk along the top). Nobody can challenge you to a duel or raid your buildings through your wall. Dragons fly over walls.
+**🧱 Walls protect you:** rival lords can't cross your walls. You cross your own walls through their 🚪 **gate** (in the middle of each wall; the doors open for you) or right beside your own Hamlet/Keep at the wall's ends. Rivals may pass through **your** gate only by **paying you 1 resource** (a toll; the gate stays open for them ~12 s). You pay the same to pass theirs. Nobody can challenge you to a duel or raid your buildings through your wall. Dragons fly over walls.
 
 ## Trading
 - **Guild:** 4 of one kind → 1 of anything (**3:1 at dusk**).

@@ -552,10 +552,10 @@ const STYLES = {
     hamlet() {
       const g = new THREE.Group();
       g.add(B(6, 2, 3, M.woodDark, -0.5, 0, 0.6, 0.35));
-      const r = roof(3.9, 2.8, 6.6, M.turf, -0.5, 2, 0.6, 0.35 + Math.PI / 2); g.add(r);
+      const r = roof(3.9, 2.8, 6.6, houseMat, -0.5, 2, 0.6, 0.35 + Math.PI / 2); g.add(r);
       for (const sx of [-1, 1]) { const beam = B(0.25, 1.6, 0.2, houseMat, -0.5 + Math.cos(0.35) * sx * 3.3, 4.2, 0.6 - Math.sin(0.35) * sx * 3.3); beam.rotation.z = 0.5; g.add(beam); }
       g.add(win(-0.5 + Math.sin(0.35) * 1.55, 1.1, 0.6 + Math.cos(0.35) * 1.55, 0.35));
-      g.add(B(2.4, 1.6, 2.4, M.woodLight, 2.6, 0, -2.0, -0.3)); g.add(roof(2.8, 1.6, 2.6, M.thatch, 2.6, 1.6, -2.0, -0.3));
+      g.add(B(2.4, 1.6, 2.4, M.woodLight, 2.6, 0, -2.0, -0.3)); g.add(roof(2.8, 1.6, 2.6, houseMat, 2.6, 1.6, -2.0, -0.3));
       g.add(torch(1.6, 2.4)); const f = flagPole(6.5); f.position.set(-3.2, 0, -1.6); g.add(f);
       return g;
     },
@@ -565,7 +565,7 @@ const STYLES = {
         const a = i / 18 * Math.PI * 2; if (Math.abs(a - Math.PI / 2) < 0.35) continue;
         const st = cyl(0.3, 0.3, 2.6, 5, M.woodDark, Math.cos(a) * 6.2, 0, Math.sin(a) * 6.2); g.add(st); g.add(cone(0.3, 0.6, 5, M.woodDark, Math.cos(a) * 6.2, 2.6, Math.sin(a) * 6.2));
       }
-      g.add(B(7.5, 3, 4, M.woodDark, 0, 0, -0.8)); g.add(roof(5, 3.6, 8.2, M.turf, 0, 3, -0.8, Math.PI / 2));
+      g.add(B(7.5, 3, 4, M.woodDark, 0, 0, -0.8)); g.add(roof(5, 3.6, 8.2, houseMat, 0, 3, -0.8, Math.PI / 2));
       for (const x of [-2.4, 0, 2.4]) { const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.12, 8), houseMat); sh.rotation.x = Math.PI / 2; sh.position.set(x, 1.6, 1.25); g.add(sh); }
       g.add(win(-1.2, 1.4, 1.22)); g.add(win(1.2, 1.4, 1.22));
       // watchtower
@@ -580,7 +580,7 @@ const STYLES = {
   stone: {
     hamlet() {
       const g = new THREE.Group();
-      g.add(B(3.2, 2.4, 3.4, M.stone, -1.6, 0, 1, 0.4)); g.add(roof(3.6, 2, 3.8, M.slate, -1.6, 2.4, 1, 0.4 + Math.PI / 2));
+      g.add(B(3.2, 2.4, 3.4, M.stone, -1.6, 0, 1, 0.4)); g.add(roof(3.6, 2, 3.8, houseMat, -1.6, 2.4, 1, 0.4 + Math.PI / 2));
       g.add(B(0.6, 1.4, 0.6, M.stone, -0.9, 3.2, 0.3)); g.add(win(-1.6 + Math.sin(0.4) * 1.72, 1.2, 1 + Math.cos(0.4) * 1.72, 0.4));
       g.add(B(2.6, 2.1, 2.8, M.stone, 2, 0, -1.2, -0.6)); g.add(roof(3, 1.6, 3.2, houseMat, 2, 2.1, -1.2, -0.6 + Math.PI / 2));
       g.add(torch(0.4, 2.8)); const f = flagPole(6.5); f.position.set(0.5, 0, -2.8); g.add(f);
@@ -609,7 +609,7 @@ const STYLES = {
         const h = new THREE.Group();
         for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) h.add(cyl(0.12, 0.12, 1, 4, M.woodDark, px, 0, pz));
         h.add(cyl(1.5, 1.5, 0.2, 8, M.woodLight, 0, 1, 0)); h.add(cyl(1.3, 1.4, 1.7, 8, M.plaster, 0, 1.2, 0));
-        h.add(cone(2, 2.2, 8, M.thatch, 0, 2.9, 0)); h.add(win(0, 2, 1.36));
+        h.add(cone(2, 2.2, 8, houseMat, 0, 2.9, 0)); h.add(win(0, 2, 1.36));
         h.position.set(x, 0, z); h.scale.setScalar(s); g.add(h);
       }
       g.add(torch(0.6, 2.6)); const f = flagPole(6.5); f.position.set(3, 0, 2); g.add(f);
@@ -621,7 +621,7 @@ const STYLES = {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.25, 4, 18), M.woodLight); ring.rotation.x = Math.PI / 2; ring.position.y = 8; g.add(ring);
       g.add(cone(3.2, 4.2, 9, houseMat, 0, 11, 0));
       for (const y of [3, 6, 9]) g.add(win(0, y, 2.55 - y * 0.03));
-      for (const [x, z] of [[4.3, 1.5], [-4, -1.8]]) { g.add(cyl(1.2, 1.3, 1.6, 8, M.plaster, x, 0, z)); g.add(cone(1.7, 1.8, 8, M.thatch, x, 1.6, z)); }
+      for (const [x, z] of [[4.3, 1.5], [-4, -1.8]]) { g.add(cyl(1.2, 1.3, 1.6, 8, M.plaster, x, 0, z)); g.add(cone(1.7, 1.8, 8, houseMat, x, 1.6, z)); }
       g.add(torch(-1.4, 3.8)); g.add(torch(1.6, 3.6));
       const f = flagPole(4); f.position.set(0, 14.5, 0); g.add(f);
       return g;
@@ -633,7 +633,7 @@ const STYLES = {
       const g = new THREE.Group();
       g.add(B(3, 2.4, 3, M.sand, -1.4, 0, 0.8, 0.3)); g.add(B(2, 1.4, 2, M.sand, -1.6, 2.4, 0.6, 0.3)); g.add(dome(0.9, houseMat, -1.6, 3.8, 0.6));
       g.add(win(-1.4 + Math.sin(0.3) * 1.52, 1.2, 0.8 + Math.cos(0.3) * 1.52, 0.3));
-      g.add(B(2.6, 2, 2.6, M.white, 2, 0, -1.3, -0.4)); g.add(dome(1.2, M.sand, 2, 2, -1.3));
+      g.add(B(2.6, 2, 2.6, M.white, 2, 0, -1.3, -0.4)); g.add(dome(1.2, houseMat, 2, 2, -1.3));
       const aw = B(2, 0.1, 1.2, houseMat, -0.9, 2.1, 2.6, 0.3); aw.rotation.x = -0.25; g.add(aw);
       g.add(torch(1.2, 2.6)); const f = flagPole(6.5); f.position.set(3.2, 0, 1.6); g.add(f);
       return g;
@@ -654,7 +654,9 @@ const makeHamlet = (h = HOUSE) => withHouse(h, () => STYLES[h.style].hamlet());
 const makeKeep = (h = HOUSE) => withHouse(h, () => STYLES[h.style].keep());
 // Walls in the style of the Great Wall: a stone wall with battlements on both edges, a walkway
 // on top in the house colour, and a small watchtower at each end. (Internally they are still "roads".)
-const WALL_H = 2.6, WALL_TRIM = 4.5;
+const WALL_H = 2.6, WALL_TRIM = 4.5, GATE_HALF = 2.2;   // a gate in the middle of every wall
+const wallGates = [];   // { e, pivots: [left, right], open }
+const boxAt = (...args) => B(...args);   // (inside makeRoad, B is a corner)
 const wallStone = mat(0xb8ab94), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
 function mergeGeos(parts) {
   const pos = [], nor = [];
@@ -672,8 +674,10 @@ function makeRoad(e, h = HOUSE) {
   const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz), N = 6;
   const stone = [], colour = [];
   const at = (t) => { const x = A.x + dx * t, z = A.z + dz * t; return { x, y: heightAt(x, z), z }; };
-  for (let i = 0; i < N; i++) {
-    const t0 = (WALL_TRIM + (L - 2 * WALL_TRIM) * i / N) / L, t1 = (WALL_TRIM + (L - 2 * WALL_TRIM) * (i + 1) / N) / L;
+  // two runs of wall with the gate between them
+  const runs = [[WALL_TRIM, L / 2 - GATE_HALF - 0.6], [L / 2 + GATE_HALF + 0.6, L - WALL_TRIM]], segs = [];
+  for (const [a, b] of runs) for (let i = 0; i < 3; i++) segs.push([(a + (b - a) * i / 3) / L, (a + (b - a) * (i + 1) / 3) / L]);
+  for (const [t0, t1] of segs) {
     const p0 = at(t0), p1 = at(t1), len = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z) + 0.2;
     // segment frame: centred on the wall's mid-height, facing along the wall
     _wo.position.set((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + WALL_H / 2 - 0.4, (p0.z + p1.z) / 2);
@@ -691,6 +695,18 @@ function makeRoad(e, h = HOUSE) {
   const g = new THREE.Group();
   g.add(new THREE.Mesh(mergeGeos(stone), wallStone));
   g.add(new THREE.Mesh(mergeGeos(colour), h.mat));
+  // the gate: two pillars, a lintel with a banner, and wooden doors in the house colour that swing open for their owner
+  const G = at(0.5), gate = new THREE.Group(); gate.position.set(G.x, G.y - 0.3, G.z); gate.rotation.y = Math.atan2(dx, dz);
+  for (const sd of [-1, 1]) gate.add(boxAt(2.8, WALL_H + 1.5, 1.2, wallStone, 0, 0, sd * (GATE_HALF + 0.6)));
+  gate.add(boxAt(2.8, 0.8, GATE_HALF * 2 + 2.4, wallStone, 0, WALL_H + 0.7, 0));
+  gate.add(boxAt(0.12, 0.9, 2.4, h.mat, 1.45, WALL_H + 0.65, 0)); gate.add(boxAt(0.12, 0.9, 2.4, h.mat, -1.45, WALL_H + 0.65, 0));
+  const pivots = [-1, 1].map(sd => {
+    const pv = new THREE.Group(); pv.position.set(0, 0, sd * GATE_HALF); gate.add(pv);
+    const leaf = boxAt(0.28, WALL_H + 0.3, GATE_HALF, h.mat, 0, 0, -sd * GATE_HALF / 2); pv.add(leaf);
+    pv.add(boxAt(0.32, 0.18, GATE_HALF * 0.9, M.iron, 0, 0.8, -sd * GATE_HALF / 2)); pv.add(boxAt(0.32, 0.18, GATE_HALF * 0.9, M.iron, 0, WALL_H - 0.6, -sd * GATE_HALF / 2));
+    return pv;
+  });
+  g.add(gate); g.userData.gate = { pivots, pos: { x: G.x, z: G.z } };
   g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
   return g;
 }
@@ -705,30 +721,107 @@ function crosses(x0, z0, x1, z1, A, B) {
   return d1 * d2 < 0 && d3 * d4 < 0;
 }
 // the rival wall (if any) that stops `pid` moving from (x0,z0) to (x1,z1)
+// where along the wall (0..1) is the point closest to (x,z)?
+function wallT(e, x, z) { const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z; return ((x - A.x) * dx + (z - A.z) * dz) / (dx * dx + dz * dz); }
+function inGate(e, x, z) { const A = corners[e.a], B = corners[e.b], L = Math.hypot(B.x - A.x, B.z - A.z); return Math.abs(wallT(e, x, z) - 0.5) * L < GATE_HALF - 0.5; }
+// where the owner may pass their own wall: the gate, or right beside their own settlement at either end
+function ownerPass(e, x, z) {
+  const A = corners[e.a], B = corners[e.b], L = Math.hypot(B.x - A.x, B.z - A.z), t = wallT(e, x, z);
+  return inGate(e, x, z) || t * L < WALL_TRIM + 1 || (1 - t) * L < WALL_TRIM + 1;
+}
+const tollPasses = {};   // "pid:edgeId" -> time (duelClock) until which the gate lets them through
+const TOLL_TIME = 12;
+const hasPass = (pid, e) => (tollPasses[`${pid}:${e.id}`] || 0) > duelClock;
 function wallBlocks(pid, x0, z0, x1, z1, crossOnly = false) {
   for (const e of edges) {
-    if (e.road === null || e.road === pid) continue;
-    const A = corners[e.a], B = corners[e.b];
-    if (crosses(x0, z0, x1, z1, A, B)) return e;
+    if (e.road === null || (crossOnly && e.road === pid)) continue;
+    const own = e.road === pid || (!crossOnly && hasPass(pid, e)), A = corners[e.a], B = corners[e.b];
+    const ownWall = e.road === pid;
+    if (crosses(x0, z0, x1, z1, A, B)) { const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2; if (ownWall ? ownerPass(e, mx, mz) : own && inGate(e, mx, mz)) continue; return e; }   // owners: gate or beside their settlement; toll payers: gate
     if (crossOnly) continue;
     const dn = distSeg(x1, z1, A, B);
-    if (dn < 1.5 && dn < distSeg(x0, z0, A, B)) return e;   // can't walk into the wall itself
+    if (dn < 1.5 && dn < distSeg(x0, z0, A, B) && !(ownWall ? ownerPass(e, x1, z1) : own && inGate(e, x1, z1))) return e;   // can't walk into the wall itself
   }
   return null;
 }
+// pay the gate's owner 1 resource (from your largest stock) to pass through
+function payToll(pid, e) {
+  const p = players[pid], owner = e.road;
+  const k = RES_KEYS.slice().sort((a, b) => p.res[b] - p.res[a])[0];
+  if (!k || p.res[k] < 1) return false;
+  p.res[k]--; players[owner].res[k]++;
+  tollPasses[`${pid}:${e.id}`] = duelClock + TOLL_TIME;
+  tell(pid, { log: `🚪 You pay ${nameOf(owner)} 1 ${RES[k].icon} to pass their gate`, flash: [k], loss: true, sfx: 'build' });
+  tell(owner, { log: `🚪 ${nameOf(pid)} pays you 1 ${RES[k].icon} toll to pass your gate`, flash: [k], sfx: 'build' });
+  updateHUD();
+  return true;
+}
+// the nearest rival gate you are standing at (within 7 m)
+function rivalGateNear(x, z) {
+  let best = null, bd = 7;
+  for (const g of wallGates) if (g.e.road !== P) { const d = Math.hypot(g.pos.x - x, g.pos.z - z); if (d < bd) { bd = d; best = g; } }
+  return best;
+}
+let tollGate = null;
+function updateToll() {
+  let g = state.phase === 'play' && !state.riding && !duel ? rivalGateNear(player.pos.x, player.pos.z) : null;
+  const pt = player.pendingToll && wallGates.find(w => w.e === player.pendingToll.e);   // the gate you walked to, first
+  if (g && pt && Math.hypot(pt.pos.x - player.pos.x, pt.pos.z - player.pos.z) < 7) g = pt;
+  const show = g && !hasPass(P, g.e);
+  if ((show ? g : null) !== tollGate) {
+    tollGate = show ? g : null; $('tollBtn').classList.toggle('hidden', !tollGate);
+    if (tollGate) $('tollBtn').innerHTML = `🚪 Pay 1 to pass ${players[tollGate.e.road].house.sigil} ${players[tollGate.e.road].house.name.replace('House ', '')}'s gate <span class="muted">(${resTotal(P) ? 'from your largest stock' : 'you have nothing to pay'})</span>`;
+  }
+}
+function tryToll() {
+  if (!tollGate) return;
+  const e = tollGate.e;
+  if (resTotal(P) < 1) { log('⚠️ You have nothing to pay the toll'); sfx('bad'); return; }
+  if (NET.guest) { netAct({ a: 'toll', e: e.id }); tollPasses[`${P}:${e.id}`] = duelClock + TOLL_TIME; }
+  else payToll(P, e);
+  if (player.pendingToll && player.pendingToll.e === e) {   // carry on through the gate
+    const t = player.pendingToll; player.pendingToll = null;
+    player.via = [t.far, t.target]; player.autoTarget = t.far;
+  }
+  tollGate = null; $('tollBtn').classList.add('hidden');
+}
+
+function registerGate(o, e) { if (o.userData.gate) wallGates.push({ e, ...o.userData.gate, open: 0 }); }
+// gate points on both sides of a wall: walk to `near`, then through to `far`
+function gatePath(e, fromX, fromZ) {
+  const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz);
+  const gx = (A.x + B.x) / 2, gz = (A.z + B.z) / 2, nx = -dz / L, nz = dx / L;
+  const side = Math.sign((fromX - gx) * nx + (fromZ - gz) * nz) || 1;
+  return [{ x: gx + nx * side * 3.5, z: gz + nz * side * 3.5 }, { x: gx - nx * side * 3.5, z: gz - nz * side * 3.5 }];
+}
+// doors swing open when their owner comes near
+function updateGates(dt) {
+  for (const g of wallGates) {
+    const o = g.e.road, op = lordAt(o);
+    const payer = players.find(q => hasPass(q.id, g.e) && lordAt(q.id) && Math.hypot(lordAt(q.id).x - g.pos.x, lordAt(q.id).z - g.pos.z) < 9);
+    const want = (op && Math.hypot(op.x - g.pos.x, op.z - g.pos.z) < 9) || payer ? 1 : 0;
+    g.open += (want - g.open) * Math.min(1, dt * 4);
+    g.pivots[0].rotation.y = g.open * 1.35; g.pivots[1].rotation.y = -g.open * 1.35;
+  }
+}
 let wallMsgT = 0;
 function blockedByWall(e) {
-  player.autoTarget = null; destMarker.visible = false;
-  if (performance.now() > wallMsgT) { wallMsgT = performance.now() + 4000; log(`🧱 ${nameOf(e.road)}'s wall blocks your way: walk around it`); }
+  player.autoTarget = null; player.via = null; destMarker.visible = false;
+  if (performance.now() > wallMsgT) { wallMsgT = performance.now() + 4000; log(e.road === P ? '🚪 Your wall: cross it through its gate (in the middle)' : `🧱 ${nameOf(e.road)}'s wall blocks your way: walk around it`); }
 }
 // AI lords look for a way around: past the nearer open end of the wall; if the wall line is closed, they give up
 function aiDetour(p, e, target) {
+  p.detours = (p.detours || 0) + 1;
+  if (p.detours > 4) { p.task = null; p.wander = null; p.detour = null; p.detourQ = null; p.tollE = null; p.wait = rr(2, 5); p.detours = 0; return; }   // stuck: try something else
+  if (e.road === p.id) { const [near, far] = gatePath(e, p.pos.x, p.pos.z); p.detourQ = [far]; p.detour = near; return; }   // own wall: use the gate
   const A = corners[e.a], B = corners[e.b];
   const fenceGoesOn = c => c.edges.some(id => id !== e.id && edges[id].road === e.road);
+  if (resTotal(p.id) > 0 && (rand() < 0.4 || [A, B].every(fenceGoesOn))) {   // pay at the gate instead of walking around
+    const [near, far] = gatePath(e, p.pos.x, p.pos.z); p.detour = near; p.detourQ = [far]; p.tollE = e.id; return;
+  }
   const ends = [[A, B], [B, A]].filter(([c]) => !fenceGoesOn(c))
     .sort((u, v) => Math.hypot(u[0].x - target.x, u[0].z - target.z) - Math.hypot(v[0].x - target.x, v[0].z - target.z));
-  p.detours = (p.detours || 0) + 1;
-  if (!ends.length || p.detours > 3) { p.task = null; p.wander = null; p.detour = null; p.wait = rr(2, 5); p.detours = 0; return; }
+  if (!ends.length) { p.task = null; p.wander = null; p.detour = null; p.wait = rr(2, 5); p.detours = 0; return; }
   const [c, o] = ends[0], L = Math.hypot(c.x - o.x, c.z - o.z) || 1;
   p.detour = { x: c.x + (c.x - o.x) / L * 7, z: c.z + (c.z - o.z) / L * 7 };
 }
@@ -741,7 +834,7 @@ function walkHeight(x, z) {
     const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L2 = dx * dx + dz * dz, L = Math.sqrt(L2);
     const t = ((x - A.x) * dx + (z - A.z) * dz) / L2;
     if (t < WALL_TRIM / L || t > 1 - WALL_TRIM / L) continue;
-    if (Math.hypot(A.x + dx * t - x, A.z + dz * t - z) < 1.3) return base + WALL_H + 0.4;
+    if (Math.hypot(A.x + dx * t - x, A.z + dz * t - z) < 1.3 && Math.abs(t - 0.5) * L > GATE_HALF) return base + WALL_H + 0.4;
   }
   return base;
 }
@@ -890,7 +983,7 @@ function buildKeep(c, pid = P) {
   popIn(o);
 }
 function buildRoad(e, pid = P) {
-  e.road = pid; const o = makeRoad(e, players[pid]?.house || HOUSE); scene.add(o); PL(pid).built.road++;
+  e.road = pid; const o = makeRoad(e, players[pid]?.house || HOUSE); scene.add(o); PL(pid).built.road++; registerGate(o, e);
   popIn(o);
   if (players.length) updateHighway();
 }
@@ -1349,7 +1442,7 @@ function updateAI(dt, time) {
     let moving = false;
     if (target) {
       const dx = target.x - p.pos.x, dz = target.z - p.pos.z, d = Math.hypot(dx, dz);
-      if (d < 1.2) { if (p.detour) p.detour = null; else if (p.task) { p.detours = 0; aiExecute(p); } else { p.wander = null; p.wait = rr(3, 9); } }
+      if (d < 1.2) { if (p.detour) { if (p.tollE != null) { const te = edges[p.tollE]; p.tollE = null; if (te.road !== p.id && !payToll(p.id, te)) { p.task = null; p.wander = null; p.detourQ = null; } } p.detour = p.detourQ && p.detourQ.length ? p.detourQ.shift() : null; } else if (p.task) { p.detours = 0; aiExecute(p); } else { p.wander = null; p.wait = rr(3, 9); } }
       else {
         const sp = Math.min(d, (p.task ? (p.carrying ? 6 : 9) : 4) * dt), nx = p.pos.x + dx / d * sp, nz = p.pos.z + dz / d * sp;
         const w = wallBlocks(p.id, p.pos.x, p.pos.z, nx, nz);
@@ -1525,6 +1618,7 @@ const destMarker = (() => {
   m.rotation.x = Math.PI / 2; m.visible = false; scene.add(m); return m;
 })();
 function walkTo(p) {
+  player.via = null; player.pendingToll = null;
   if (heightAt(p.x, p.z) < 0.6) { const L = Math.hypot(p.x, p.z), k = Math.min(1, 150 / L); p = { x: p.x * k, z: p.z * k }; }   // not into the sea
   player.autoTarget = { x: p.x, z: p.z };
   destMarker.position.set(p.x, heightAt(p.x, p.z) + 0.4, p.z); destMarker.visible = true;
@@ -1560,17 +1654,24 @@ function updatePlayer(dt) {
   let fx = 0, fz = 0;
   if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
   if (state.dazeT > 0) { state.dazeT -= dt; fx = fz = 0; player.autoTarget = null; destMarker.visible = false; }   // knocked down in a duel
-  if (fx || fz) { player.autoTarget = null; destMarker.visible = false; }
+  if (fx || fz) { player.autoTarget = null; player.via = null; destMarker.visible = false; }
   else if (player.autoTarget) {   // click-to-move: turn toward the target and walk
     const dx = player.autoTarget.x - player.pos.x, dz = player.autoTarget.z - player.pos.z, d = Math.hypot(dx, dz);
-    if (d < 1.5) { player.autoTarget = null; destMarker.visible = false; }
+    if (d < 1.5 && player.pendingToll && !player.via) { player.autoTarget = null; destMarker.visible = false; }   // wait at the gate to pay
+    else if (d < 1.5) { if (player.via && player.via.length > 1) { player.via.shift(); player.autoTarget = player.via[0]; if (player.via.length === 1) player.via = null; } else { player.autoTarget = null; player.via = null; destMarker.visible = false; } }
     else {
       const want = Math.atan2(-dx, -dz); let dy = want - player.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       player.yaw += dy * Math.min(1, dt * 4);
       const sp = (d > 30 ? 15 : 10) * (onOwnRoad(player.pos.x, player.pos.z) ? 1.5 : 1) * (state.carrying ? 0.7 : 1) * dt;
       const nx = player.pos.x + dx / d * Math.min(sp, d), nz = player.pos.z + dz / d * Math.min(sp, d);
       const w = wallBlocks(P, player.pos.x, player.pos.z, nx, nz);
-      if (w) blockedByWall(w);
+      if (w && w.road === P && !player.via) {   // your own wall: walk through its gate
+        const [near, far] = gatePath(w, player.pos.x, player.pos.z); player.via = [near, far, player.autoTarget]; player.autoTarget = near;
+      } else if (w && w.road !== P && !player.pendingToll && player.autoTarget && !player.via) {   // a rival wall: go to its gate, pay to pass
+        const [near, far] = gatePath(w, player.pos.x, player.pos.z);
+        player.pendingToll = { e: w, far, target: player.autoTarget }; player.autoTarget = near;
+        if (performance.now() > wallMsgT) { wallMsgT = performance.now() + 4000; log(`🧱 ${nameOf(w.road)}'s wall is in the way: walking to its gate (toll: 1 resource)`); }
+      } else if (w) blockedByWall(w);
       else if (heightAt(nx, nz) > 0.6) { player.pos.x = nx; player.pos.z = nz; } else { player.autoTarget = null; destMarker.visible = false; }
     }
   }
@@ -2160,6 +2261,7 @@ function drawMinimap() {
   mctx.lineWidth = 4 * u;
   for (const e of edges) if (e.road !== null && (e.road === P || (cornerKnown(corners[e.a]) && cornerKnown(corners[e.b])))) {
     const A = corners[e.a], B = corners[e.b]; mctx.strokeStyle = css(e.road); mctx.beginPath(); mctx.moveTo(X(A.x), Y(A.z)); mctx.lineTo(X(B.x), Y(B.z)); mctx.stroke();
+    mctx.fillStyle = '#fff4dc'; mctx.beginPath(); mctx.arc(X((A.x + B.x) / 2), Y((A.z + B.z) / 2), 2.2 * u, 0, 7); mctx.fill();   // the gate
   }
   for (const c of corners) if (c.building && cornerKnown(c)) {
     const s = (c.building.type === 'keep' ? 9 : 6) * u;
@@ -2897,6 +2999,13 @@ function hostAct(pid, a) {
       if (prob) return no(prob);
       raid(pid, c); return;
     }
+    case 'toll': {
+      const e = edges[a.e];
+      if (!e || e.road === null || e.road === pid || !p.rpos) return;
+      if (Math.hypot(p.rpos.x - (corners[e.a].x + corners[e.b].x) / 2, p.rpos.z - (corners[e.a].z + corners[e.b].z) / 2) > 9) return no('Stand at the gate to pay');
+      if (!payToll(pid, e)) no('You have nothing to pay the toll');
+      return;
+    }
     case 'duel_human':
       if (players[a.target] && !players[a.target].ai && canDuel(pid, a.target)) autoDuel(pid, a.target);
       return;
@@ -2984,7 +3093,7 @@ function applySnapshot(s) {
   state.longest = players[P].longest;
   if (!!state.carrying !== !!s.pl[P].carrying) { state.carrying = s.pl[P].carrying; carryEgg.visible = state.carrying; }
   corners.forEach((c, i) => syncCorner(c, s.c[i]));
-  edges.forEach((e, i) => { const r = s.e[i]; if (r >= 0 && e.road === null) { e.road = r; const o = makeRoad(e, players[r].house); scene.add(o); popIn(o); } });
+  edges.forEach((e, i) => { const r = s.e[i]; if (r >= 0 && e.road === null) { e.road = r; const o = makeRoad(e, players[r].house); scene.add(o); popIn(o); registerGate(o, e); } });
   tiles.forEach((t, i) => { t.scorchedUntil = s.sc[i]; const burning = s.sc[i] >= state.harvests; if (burning && !t.flames) addFlames(t); if (!burning && t.flames) removeFlames(t); });
   if (st.reaver !== reaverTile.id) placeReavers(tiles[st.reaver]);
   cradleEggs.forEach((e, i) => { e.taken = !!s.eggs[i]; e.mesh.visible = !e.taken; });
@@ -3401,6 +3510,7 @@ function updateRaid() {
   }
 }
 $('raidBtn').addEventListener('click', () => { if (raidTarget) tryRaid(raidTarget); });
+$('tollBtn').addEventListener('click', tryToll);
 // AI lords go thieving at night
 function aiRaidPlan(p) {
   if (!isNight() || p.carrying || rand() > 0.12) return false;
@@ -3492,7 +3602,7 @@ function loop() {
   if (beacon.visible) beacon.material.opacity = 0.22 + Math.sin(time * 2.5) * 0.1;
   for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt * 3; const k = Math.min(1, p.t); p.o.scale.setScalar(0.2 + 0.8 * k + Math.sin(k * Math.PI) * 0.2); if (p.t >= 1) { p.o.scale.setScalar(1); pops.splice(i, 1); } }
   for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s * 1.38, 1); if (p.t > 1.5) { p.s.scale.set(5, 6.9, 1); pulse.splice(i, 1); } }
-  updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge(); updateRaid();
+  updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge(); updateRaid(); updateGates(dt); updateToll();
   if (annTimer > 0) { annTimer -= dt; if (annTimer <= 0) $('announce').classList.remove('show'); }
 
   inkU.fadeNear.value = scene.fog.near * 1.4; inkU.fadeFar.value = scene.fog.far * 1.1;
@@ -3503,4 +3613,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
