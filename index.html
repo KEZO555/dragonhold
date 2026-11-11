@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dragonhold: Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=UnifrakturCook:wght@700&family=Alegreya:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root { --gold:#e9c46a; --ink:#1b1410; --panel:rgba(22,16,12,.78); --line:rgba(233,196,106,.45); }
   * { box-sizing:border-box; }
@@ -226,6 +226,66 @@
   @media (max-width:760px) { .cheatgrid { grid-template-columns:1fr; } }
   #tollBtn { position:absolute; bottom:290px; left:50%; transform:translateX(-50%); pointer-events:auto; font-size:20px; padding:8px 18px; background:#ffd84a; }
   #tollBtn .muted { font-family:'Nunito',sans-serif; font-size:12px; color:var(--ink); }
+
+  /* ===================== DARK MEDIEVAL ===================== */
+  :root { --bg:#1b1511; --edge:#6e5a3a; --gold:#c9a75a; --gold2:#e3c98a; --bone:#e8dcc0; --blood:#7a1f1a; }
+  html,body { font-family:'Alegreya',Georgia,serif !important; font-weight:500 !important; color:var(--bone) !important; background:#000; }
+  .icw { display:inline-block; line-height:0; vertical-align:-0.22em; margin:0 .06em; }
+  .icw svg.ic { width:1.25em; height:1.25em; filter:drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
+  .act i .icw svg.ic { width:30px; height:30px; } #buildMenu .slot i .icw svg.ic { width:30px; height:30px; } .scard .si .icw svg.ic, .hcard .sig .icw svg.ic { width:44px; height:44px; }
+  .panel { background:linear-gradient(180deg, rgba(44,34,26,.95), rgba(22,17,13,.95)) !important; border:2px solid var(--edge) !important; border-radius:4px !important;
+    box-shadow:0 0 0 1px #0b0806, inset 0 0 0 1px rgba(201,167,90,.28), inset 0 0 22px rgba(0,0,0,.55), 0 8px 22px rgba(0,0,0,.7) !important; color:var(--bone) !important; }
+  .title { font-family:'UnifrakturCook','Cinzel',serif !important; font-weight:700 !important; color:var(--gold) !important; -webkit-text-stroke:0 !important;
+    text-shadow:0 3px 0 #000, 0 0 26px rgba(201,120,40,.35) !important; letter-spacing:3px !important; }
+  h1.title { font-size:92px !important; }
+  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; color:var(--gold) !important; letter-spacing:1.5px !important; }
+  #house .name, #house .renown, .res .n, .slot .t, #buildMenu .slot b, .scard .sn, .hcard .hn, #duelScore, .code { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; }
+  #house .name { color:var(--gold) !important; font-size:20px !important; letter-spacing:2px !important; }
+  #house .renown { font-size:24px !important; color:var(--bone) !important; }
+  button { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; background:linear-gradient(#3e3024,#1f1812) !important; color:var(--gold2) !important;
+    border:2px solid var(--edge) !important; border-radius:4px !important; box-shadow:0 3px 0 #000, inset 0 0 0 1px rgba(227,201,138,.18) !important; letter-spacing:1.5px !important; text-shadow:0 1px 0 #000; }
+  button:hover { filter:brightness(1.3) !important; } button:active { transform:translateY(2px) !important; box-shadow:0 1px 0 #000 !important; }
+  .act { color:var(--bone) !important; font-size:12px !important; width:72px !important; height:66px !important; }
+  .act.ready, .tb.on, .slot.active, #buildMenu .slot.active, .pick.sel, .rivals span.sel, .res.flash { background:linear-gradient(#5e4822,#33270f) !important; border-color:var(--gold) !important; }
+  .act.fire { background:linear-gradient(#702818,#3a120a) !important; }
+  .act.poor, .slot.poor { opacity:.5 !important; }
+  .res { background:rgba(0,0,0,.3) !important; border:1px solid rgba(110,90,58,.4) !important; } .res.loss { background:rgba(122,31,26,.65) !important; }
+  .res .n { color:var(--bone) !important; font-size:24px !important; }
+  #announce .big { font-family:'Cinzel',Georgia,serif !important; font-weight:900 !important; font-size:64px !important; color:var(--gold2) !important; -webkit-text-stroke:0 !important;
+    text-shadow:0 3px 0 #000, 0 0 30px rgba(0,0,0,.95), 0 0 60px rgba(120,40,10,.5) !important; transform:none !important; letter-spacing:5px !important; }
+  #announce.show .big { animation:rise .5s ease-out !important; }
+  @keyframes rise { 0% { opacity:0; transform:translateY(12px) scale(.96); } 100% { opacity:1; transform:none; } }
+  #announce .small { background:rgba(18,13,10,.94) !important; color:var(--bone) !important; border:1px solid var(--edge) !important; border-radius:3px !important; box-shadow:0 6px 18px #000 !important; }
+  .overlay { background:radial-gradient(ellipse at center, rgba(24,14,8,.72), rgba(0,0,0,.95)) !important; }
+  .tag { color:#b8a888 !important; font-style:italic; }
+  .muted { color:#a8987a !important; opacity:1 !important; }
+  #objective { background:linear-gradient(180deg, rgba(44,34,26,.96), rgba(22,17,13,.96)) !important; color:var(--bone) !important; }
+  #log div { background:rgba(14,10,8,.82) !important; color:var(--bone) !important; border:1px solid #3a2e20 !important; border-radius:2px !important; }
+  #tip { color:var(--bone) !important; } #tip.ok { background:#1d2617 !important; border-color:#6a8a4a !important; } #tip.bad { background:#291513 !important; border-color:#8a3a2a !important; }
+  #minimap { border:3px solid var(--edge) !important; box-shadow:0 0 0 2px #0b0806, inset 0 0 20px #000, 0 8px 20px #000 !important; }
+  .hcard, .seat, .scard, .cheatgrid section, .pick, #buildMenu .slot { background:rgba(10,8,6,.6) !important; border:1px solid var(--edge) !important; box-shadow:none !important; color:var(--bone) !important; }
+  .hcard.sel { box-shadow:0 0 0 2px var(--hc), 0 0 18px var(--hc) !important; }
+  .seat { border-left:8px solid var(--hc, #555) !important; }
+  #buildMenu .slot:not(.poor) { background:rgba(90,70,32,.5) !important; }
+  .slot .k { background:#120e0b !important; color:var(--gold) !important; border-color:var(--edge) !important; }
+  #harvest .bar { background:#0f0b08 !important; border:1px solid var(--edge) !important; }
+  #harvest .fill { background:linear-gradient(90deg,#6a2a10,#c9a75a) !important; }
+  .code { background:#0f0b08 !important; color:var(--gold2) !important; border:2px solid var(--edge) !important; box-shadow:none !important; }
+  #challengeBtn { background:linear-gradient(#702818,#3a120a) !important; animation:none !important; } #raidBtn { background:linear-gradient(#2c2444,#151024) !important; } #tollBtn { background:linear-gradient(#4a3a1a,#2a200e) !important; }
+  #challengeBtn .muted, #raidBtn .muted, #tollBtn .muted { color:#c8b898 !important; }
+  #scores .row.me { color:var(--gold2) !important; } #scores .row .sw { border:1px solid #000 !important; }
+  #scores { border-top:1px solid rgba(201,167,90,.3) !important; }
+  .online { border-top:1px solid rgba(201,167,90,.3) !important; }
+  .online input { background:#0f0b08 !important; color:var(--bone) !important; border:2px solid var(--edge) !important; border-radius:3px !important; }
+  #duel { background:radial-gradient(ellipse at center, rgba(50,8,6,.4), rgba(10,2,2,.85)) !important; }
+  #duelLog .result.win { color:#9ac07a !important; } #duelLog .result.lose { color:#e07a6a !important; }
+  #duelScore .pips { color:var(--gold) !important; }
+  .dp { background:rgba(28,22,17,.88) !important; color:var(--gold) !important; } .dp.held { background:#5e4822 !important; }
+  .st { box-shadow:none !important; padding:0 8px !important; }
+  #tradeTable b.on { color:var(--gold2) !important; }
+  #raven { background:linear-gradient(180deg, rgba(44,34,26,.96), rgba(22,17,13,.96)) !important; }
+  #modeChip { background:linear-gradient(#5e4822,#33270f) !important; color:var(--gold2) !important; border:2px solid var(--gold) !important; box-shadow:0 3px 0 #000 !important; }
+  .tb { color:var(--gold2) !important; font-family:'Cinzel',Georgia,serif !important; font-size:12px !important; }
 </style>
 </head>
 <body>

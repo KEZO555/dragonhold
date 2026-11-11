@@ -154,14 +154,14 @@ Players choose a house for color, banner, and dragon look:
 
 ---
 
-## 8b. Art Direction: "Comic Saga" (comics / animation)
-Low-poly shapes drawn like an animated fantasy comic:
-- **Cel shading:** 3 flat tones per surface instead of smooth lighting.
-- **Ink outlines:** bold black lines on every silhouette and sharp edge; lines fade out in the mist.
-- **Halftone dots** in deep shadows (most visible at dusk and night).
-- **Punchy colors:** bright, readable lands; saturated sunsets.
-- **Comic HUD:** cream "paper" panels with thick ink borders and offset shadows; big lettered announcements ("REAVER RAID!") that pop in at an angle; caption-box signs for building.
-- Touchstones: *Borderlands* (ink lines), *Hi-Fi Rush* / *Sable* (cel color), animated fantasy series.
+## 8b. Art Direction: "Dark Medieval"
+Low-poly shapes in a dark, woodcut-like medieval world:
+- **Palette:** earthy, muted lands; slate skies; deep heraldic house colours (oxblood, steel blue, moss green, old gold)
+- **Rendering:** cel shading with ink outlines like woodcuts, slight sepia, a dark vignette; no bright comic colours
+- **Interface:** dark leather-and-iron panels with bronze borders and gold leaf; blackletter title (UnifrakturCook), engraved headings (Cinzel), book serif text (Alegreya)
+- **Icons:** a custom illuminated-manuscript icon set (resources, buildings, crests, time of day, duel moves, every button) replaces all emoji, in the page and on in-world signs, banners and the map
+- **Heraldry:** every house banner, shield and caparison shows the house crest (wolf, stag, serpent, sun) on the house colour
+- **Lords:** mounted knights: a horse in a crested caparison, an armoured rider with a plumed great helm, a shield and a lance with a pennant
 
 ### Day / Night Cycle
 - A full day lasts **~8 minutes**: daylight ~5.6 min, dusk ~50 s, night ~1.5 min.

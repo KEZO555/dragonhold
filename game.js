@@ -2,6 +2,138 @@
 // First-person, low-poly hex settling prototype (Three.js).
 import * as THREE from './three.module.js';
 
+// ---------------------------------------------------------------- ICONS (dark medieval, illuminated-manuscript style)
+// Every emoji in the game's text is drawn with these icons instead: in the page (via a MutationObserver)
+// and on canvases (fillText/strokeText/measureText are taught to place icons).
+const INK = '#17110d';
+const ICONS = {
+  timber: '<path d="M12 2 L19 12 H15.5 L20 19 H4 L8.5 12 H5 Z" fill="#3b6b34"/><rect x="10.3" y="19" width="3.4" height="3.5" fill="#6e4524"/>',
+  stone: '<path d="M2.5 19.5 L5.5 11 L10.5 7.5 L16.5 9 L21.5 18 L18 20.5 H5 Z" fill="#8f897e"/><path d="M10.5 7.5 L12 13.5 L16.5 9 M12 13.5 L7.5 20.5 M12 13.5 L18 20.5" fill="none"/>',
+  wheat: '<path d="M12 22 V6 M12 22 L7 9 M12 22 L17 9" fill="none"/><ellipse cx="12" cy="5" rx="1.8" ry="3" fill="#c9a043"/><ellipse cx="7" cy="8" rx="1.6" ry="2.8" fill="#c9a043" transform="rotate(-20 7 8)"/><ellipse cx="17" cy="8" rx="1.6" ry="2.8" fill="#c9a043" transform="rotate(20 17 8)"/><ellipse cx="10" cy="12" rx="1.3" ry="2.2" fill="#c9a043" transform="rotate(-15 10 12)"/><ellipse cx="14" cy="12" rx="1.3" ry="2.2" fill="#c9a043" transform="rotate(15 14 12)"/>',
+  cattle: '<path d="M7.5 7 C5.5 4 3.5 3.5 2.5 4.5 C4 5 5 6.5 6.5 8.5 Z M16.5 7 C18.5 4 20.5 3.5 21.5 4.5 C20 5 19 6.5 17.5 8.5 Z" fill="#e2d6b8"/><path d="M6.5 7.5 C9 5.5 15 5.5 17.5 7.5 L16.5 15 C16 18 14 19.5 12 19.5 C10 19.5 8 18 7.5 15 Z" fill="#7a5234"/><path d="M11 7 L13 7 L12.5 12 L11.5 12 Z" fill="#e2d6b8" stroke="none"/><ellipse cx="12" cy="17" rx="3.8" ry="2.8" fill="#c99a86"/><circle cx="10.6" cy="17" r=".6" fill="#17110d" stroke="none"/><circle cx="13.4" cy="17" r=".6" fill="#17110d" stroke="none"/><circle cx="9.6" cy="11" r=".9" fill="#17110d" stroke="none"/><circle cx="14.4" cy="11" r=".9" fill="#17110d" stroke="none"/>',
+  ember: '<path d="M12 1.8 C14.5 6.5 19 8.5 18.5 14.5 C18 19.5 14.5 22 12 22 C8.5 22 5.5 19.2 6 14.5 C6.4 10.5 9.5 9 12 1.8 Z" fill="#c8551e"/><path d="M12 10 C13.3 12.5 15 13.5 14.8 16.3 C14.6 18.6 13.2 19.7 12 19.7 C10.4 19.7 9.2 18.4 9.4 16.3 C9.6 14.4 11 13.6 12 10 Z" fill="#e8a33a"/>',
+  volcano: '<path d="M2 21 L9 8 H15 L22 21 Z" fill="#4e3a32"/><path d="M9 8 L10.5 11 L12 9.5 L13.5 11.5 L15 8 Z" fill="#c8551e"/><path d="M11 6 C10 4 12 3 11 1.5 M13.5 6 C14.5 4.5 13 3 14 2" fill="none" stroke="#6a6a6a"/>',
+  hamlet: '<path d="M5 11 H19 V21 H5 Z" fill="#b9ac90"/><path d="M2.5 12 L12 3.5 L21.5 12 Z" fill="#8e2a22"/><path d="M10 21 V15.5 H14 V21" fill="#5a3a1e"/><rect x="15.5" y="13.5" width="2.2" height="2.2" fill="#e8a33a"/>',
+  keep: '<path d="M4 22 V9 H6.5 V7 H8.5 V9 H11 V7 H13 V9 H15.5 V7 H17.5 V9 H20 V22 Z" fill="#8f897e"/><path d="M10 22 V16 A2 2 0 0 1 14 16 V22" fill="#4a3018"/><path d="M12 7 V2 L16 3.5 L12 5" fill="#8e2a22"/>',
+  wall: '<path d="M2 9 H5 V7 H8 V9 H10.5 V7 H13.5 V9 H16 V7 H19 V9 H22 V21 H2 Z" fill="#9a9080"/><path d="M2 13 H22 M2 17 H22 M7 9 V13 M15 9 V13 M11 13 V17 M19 13 V17 M7 17 V21 M15 17 V21" fill="none"/>',
+  tower: '<path d="M5 22 L8 12 H16 L19 22" fill="none"/><path d="M3 9 C7 5 17 5 21 9" fill="none" stroke-width="2"/><path d="M12 14 V3 M10 5 L12 2.5 L14 5" fill="none"/><rect x="7" y="11" width="10" height="2.5" fill="#6e4524"/>',
+  dragon: '<path d="M3 15 C4 10 8 7 13 7 L17 4 L16.5 7.5 C19 8 21 10 21.5 12.5 L17 13 L21 16 C19 18 15 18.5 12 17.5 L9 20 L8.5 17 C6 17.5 4 17 3 15 Z" fill="#3e2e28"/><circle cx="15.5" cy="10.5" r="1.1" fill="#e8a33a"/><path d="M6 12 C8 11 10 11.5 11 12.5" fill="none" stroke="#c8551e"/>',
+  wyrmling: '<path d="M3 15 C4 10 8 7 13 7 L17 4 L16.5 7.5 C19 8 21 10 21.5 12.5 L17 13 L21 16 C19 18 15 18.5 12 17.5 L9 20 L8.5 17 C6 17.5 4 17 3 15 Z" fill="#4a6038"/><circle cx="15.5" cy="10.5" r="1.1" fill="#e8a33a"/>',
+  egg: '<ellipse cx="12" cy="13" rx="6.5" ry="8.5" fill="#3e2c26"/><path d="M8 9 L10 12 L9 15 M15 8 L14 11 L16 14" fill="none" stroke="#e07a2a"/>',
+  trade: '<path d="M12 3 V20 M7 21 H17 M4 7 H20" fill="none"/><path d="M4 7 L1.8 13 H6.2 Z M20 7 L17.8 13 H22.2 Z" fill="#c9a75a"/><path d="M1.8 13 A2.2 1.6 0 0 0 6.2 13 Z M17.8 13 A2.2 1.6 0 0 0 22.2 13 Z" fill="#9a7a3a"/><circle cx="12" cy="3.5" r="1.4" fill="#c9a75a"/>',
+  scroll: '<path d="M6 4 H18 V18 A2.5 2.5 0 0 1 15.5 20.5 H5 A2.5 2.5 0 0 1 5 15.5 H6 Z" fill="#d9c9a3"/><path d="M5 15.5 A2.5 2.5 0 0 0 5 20.5" fill="none"/><path d="M18 4 A2 2 0 0 1 20 6 V7 H18" fill="#b9a67a"/><path d="M8.5 8 H15.5 M8.5 11 H15.5 M8.5 14 H13" fill="none"/>',
+  map: '<path d="M3 6 L9 4 L15 6 L21 4 V18 L15 20 L9 18 L3 20 Z" fill="#d9c9a3"/><path d="M9 4 V18 M15 6 V20" fill="none"/><path d="M5 12 C7 10 9 13 11 11 C13 9 15 12 18 10" fill="none" stroke="#8e2a22" stroke-dasharray="1.5 1.5"/>',
+  help: '<circle cx="12" cy="12" r="9.5" fill="#c9a75a"/><path d="M9.3 9.3 A2.8 2.8 0 1 1 12 12.4 V14" fill="none" stroke-width="2"/><circle cx="12" cy="17.3" r="1.2" fill="#17110d" stroke="none"/>',
+  guide: '<path d="M12 6 C9.5 4.5 6 4.5 3 5.5 V19 C6 18 9.5 18 12 19.5 C14.5 18 18 18 21 19 V5.5 C18 4.5 14.5 4.5 12 6 Z" fill="#d9c9a3"/><path d="M12 6 V19.5 M5.5 9 H9.5 M5.5 12 H9.5 M14.5 9 H18.5 M14.5 12 H18.5" fill="none"/>',
+  dpad: '<path d="M9 3 H15 V9 H21 V15 H15 V21 H9 V15 H3 V9 H9 Z" fill="#4a4a50"/><path d="M12 5 L13.5 7 H10.5 Z M12 19 L10.5 17 H13.5 Z M5 12 L7 10.5 V13.5 Z M19 12 L17 13.5 V10.5 Z" fill="#c9a75a" stroke="none"/>',
+  eye: '<path d="M2 12 C5 6.5 19 6.5 22 12 C19 17.5 5 17.5 2 12 Z" fill="#e2d6b8"/><circle cx="12" cy="12" r="3.6" fill="#8a6a2a"/><circle cx="12" cy="12" r="1.6" fill="#17110d" stroke="none"/>',
+  goal: '<circle cx="12" cy="12" r="9.5" fill="#e2d6b8"/><circle cx="12" cy="12" r="6.3" fill="#8e2a22"/><circle cx="12" cy="12" r="3.2" fill="#e2d6b8"/><circle cx="12" cy="12" r="1.2" fill="#8e2a22"/>',
+  compass: '<circle cx="12" cy="12" r="9.5" fill="#d9c9a3"/><path d="M12 4 L14.5 12 L12 20 L9.5 12 Z" fill="#8e2a22"/><path d="M12 12 L14.5 12 L12 20 L9.5 12 Z" fill="#e2d6b8"/>',
+  fast: '<path d="M3 5 L12 12 L3 19 Z M12 5 L21 12 L12 19 Z" fill="#c9a75a"/>',
+  star: '<path d="M12 2.5 L14.8 8.6 L21.5 9.3 L16.5 13.8 L17.9 20.5 L12 17.1 L6.1 20.5 L7.5 13.8 L2.5 9.3 L9.2 8.6 Z" fill="#d4a94a"/>',
+  horn: '<path d="M3 8 C7 9 13 9 19 4 L21 6 C19 12 15 16 9 17 L8 20 L5 19 L6 15.5 C4.5 14 3 11 3 8 Z" fill="#d9c08a"/><path d="M17.5 5.2 L20.6 8" fill="none" stroke="#6e4524" stroke-width="2.5"/>',
+  dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="#d9c9a3"/><circle cx="8" cy="8" r="1.5" fill="#17110d" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="#17110d" stroke="none"/><circle cx="16" cy="16" r="1.5" fill="#17110d" stroke="none"/>',
+  reavers: '<path d="M5 22 V2" fill="none" stroke-width="2"/><path d="M5 3 H19 L16 7.5 L19 12 H5 Z" fill="#1e1616"/><circle cx="11" cy="7.5" r="1.8" fill="#d9cfb8" stroke="none"/>',
+  swords: '<path d="M3 3 L5.5 3 L16 13.5 L14.5 15 Z" fill="#b8bcc6"/><path d="M21 3 L18.5 3 L8 13.5 L9.5 15 Z" fill="#b8bcc6"/><path d="M13 16 L17 12 M7 12 L11 16" fill="none" stroke-width="2"/><path d="M15.5 16.5 L19.5 20.5 M8.5 16.5 L4.5 20.5" fill="none" stroke="#6e4524" stroke-width="2.5"/>',
+  shield: '<path d="M12 2.5 L20 5.5 V11 C20 16 16.5 19.5 12 21.5 C7.5 19.5 4 16 4 11 V5.5 Z" fill="#2e4f7a"/><path d="M12 2.5 V21.5 M4 10 H20" fill="none" stroke="#c9a75a" stroke-width="1.6"/>',
+  feint: '<path d="M12 12 m-1 0 a1 1 0 1 1 2 0 a3 3 0 1 1 -6 0 a5 5 0 1 1 10 0 a7 7 0 1 1 -14 0" fill="none" stroke="#7a5ab0" stroke-width="2"/>',
+  yield: '<path d="M5 22 V2" fill="none" stroke-width="2"/><path d="M5 3 C9 1.5 12 5 19 3 V12 C12 14 9 10.5 5 12 Z" fill="#e2d6b8"/>',
+  raven: '<path d="M2 14 C6 13 8 9 12 9 C14 7 17 6.5 19 7.5 L22 7 L19.5 9.5 C19 13 15 16 10 16 L7 20 L7.5 16 C5 16 3 15.5 2 14 Z" fill="#22222c"/><circle cx="17.5" cy="8.8" r=".8" fill="#e8a33a" stroke="none"/>',
+  deal: '<ellipse cx="12" cy="17" rx="7" ry="3" fill="#b8902e"/><ellipse cx="12" cy="13" rx="7" ry="3" fill="#c9a043"/><ellipse cx="12" cy="9" rx="7" ry="3" fill="#d9b45a"/>',
+  dawn: '<path d="M2 18 H22" fill="none"/><path d="M5.5 18 A6.5 6.5 0 0 1 18.5 18 Z" fill="#d88a4a"/><path d="M12 5 V8 M5 9 L7 11 M19 9 L17 11 M2.5 14 H4.5 M19.5 14 H21.5" fill="none" stroke="#c86a2a"/>',
+  sun: '<circle cx="12" cy="12" r="5" fill="#d4a94a"/><path d="M12 1.5 V4.5 M12 19.5 V22.5 M1.5 12 H4.5 M19.5 12 H22.5 M4.6 4.6 L6.7 6.7 M17.3 17.3 L19.4 19.4 M4.6 19.4 L6.7 17.3 M17.3 6.7 L19.4 4.6" fill="none" stroke="#a87a1a" stroke-width="2"/>',
+  afternoon: '<circle cx="9" cy="9" r="4.5" fill="#d4a94a"/><path d="M7 19 H18.5 A3.5 3.5 0 0 0 17.5 12.2 A5 5 0 0 0 8 13.5 A3 3 0 0 0 7 19 Z" fill="#b8b4aa"/>',
+  dusk: '<path d="M2 15 H22" fill="none"/><path d="M6 15 A6 6 0 0 1 18 15 Z" fill="#b8552a"/><path d="M4 19 H20 M7 22 H17" fill="none" stroke="#5a4080"/>',
+  moon: '<path d="M15 3 A9 9 0 1 0 21 15 A7 7 0 1 1 15 3 Z" fill="#d8d0a8"/>',
+  night: '<path d="M13 5 A8 8 0 1 0 19 16 A6.3 6.3 0 1 1 13 5 Z" fill="#d8d0a8"/><path d="M18.5 3 l.6 1.4 1.4.6 -1.4.6 -.6 1.4 -.6 -1.4 -1.4 -.6 1.4 -.6 Z" fill="#e2d6b8" stroke="none"/>',
+  anchor: '<circle cx="12" cy="5" r="2.2" fill="none"/><path d="M12 7.2 V21 M8 10 H16 M4 14 C4 18 8 21 12 21 C16 21 20 18 20 14" fill="none" stroke-width="1.8"/>',
+  crown: '<path d="M3 18 L2 7 L7.5 11 L12 4 L16.5 11 L22 7 L21 18 Z" fill="#d4a94a"/><path d="M3 18 H21 V21 H3 Z" fill="#9a7a2a"/>',
+  warning: '<path d="M12 2.5 L22 20.5 H2 Z" fill="#c9a043"/><path d="M12 9 V14.5" fill="none" stroke-width="2.2"/><circle cx="12" cy="17.5" r="1.2" fill="#17110d" stroke="none"/>',
+  check: '<path d="M4 12.5 L9.5 18 L20 6.5" fill="none" stroke="#5a8a3a" stroke-width="3"/>',
+  cross: '<path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="#a8322a" stroke-width="3"/>',
+  gate: '<path d="M3 22 V9 C3 4 21 4 21 9 V22 Z" fill="#8f897e"/><path d="M7 22 V11.5 C7 8 17 8 17 11.5 V22 Z" fill="#6e4524"/><path d="M12 9 V22 M7 15 H17" fill="none"/>',
+  hourglass: '<path d="M6 2.5 H18 M6 21.5 H18 M7 2.5 C7 8 12 10 12 12 C12 14 7 16 7 21.5 M17 2.5 C17 8 12 10 12 12 C12 14 17 16 17 21.5" fill="none"/><path d="M9 20.5 C10 17 14 17 15 20.5 Z" fill="#c9a043"/>',
+  person: '<path d="M7 9 C7 4 17 4 17 9 V12 H7 Z" fill="#8a8d96"/><path d="M9 10 H15" fill="none"/><path d="M3.5 21.5 C4 15.5 20 15.5 20.5 21.5 Z" fill="#6e4524"/>',
+  gear: '<path d="M12 2 L14 4.5 L17 3.5 L17.6 6.6 L20.6 7.4 L19.6 10.4 L22 12 L19.6 13.6 L20.6 16.6 L17.6 17.4 L17 20.5 L14 19.5 L12 22 L10 19.5 L7 20.5 L6.4 17.4 L3.4 16.6 L4.4 13.6 L2 12 L4.4 10.4 L3.4 7.4 L6.4 6.6 L7 3.5 L10 4.5 Z" fill="#8a8d96"/><circle cx="12" cy="12" r="3.5" fill="#2a2420"/>',
+  hammer: '<path d="M13 3 L21 3 L21 8 L13 8 Z" fill="#7a7d86"/><path d="M15.5 8 L5 20.5" fill="none" stroke="#6e4524" stroke-width="3"/>',
+  up: '<path d="M12 3 L20 12 H15 V21 H9 V12 H4 Z" fill="#c9a75a"/>',
+  wolf: '<path d="M3 3 L8 8 H16 L21 3 L20 11 C20 16 16 21 12 21.5 C8 21 4 16 4 11 Z" fill="#5a5a62"/><path d="M8 13 L10.5 14 M16 13 L13.5 14" fill="none" stroke="#e8a33a" stroke-width="1.8"/><path d="M10 18 L12 19.5 L14 18" fill="#17110d"/>',
+  stag: '<path d="M7 2 V6 L9 9 M5 4 L7 6 M3 5 L5 7 M17 2 V6 L15 9 M19 4 L17 6 M21 5 L19 7" fill="none" stroke="#6e4524" stroke-width="1.8"/><path d="M9 9 C9 7.5 15 7.5 15 9 L16.5 11 L14.5 20 C13.5 22 10.5 22 9.5 20 L7.5 11 Z" fill="#8a5e30"/><circle cx="10.4" cy="12.5" r=".9" fill="#17110d" stroke="none"/><circle cx="13.6" cy="12.5" r=".9" fill="#17110d" stroke="none"/>',
+  serpent: '<path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#17110d" stroke-width="5.5"/><path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#3a7a50" stroke-width="3.5"/><circle cx="19.2" cy="9" r="2.3" fill="#3a7a50"/><circle cx="19.8" cy="8.5" r=".6" fill="#17110d" stroke="none"/>',
+};
+// which emoji each icon replaces (variation selectors are ignored)
+const EMOJI_TO = {
+  '🌲': 'timber', '🪨': 'stone', '🌾': 'wheat', '🐄': 'cattle', '🔥': 'ember', '🌋': 'volcano', '🏠': 'hamlet', '🏘': 'hamlet', '🏰': 'keep',
+  '🧱': 'wall', '🏹': 'tower', '🐉': 'dragon', '🐲': 'wyrmling', '🥚': 'egg', '⚖': 'trade', '📜': 'scroll', '🗺': 'map', '❓': 'help', '🎓': 'guide',
+  '🎮': 'dpad', '👁': 'eye', '👀': 'eye', '🎯': 'goal', '🧭': 'compass', '⏩': 'fast', '★': 'star', '🎺': 'horn', '📯': 'horn', '🎲': 'dice',
+  '🏴': 'reavers', '⚔': 'swords', '🛡': 'shield', '🌀': 'feint', '🏳': 'yield', '🐦': 'raven', '🤝': 'deal', '🌅': 'dawn', '☀': 'sun', '🌤': 'afternoon',
+  '🌇': 'dusk', '🌙': 'moon', '🌌': 'night', '⚓': 'anchor', '👑': 'crown', '⚠': 'warning', '✔': 'check', '✖': 'cross', '✕': 'cross', '🚪': 'gate',
+  '⏳': 'hourglass', '👤': 'person', '👋': 'person', '🤖': 'gear', '🔨': 'hammer', '⬆': 'up', '🐺': 'wolf', '🦌': 'stag', '🐍': 'serpent',
+};
+const EMOJI_SRC = Object.keys(EMOJI_TO).sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const EMOJI_RE = new RegExp(`(?:${EMOJI_SRC})\\uFE0F?`, 'gu'), EMOJI_TEST = new RegExp(`(?:${EMOJI_SRC})`, 'u');
+const iconSVG = (name, px) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"${px ? ` width="${px}" height="${px}"` : ' class="ic"'}><g stroke="${INK}" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${ICONS[name]}</g></svg>`;
+// images for drawing on canvases (loaded before any texture is made)
+const ICON_IMG = {};
+await Promise.all(Object.keys(ICONS).map(n => new Promise(res => {
+  const img = new Image(); img.onload = img.onerror = () => res(); ICON_IMG[n] = img;
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSVG(n, 128));
+})));
+function splitIcons(str) {
+  const out = []; let last = 0;
+  str.replace(EMOJI_RE, (m, off) => { if (off > last) out.push(str.slice(last, off)); out.push({ icon: EMOJI_TO[m.replace(/️/g, '')] }); last = off + m.length; return m; });
+  if (last < str.length) out.push(str.slice(last));
+  return out;
+}
+// canvases: draw icons in place of emoji
+{
+  const CP = CanvasRenderingContext2D.prototype, _fill = CP.fillText, _stroke = CP.strokeText, _measure = CP.measureText;
+  const layout = (ctx, str) => {
+    const parts = splitIcons(str), fs = parseFloat((/(\d+(?:\.\d+)?)px/.exec(ctx.font) || [0, 16])[1]), isz = fs * 1.12;
+    const ws = parts.map(p => typeof p === 'string' ? _measure.call(ctx, p).width : isz + fs * 0.08);
+    return { parts, ws, w: ws.reduce((a, b) => a + b, 0), isz };
+  };
+  const draw = (ctx, str, x, y, stroke) => {
+    const L = layout(ctx, str), al = ctx.textAlign, bl = ctx.textBaseline;
+    let sx = al === 'center' ? x - L.w / 2 : (al === 'right' || al === 'end') ? x - L.w : x;
+    const iy = bl === 'middle' ? y - L.isz / 2 : bl === 'top' ? y : bl === 'bottom' ? y - L.isz : y - L.isz * 0.82;
+    ctx.textAlign = 'left';
+    L.parts.forEach((p, i) => {
+      if (typeof p === 'string') (stroke ? _stroke : _fill).call(ctx, p, sx, y);
+      else if (!stroke) { const img = ICON_IMG[p.icon]; if (img && img.complete && img.naturalWidth) ctx.drawImage(img, sx, iy, L.isz, L.isz); }
+      sx += L.ws[i];
+    });
+    ctx.textAlign = al;
+  };
+  CP.fillText = function (t, x, y, mw) { return typeof t === 'string' && EMOJI_TEST.test(t) ? draw(this, t, x, y, false) : _fill.call(this, t, x, y, mw); };
+  CP.strokeText = function (t, x, y, mw) { return typeof t === 'string' && EMOJI_TEST.test(t) ? draw(this, t, x, y, true) : _stroke.call(this, t, x, y, mw); };
+  CP.measureText = function (t) { return typeof t === 'string' && EMOJI_TEST.test(t) ? { width: layout(this, t).w, actualBoundingBoxAscent: 0, actualBoundingBoxDescent: 0 } : _measure.call(this, t); };
+}
+// the page: replace emoji in text nodes with inline icons, now and whenever text changes
+{
+  const SKIP = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'svg', 'g', 'path']);
+  const fix = node => {
+    const p = node.parentNode;
+    if (!p || SKIP.has(p.nodeName) || !EMOJI_TEST.test(node.nodeValue)) return;
+    const frag = document.createDocumentFragment();
+    for (const part of splitIcons(node.nodeValue)) {
+      if (typeof part === 'string') frag.appendChild(document.createTextNode(part));
+      else if (ICONS[part.icon]) { const s = document.createElement('span'); s.className = 'icw'; s.innerHTML = iconSVG(part.icon); frag.appendChild(s); }
+    }
+    p.replaceChild(frag, node);
+  };
+  const walk = root => {
+    if (root.nodeType === 3) return fix(root);
+    if (root.nodeType !== 1 || SKIP.has(root.nodeName)) return;
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
+    while (tw.nextNode()) list.push(tw.currentNode);
+    list.forEach(fix);
+  };
+  walk(document.body);
+  new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') fix(m.target); else m.addedNodes.forEach(walk); } })
+    .observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+
 // ---------------------------------------------------------------- constants
 const HEX_R = 30;                 // hex corner radius (world units ≈ metres)
 const SQ3 = Math.sqrt(3);
@@ -34,18 +166,18 @@ const RES = {
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Pinewild',   color: 0x3f7a35, mini: '#3f7a35' },
-  stone:  { name: 'Greyquarry', color: 0x8d877c, mini: '#9a948a' },
-  wheat:  { name: 'Goldfield',  color: 0xd6ad45, mini: '#d9b44a' },
-  cattle: { name: 'Highmoor',   color: 0x86b450, mini: '#86b450' },
-  ember:  { name: 'Ashvent',    color: 0x3b3330, mini: '#4a3530' },
-  cradle: { name: 'The Cradle', color: 0x5b4d45, mini: '#6b5246' },
+  timber: { name: 'Pinewild',   color: 0x2f5a2c, mini: '#34552e' },
+  stone:  { name: 'Greyquarry', color: 0x6f6a62, mini: '#77716a' },
+  wheat:  { name: 'Goldfield',  color: 0xa8893a, mini: '#a8893f' },
+  cattle: { name: 'Highmoor',   color: 0x5f7f3e, mini: '#5f7b42' },
+  ember:  { name: 'Ashvent',    color: 0x2e2624, mini: '#3a2c28' },
+  cradle: { name: 'The Cradle', color: 0x3e3430, mini: '#4a3a34' },
 };
 const HOUSES = {
-  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0xb3262c, css: '#c0392b', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
-  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x2b5fa8, css: '#3a73c8', style: 'stone',  desc: 'Stags of the highlands. Grey stone cottages and towered keeps.' },
-  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x2f7d4a, css: '#2f9a58', style: 'fen',    desc: 'Serpents of the fens. Thatched stilt huts and round watchtowers.' },
-  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '☀️', color: 0xd8a021, css: '#e0a82a', style: 'sun',    desc: 'The sun-house of the south. Sunstone domes and white towers.' },
+  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0x8e2420, css: '#b0362c', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
+  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x2a4a78, css: '#4a74ac', style: 'stone',  desc: 'Stags of the highlands. Grey stone cottages and towered keeps.' },
+  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x2e6040, css: '#4a8a5c', style: 'fen',    desc: 'Serpents of the fens. Thatched stilt huts and round watchtowers.' },
+  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '☀️', color: 0xa8822a, css: '#c9a03a', style: 'sun',    desc: 'The sun-house of the south. Sunstone domes and white towers.' },
 };
 let HOUSE = HOUSES.varn;
 const DAY_LENGTH = 480;            // seconds for a full day + night
@@ -204,11 +336,11 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       edge *= 1.0 - smoothstep(fadeNear, fadeFar, d0);          // lines fade into the mist
       // comic colour: a little extra saturation + halftone dots in the deep shadows
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
-      col = mix(vec3(lum), col, 1.18);
-      vec2 p = gl_FragCoord.xy / (5.0 * px); p = mat2(0.707, -0.707, 0.707, 0.707) * p;
-      float dotMask = smoothstep(0.0, 0.08, (0.11 - lum)) * step(length(fract(p) - 0.5), 0.28);
-      col *= 1.0 - 0.32 * dotMask;
-      col = mix(col, vec3(0.06, 0.045, 0.05), edge * 0.92);
+      col = mix(vec3(lum), col, 0.86);                                   // muted, earthy
+      col = mix(col, col * vec3(1.04, 0.98, 0.9), 0.5);                 // a touch of sepia
+      col = mix(col, vec3(0.05, 0.035, 0.03), edge * 0.85);             // woodcut ink lines
+      float vig = smoothstep(0.35, 0.95, length((vUv - 0.5) * vec2(1.15, 1.0)));
+      col *= 1.0 - 0.5 * vig;                                           // dark vignette
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -257,7 +389,7 @@ const stars = (() => {
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, heightAt(p.getX(i), p.getZ(i)));
   const ng = g.toNonIndexed(), np = ng.attributes.position, cols = new Float32Array(np.count * 3);
-  const c = new THREE.Color(), sand = new THREE.Color(0xd9c38f), wet = new THREE.Color(0xa38f63);
+  const c = new THREE.Color(), sand = new THREE.Color(0xa8986e), wet = new THREE.Color(0x7a6a4a);
   for (let i = 0; i < np.count; i += 3) {
     const cx = (np.getX(i) + np.getX(i + 1) + np.getX(i + 2)) / 3, cz = (np.getZ(i) + np.getZ(i + 1) + np.getZ(i + 2)) / 3;
     const cy = (np.getY(i) + np.getY(i + 1) + np.getY(i + 2)) / 3;
@@ -272,7 +404,7 @@ const stars = (() => {
       else if (t.type === 'cradle') { c.lerp(new THREE.Color(0x2a2220), Math.min(1, cy / 26)); }
       // soften colours toward borders so regions blend a little
       const dd = Math.hypot(cx - t.x, cz - t.z) / HEX_R;
-      if (dd > 0.82 && t.type !== 'cradle') c.lerp(new THREE.Color(0x6f8a45), (dd - 0.82) * 1.2);
+      if (dd > 0.82 && t.type !== 'cradle') c.lerp(new THREE.Color(0x4f6136), (dd - 0.82) * 1.2);
     }
     if (cy > 1) c.offsetHSL(0, 0.04, Math.min(0.08, (cy - 3) * 0.009));   // painted light-on-hilltops
     c.offsetHSL(0, 0, (j - 0.5) * 0.04);
@@ -296,7 +428,7 @@ const stars = (() => {
     }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xfff2cc, transparent: true, opacity: 0.35 })));
+  scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xd8c8a0, transparent: true, opacity: 0.22 })));
 }
 
 // sea
@@ -376,10 +508,10 @@ for (const t of tiles) {
   }
 }
 instanced(new THREE.CylinderGeometry(0.25, 0.4, 2, 5).translate(0, 1, 0), mat(0x5e3b22), trees);
-instanced(new THREE.ConeGeometry(1.9, 5, 6).translate(0, 4.2, 0), mat(0xffffff), trees, it => it.g < 0.33 ? 0x2d5a2a : it.g < 0.66 ? 0x356b30 : 0x24482a);
+instanced(new THREE.ConeGeometry(1.9, 5, 6).translate(0, 4.2, 0), mat(0xffffff), trees, it => it.g < 0.33 ? 0x22402a : it.g < 0.66 ? 0x2a4a2c : 0x1b3422);
 instanced(new THREE.DodecahedronGeometry(1, 0), mat(0xa39d92), rocks);
 instanced(new THREE.DodecahedronGeometry(1, 0), mat(0x2a2422), blackRocks);
-instanced(new THREE.ConeGeometry(0.35, 1.4, 4).translate(0, 0.7, 0), mat(0xffffff), tufts, it => it.green ? 0x5f9a3a : 0xe8c35a);
+instanced(new THREE.ConeGeometry(0.35, 1.4, 4).translate(0, 0.7, 0), mat(0xffffff), tufts, it => it.green ? 0x47702f : 0xb8963e);
 instanced(new THREE.ConeGeometry(0.9, 1.6, 5).translate(0, 0.6, 0), mat(0xff6a1a, { emissive: 0xff4a00, emissiveIntensity: 1.2 }), vents);
 
 function makeCow(t) {
@@ -412,12 +544,14 @@ const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
 function bannerTexture(num, icon) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d');
-  g.fillStyle = '#fff4dc'; g.beginPath(); g.roundRect(30, 2, 68, 50, 14); g.fill(); g.lineWidth = 6; g.strokeStyle = '#17110d'; g.stroke();
+  g.fillStyle = '#2a2016'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(33, 7, 62, 42, 7); g.stroke();
   g.font = '34px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon || '', 64, 29);
-  g.fillStyle = '#efe0bd'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
-  g.lineWidth = 9; g.strokeStyle = '#17110d'; g.stroke();
+  g.fillStyle = '#d6c49a'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 10; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.lineWidth = 3; g.strokeStyle = '#8a6a2a'; g.beginPath(); g.arc(64, 114, 47, 0, Math.PI * 2); g.stroke();
   const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#b3261e' : '#2b1d12'; g.font = 'bold 60px Georgia';
+  g.fillStyle = red ? '#8e1f18' : '#1e140c'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
   g.fillText(String(num), 64, 108);
   const pips = 6 - Math.abs(7 - num);
   for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 150, 4, 0, Math.PI * 2); g.fill(); }
@@ -433,18 +567,19 @@ for (const t of tiles) {
 }
 
 // comic caption textures for labels in the world
-function labelTexture(text, bg = '#fff4dc', fg = '#17110d') {
+function labelTexture(text, bg = '#1e1712', fg = '#e3c98a') {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 100; const g = cv.getContext('2d');
-  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 22); g.fill(); g.lineWidth = 7; g.strokeStyle = '#17110d'; g.stroke();
-  g.fillStyle = fg; g.font = '44px Bangers, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 54);
+  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 10); g.fill(); g.lineWidth = 7; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(13, 13, 486, 74, 6); g.stroke();
+  g.fillStyle = fg; g.font = "bold 38px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 54);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 // floating "+1 🌲" popups in the world
 const floats = [];
-function floatText(text, x, y, z, color = '#fff4dc') {
+function floatText(text, x, y, z, color = '#e8dcc0') {
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const g = cv.getContext('2d');
-  g.font = '64px Bangers, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineWidth = 10; g.strokeStyle = '#17110d'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
+  g.font = "bold 52px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.strokeStyle = '#0d0a08'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
   s.scale.set(7, 2.6, 1); s.position.set(x, y, z); s.renderOrder = 10; scene.add(s);
@@ -464,7 +599,7 @@ function harvestPopups(sum) {
       const c = corners[cid]; if (!c.building) continue;
       if (c.building.owner !== P && !c.tiles.some(id => visible.has(id))) continue;
       const n = (c.building.type === 'keep' ? 2 : 1) + (state.dawnBounty ? 1 : 0);
-      floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#ffe27a' : '#fff4dc');
+      floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#e3c98a' : '#d9cfb8');
     }
   }
 }
@@ -479,7 +614,7 @@ const reavers = (() => {
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 8, 5), mat(0x222)); pole.position.y = 4; g.add(pole);
   const flag = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.1), mat(0x111111)); flag.position.set(1.2, 7, 0); g.add(flag);
   const fire = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.4, 5), new THREE.MeshBasicMaterial({ color: 0xff7a20 })); fire.position.set(0, 0.7, 2.5); g.add(fire);
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture('🏴 REAVERS · no harvest here', '#2a1010', '#ffd0c0'), depthWrite: false, transparent: true })); tag.scale.set(11, 2.2, 1); tag.position.y = 11; g.add(tag);
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture('🏴 REAVERS · no harvest here', '#1a0c0a', '#e0a08a'), depthWrite: false, transparent: true })); tag.scale.set(11, 2.2, 1); tag.position.y = 11; g.add(tag);
   g.traverse(o => o.castShadow = true); scene.add(g); return g;
 })();
 let reaverTile = tiles.find(t => t.type === 'cradle');
@@ -505,9 +640,21 @@ const runes = [0, 1].map(i => {
 });
 
 // ---------------------------------------------------------------- buildings
-for (const h of Object.values(HOUSES)) h.mat = mat(h.color);
+for (const h of Object.values(HOUSES)) { h.mat = mat(h.color); h.crestMat = crestMaterial(h); }
+// a heraldic banner: the house colour with its crest, a gold border
+function crestMaterial(h) {
+  const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128; const g = cv.getContext('2d');
+  g.fillStyle = h.css; g.fillRect(0, 0, 192, 128);
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 96, 192, 32);
+  g.lineWidth = 8; g.strokeStyle = '#c9a75a'; g.strokeRect(4, 4, 184, 120);
+  const icon = ICON_IMG[EMOJI_TO[h.sigil.replace(/\uFE0F/g, '')]];
+  if (icon) { g.fillStyle = 'rgba(232,220,192,.92)'; g.beginPath(); g.arc(96, 62, 44, 0, 7); g.fill(); g.drawImage(icon, 58, 24, 76, 76); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp });
+}
+let houseCrest = null;
 let houseMat = HOUSE.mat;
-const wallMat = mat(0xe6d8b8), woodMat = mat(0x6b4a2b), stoneMat = mat(0x9e978b), roadMat = mat(0x8a7356);
+const wallMat = mat(0xa89a7e), woodMat = mat(0x4e3420), stoneMat = mat(0x7a746a), roadMat = mat(0x6a5a46);
 const M = {
   woodDark: mat(0x4e3420), woodLight: mat(0x8a6338), turf: mat(0x5f8f3a), thatch: mat(0xc9a557), slate: mat(0x4f5866),
   moss: mat(0x7d8a72), sand: mat(0xe3c995), white: mat(0xf0e8d8), plaster: wallMat, stone: stoneMat, iron: mat(0x2b2b2e),
@@ -543,7 +690,8 @@ function torch(x, z, h = 2.2) {
 function flagPole(h) {
   const g = new THREE.Group();
   const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, h, 5), woodMat); p.position.y = h / 2; g.add(p);
-  const f = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 0.08), houseMat); f.position.set(0.95, h - 0.7, 0); g.add(f);
+  const f = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.3, 0.08), houseCrest || houseMat); f.position.set(1.0, h - 0.8, 0); g.add(f);
+  const fin = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.45, 5), M.iron); fin.position.y = h + 0.2; g.add(fin);
   return g;
 }
 const STYLES = {
@@ -649,7 +797,7 @@ const STYLES = {
     },
   },
 };
-function withHouse(h, fn) { const prev = houseMat; houseMat = h.mat; try { return fn(); } finally { houseMat = prev; } }
+function withHouse(h, fn) { const prev = houseMat, pc = houseCrest; houseMat = h.mat; houseCrest = h.crestMat; try { return fn(); } finally { houseMat = prev; houseCrest = pc; } }
 const makeHamlet = (h = HOUSE) => withHouse(h, () => STYLES[h.style].hamlet());
 const makeKeep = (h = HOUSE) => withHouse(h, () => STYLES[h.style].keep());
 // Walls in the style of the Great Wall: a stone wall with battlements on both edges, a walkway
@@ -657,7 +805,7 @@ const makeKeep = (h = HOUSE) => withHouse(h, () => STYLES[h.style].keep());
 const WALL_H = 2.6, WALL_TRIM = 4.5, GATE_HALF = 2.2;   // a gate in the middle of every wall
 const wallGates = [];   // { e, pivots: [left, right], open }
 const boxAt = (...args) => B(...args);   // (inside makeRoad, B is a corner)
-const wallStone = mat(0xb8ab94), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
+const wallStone = mat(0x857d70), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
 function mergeGeos(parts) {
   const pos = [], nor = [];
   for (const { geo, m } of parts) {
@@ -1398,23 +1546,67 @@ function reportBuild(pid, t) {
   else if (t.kind !== 'road') log(`🐦 Ravens report: ${nameOf(pid)} ${what}`);
 }
 // AI lords walk the isles in person
+// A lord on horseback: a horse in a caparison of the house colour, an armoured rider with a plumed helm,
+// a crest shield and a lance with the house banner.
+const COATS = { varn: 0x1e1a18, calder: 0x7a7a80, morrow: 0x5a3e26, ashby: 0xc8bea8 };
 function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
-  const g = new THREE.Group(), body = new THREE.Group();
-  body.add(cyl(0.45, 0.7, 1.5, 7, h.mat, 0, 0, 0));
-  body.add(cyl(0.5, 0.5, 0.5, 7, M.iron, 0, 1.45, 0));
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 8, 6), M.plaster); head.position.y = 2.15; body.add(head);
-  body.add(cone(0.42, 0.5, 7, M.iron, 0, 2.3, 0));
-  const pole = cyl(0.06, 0.06, 3.6, 4, M.woodDark, -0.35, 0, -0.35); body.add(pole);
-  const flag = B(1.2, 0.8, 0.06, h.mat, 0.25, 2.7, -0.35); body.add(flag);
-  g.add(body); g.userData.body = body;
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d');
-  x.fillStyle = '#fff4dc'; x.beginPath(); x.roundRect(4, 4, 248, 56, 14); x.fill(); x.lineWidth = 5; x.strokeStyle = '#17110d'; x.stroke();
-  x.fillStyle = h.css; x.font = '30px Bangers, Impact, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 128, 34);
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), depthWrite: false, transparent: true }));
-  tag.scale.set(5, 1.25, 1); tag.position.y = 4.4; g.add(tag);
-  const egg = makeEgg(); egg.scale.set(0.55, 0.75, 0.55); egg.position.y = 3.3; egg.visible = false; body.add(egg); g.userData.egg = egg;
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const horse = mat(COATS[h.key] ?? 0x5a3e26), mane = mat(0x15110e), steel = mat(0x9a9ea8), dark = M.iron, skin = mat(0xc89a78), gold = mat(0xb8913a);
+  // horse
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.5, 4, 8), horse); torso.rotation.x = Math.PI / 2; torso.position.y = 1.6; body.add(torso);
+  const neck = B(0.48, 1.25, 0.62, horse, 0, 1.45, 1.0); neck.rotation.x = -0.65; body.add(neck);
+  const head = B(0.42, 0.45, 1.0, horse, 0, 2.25, 1.55); head.rotation.x = 0.4; body.add(head);
+  for (const sx of [-1, 1]) { const ear = cone(0.08, 0.3, 4, horse, sx * 0.13, 2.7, 1.28); body.add(ear); }
+  const crin = B(0.12, 1.0, 0.5, mane, 0, 1.85, 0.82); crin.rotation.x = -0.65; body.add(crin);
+  const tail = cone(0.2, 1.2, 5, mane, 0, 0.8, -1.3); tail.rotation.x = 2.7; body.add(tail);
+  body.add(B(1.28, 0.8, 2.05, h.mat, 0, 0.95, 0));                       // caparison
+  body.add(B(1.3, 0.12, 2.07, gold, 0, 0.95, 0));                         // gold hem
+  for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.55), h.crestMat); c.position.set(sx * 0.66, 1.45, 0); c.rotation.y = sx * Math.PI / 2; body.add(c); }
+  body.add(B(0.85, 0.22, 0.75, M.woodDark, 0, 2.05, -0.1));               // saddle
+  const legs = [];
+  for (const [x, z] of [[-0.32, 0.72], [0.32, 0.72], [-0.32, -0.72], [0.32, -0.72]]) {
+    const pv = new THREE.Group(); pv.position.set(x, 1.3, z); body.add(pv);
+    pv.add(B(0.2, 1.15, 0.24, horse, 0, -1.15, 0)); pv.add(B(0.24, 0.2, 0.28, mane, 0, -1.3, 0));
+    legs.push(pv);
+  }
+  // rider
+  const rider = new THREE.Group(); rider.position.set(0, 2.2, -0.12); body.add(rider);
+  for (const sx of [-1, 1]) { const l = B(0.22, 0.75, 0.26, steel, sx * 0.4, -0.55, 0.12); l.rotation.z = sx * 0.35; rider.add(l); }
+  rider.add(B(0.64, 0.82, 0.42, steel, 0, 0, 0));                         // cuirass
+  rider.add(B(0.5, 0.8, 0.06, h.mat, 0, -0.05, 0.22));                    // tabard
+  rider.add(B(0.68, 0.1, 0.46, M.woodDark, 0, 0.05, 0));                  // belt
+  rider.add(B(0.84, 0.22, 0.46, steel, 0, 0.72, 0));                      // pauldrons
+  const headR = new THREE.Mesh(new THREE.SphereGeometry(0.21, 8, 6), skin); headR.position.y = 1.05; rider.add(headR);
+  rider.add(cyl(0.25, 0.27, 0.42, 8, steel, 0, 0.9, 0));                  // great helm
+  rider.add(B(0.3, 0.05, 0.05, dark, 0, 1.12, 0.26));                     // visor slit
+  const plume = cone(0.1, 0.62, 5, h.mat, 0, 1.3, -0.05); plume.rotation.x = -0.5; rider.add(plume);
+  const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.25), new THREE.MeshToonMaterial({ color: h.color, gradientMap: toonRamp, side: THREE.DoubleSide }));
+  cape.position.set(0, 0.1, -0.26); cape.rotation.x = 0.18; rider.add(cape);
+  const shield = new THREE.Group(); shield.position.set(0.47, 0.22, 0.12); shield.rotation.y = Math.PI / 2; rider.add(shield);
+  shield.add(B(0.62, 0.78, 0.07, M.woodDark, 0, -0.39, 0));
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.72), h.crestMat); face.position.z = 0.04; shield.add(face);
+  const lance = cyl(0.045, 0.06, 3.8, 5, M.woodDark, -0.45, -0.6, 0.2); lance.rotation.x = 0.12; rider.add(lance);
+  rider.add(cone(0.07, 0.35, 4, steel, -0.45, 3.2, 0.62));
+  const pen = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.62), new THREE.MeshToonMaterial({ map: h.crestMat.map, gradientMap: toonRamp, side: THREE.DoubleSide }));
+  pen.position.set(-0.45, 2.7, 0.08); pen.rotation.y = Math.PI / 2; rider.add(pen);
+  const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.85, 0); egg.visible = false; rider.add(egg);
+  // name plaque
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const x = cv.getContext('2d');
+  x.fillStyle = '#1e1712'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#0d0a08'; x.stroke();
+  x.lineWidth = 2; x.strokeStyle = h.css; x.beginPath(); x.roundRect(10, 10, 300, 52, 5); x.stroke();
+  x.fillStyle = '#e3c98a'; x.font = "bold 28px Cinzel, Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthWrite: false, transparent: true }));
+  tag.scale.set(4.4, 1.0, 1); tag.position.y = 5.0; g.add(tag);
+  g.userData = { body, legs, egg, rider };
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  g.scale.setScalar(1.25); scene.add(g); return g;
+  g.scale.setScalar(1.05); scene.add(g); return g;
+}
+// trot: legs swing in diagonal pairs, the body bobs
+function animateAvatar(av, moving, time) {
+  const u = av.userData;
+  u.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(time * 11 + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.55 : 0; });
+  u.body.position.y = moving ? Math.abs(Math.sin(time * 11)) * 0.1 : 0;
 }
 function spawnAvatars() {
   for (const p of players) {
@@ -1452,7 +1644,7 @@ function updateAI(dt, time) {
     }
     const y = walkHeight(p.pos.x, p.pos.z);
     p.avatar.position.set(p.pos.x, y, p.pos.z);
-    p.avatar.userData.body.position.y = moving ? Math.abs(Math.sin(time * 9 + p.id)) * 0.25 : 0;
+    animateAvatar(p.avatar, moving, time + p.id);
     p.avatar.userData.egg.visible = !!p.carrying;
     // the mist hides rivals you can't see
     const t = tileAtWorld(p.pos.x, p.pos.z);
@@ -1700,7 +1892,7 @@ function updatePlayer(dt) {
 // high (default): eyes raised to a rider's height with a wide view; hero: over the shoulder; first: classic first person
 const VIEWS = {
   high:  { label: '👁️ View: High',   eye: 4.2, fov: 80 },
-  hero:  { label: '👁️ View: Behind', eye: 2.0, fov: 78, back: 8.5, up: 3.4 },
+  hero:  { label: '👁️ View: Behind', eye: 3.2, fov: 78, back: 10, up: 2.6 },
   first: { label: '👁️ View: First',  eye: 1.7, fov: 70 },
 };
 let viewMode = 'high', meAvatar = null, meLast = { x: 0, z: 0 };
@@ -1732,7 +1924,7 @@ function placeCamera(dt) {
     meAvatar.visible = viewMode === 'hero' && state.phase === 'play' && !state.riding;
     const moving = Math.hypot(player.pos.x - meLast.x, player.pos.z - meLast.z) > 0.01; meLast = { x: player.pos.x, z: player.pos.z };
     meAvatar.position.copy(player.pos); meAvatar.rotation.y = player.yaw + Math.PI;
-    meAvatar.userData.body.position.y = moving ? Math.abs(Math.sin(performance.now() / 110)) * 0.25 : 0;
+    animateAvatar(meAvatar, moving, performance.now() / 1000);
     meAvatar.userData.egg.visible = !!state.carrying;
   }
 }
@@ -1824,17 +2016,18 @@ function showTarget(best, tip) {
 // GOLD   = you can build here right now (click it)
 // WHITE  = allowed here, but you need more resources
 // FAINT  = a future Hamlet plot: lay one more road to reach it
-const signGold = new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.95 });
+const signGold = new THREE.MeshBasicMaterial({ color: 0xd8b060, transparent: true, opacity: 0.95 });
 const signWhite = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
 const signFaint = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false });
 const signCloth = { gold: mat(0xe0a020), white: mat(0xd8d2c4) };
 function signTexture(icon, title, cost, ok) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = ok ? '#ffd84a' : 'rgba(255,244,220,.88)';
-  g.beginPath(); g.roundRect(8, 8, 304, 112, 18); g.fill();
-  g.lineWidth = 7; g.strokeStyle = ok ? '#17110d' : 'rgba(23,17,13,.55)'; g.stroke();
+  g.fillStyle = ok ? '#2e2214' : 'rgba(22,17,13,.82)';
+  g.beginPath(); g.roundRect(8, 8, 304, 112, 10); g.fill();
+  g.lineWidth = 7; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.lineWidth = 3; g.strokeStyle = ok ? '#c9a75a' : '#5a4a32'; g.beginPath(); g.roundRect(15, 15, 290, 98, 6); g.stroke();
   g.font = '64px serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(icon, 66, 66);
-  g.textAlign = 'left'; g.fillStyle = '#17110d'; g.font = '40px Bangers, Impact, sans-serif'; g.fillText(title, 118, 46);
+  g.textAlign = 'left'; g.fillStyle = ok ? '#e3c98a' : '#9a8a6a'; g.font = "bold 34px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.fillText(title, 118, 46);
   g.font = '28px serif'; g.fillText(cost, 118, 92);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
@@ -1999,7 +2192,7 @@ function updateObjective() {
 }
 let currentGoal = null;
 const beacon = (() => {   // a pillar of light over the next goal
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.2, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.2, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xe8c070, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   m.geometry.translate(0, 35, 0); m.visible = false; scene.add(m); return m;
 })();
 const needTxt = kind => { const m = []; for (const [k, n] of Object.entries(COST[kind])) if (state.res[k] < n) m.push(`${n - state.res[k]} ${RES[k].icon}`); return m.join(' '); };
@@ -2227,7 +2420,7 @@ function drawMinimap() {
   const X = x => W / 2 + x * sc, Y = z => W / 2 + z * sc;
   const fs = W * (big ? 0.03 : 0.042);
   mctx.clearRect(0, 0, W, W);
-  mctx.fillStyle = '#1d4f6b'; mctx.fillRect(0, 0, W, W);
+  mctx.fillStyle = '#132028'; mctx.fillRect(0, 0, W, W);
   mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
   for (const t of tiles) {
     const known = isKnown(t), live = visible.has(t.id);
@@ -2261,7 +2454,7 @@ function drawMinimap() {
   mctx.lineWidth = 4 * u;
   for (const e of edges) if (e.road !== null && (e.road === P || (cornerKnown(corners[e.a]) && cornerKnown(corners[e.b])))) {
     const A = corners[e.a], B = corners[e.b]; mctx.strokeStyle = css(e.road); mctx.beginPath(); mctx.moveTo(X(A.x), Y(A.z)); mctx.lineTo(X(B.x), Y(B.z)); mctx.stroke();
-    mctx.fillStyle = '#fff4dc'; mctx.beginPath(); mctx.arc(X((A.x + B.x) / 2), Y((A.z + B.z) / 2), 2.2 * u, 0, 7); mctx.fill();   // the gate
+    mctx.fillStyle = '#d9c9a3'; mctx.beginPath(); mctx.arc(X((A.x + B.x) / 2), Y((A.z + B.z) / 2), 2.2 * u, 0, 7); mctx.fill();   // the gate
   }
   for (const c of corners) if (c.building && cornerKnown(c)) {
     const s = (c.building.type === 'keep' ? 9 : 6) * u;
@@ -2796,15 +2989,15 @@ function dragonStatus() {
 const C = h => new THREE.Color(h);
 // t, sky top, horizon, sun colour, sun intensity, hemi sky, hemi ground, hemi intensity, water
 const DAYKEYS = [
-  [0.00, 0x56649e, 0xf3a06a, 0xffaa66, 1.3, 0xb8c4ea, 0x5a4632, 0.95, 0x2f6f92],   // dawn
-  [0.10, 0x4a86c8, 0xf6d6ab, 0xffe2b8, 2.5, 0xcfe3ff, 0x5a4632, 1.3, 0x2f7fa6],    // morning
-  [0.36, 0x3b80d2, 0xd4e6f2, 0xfff4e2, 2.8, 0xd8ecff, 0x5e4a34, 1.4, 0x3388b0],    // noon
-  [0.64, 0x4878bc, 0xf4cf9a, 0xffd59a, 2.4, 0xcfe3ff, 0x5a4632, 1.25, 0x2f7fa6],   // afternoon
-  [0.76, 0x3b3c78, 0xf27a46, 0xff7a40, 1.3, 0xa69cc8, 0x4a3628, 0.95, 0x2a5a7c],   // sunset
-  [0.81, 0x1b2050, 0x6e4a72, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // twilight
-  [0.90, 0x080d24, 0x1f2d50, 0x9ab2ee, 0.8, 0x6474b4, 0x2c2a32, 0.95, 0x0f2440],    // midnight
-  [0.97, 0x1b2050, 0x5c4a74, 0x8494cc, 0.75, 0x6f80b8, 0x34302c, 0.95, 0x173550],   // before dawn
-  [1.00, 0x56649e, 0xf3a06a, 0xffaa66, 1.3, 0xb8c4ea, 0x5a4632, 0.95, 0x2f6f92],
+  [0.00, 0x3a4058, 0xa8765a, 0xd8955a, 1.1, 0x8a92a8, 0x3a3026, 0.8, 0x22404c],   // dawn
+  [0.10, 0x4a6280, 0xb4ae9e, 0xe8d6b0, 2.0, 0x9aa8b8, 0x3a3026, 1.0, 0x2b4a58],    // morning
+  [0.36, 0x4e6a88, 0xbcb8ac, 0xf0e2c4, 2.3, 0xa8b4c0, 0x3e3428, 1.1, 0x2e5262],    // noon
+  [0.64, 0x465a78, 0xb8a48a, 0xe8c890, 2.0, 0x9aa4b4, 0x3a3026, 1.0, 0x2b4a58],   // afternoon
+  [0.76, 0x2a2840, 0xa04a2a, 0xd86a36, 1.1, 0x7a6e90, 0x2e241c, 0.8, 0x1e3646],   // sunset
+  [0.81, 0x141626, 0x443044, 0x7480a8, 0.6, 0x55608a, 0x221e1c, 0.75, 0x122634],   // twilight
+  [0.90, 0x05070e, 0x121826, 0x8a9ac8, 0.65, 0x4a5480, 0x1e1c22, 0.75, 0x0a1824],    // midnight
+  [0.97, 0x141626, 0x3e3048, 0x7480a8, 0.6, 0x55608a, 0x221e1c, 0.75, 0x122634],   // before dawn
+  [1.00, 0x3a4058, 0xa8765a, 0xd8955a, 1.1, 0x8a92a8, 0x3a3026, 0.8, 0x22404c],
 ];
 const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
@@ -2908,8 +3101,9 @@ function updateHumanAvatars(dt) {
     p.pos = p.pos || { x: src.x, z: src.z };
     const k = Math.min(1, dt * 10);
     p.pos.x += (src.x - p.pos.x) * k; p.pos.z += (src.z - p.pos.z) * k;
+    const mv = Math.hypot(src.x - p.pos.x, src.z - p.pos.z) > 0.05;
     p.avatar.position.set(p.pos.x, walkHeight(p.pos.x, p.pos.z), p.pos.z);
-    p.avatar.rotation.y = src.ry || 0;
+    p.avatar.rotation.y = src.ry || 0; animateAvatar(p.avatar, mv, performance.now() / 1000);
     p.avatar.userData.egg.visible = !!p.carrying;
     const t = tileAtWorld(p.pos.x, p.pos.z);
     p.avatar.visible = !p.riding && (state.dragonEye || Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z) < SIGHT + 10 || (t && visible.has(t.id)));
