@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dragonhold: Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Cinzel+Decorative:wght@700;900&family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya:ital,wght@0,500;0,700;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --gold:#e9c46a; --ink:#1b1410; --panel:rgba(22,16,12,.78); --line:rgba(233,196,106,.45); }
   * { box-sizing:border-box; }
@@ -361,9 +361,79 @@
   .dp { font-size:24px !important; padding:0 !important; } #duelMoves button { font-size:19px !important; } .st { font-size:16px !important; }
   #challengeBtn, #raidBtn, #tollBtn { font-size:16px !important; padding:8px 18px !important; } #hurryBtn { font-size:13px !important; padding:4px 14px !important; }
   #objective .go { font-size:13px !important; padding:3px 10px !important; }
+  /* ===================== WATERCOLOUR, DARK ===================== */
+  :root { --wash0:#14151c; --wash1:#22232f; --wash2:#2e3040; --paper:#e6dccb; --ochre:#c9a46c; --ochre2:#e6c995; --rose:#b8676a; --teal:#5f8f8a;
+    --gold:#c9a46c; --gold2:#e6c995; --goldDim:rgba(201,164,108,.35); --text:#e6dccb; --muted:#9c968c; --hair:rgba(230,220,203,.12);
+    --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .9 0 0 0 0 .85 0 0 0 0 .78 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --blots:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .6 0 0 0 0 .8 0 0 0 .22 -.04'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23b)'/%3E%3C/svg%3E"); }
+  html,body { font-family:'Alegreya Sans',sans-serif !important; color:var(--text) !important; background:#08090d; font-variant-numeric:lining-nums; }
+  * { font-variant-numeric:lining-nums; }
+  b { color:#f4ead6; }
+  /* every panel is a dark ink wash with soft, slightly ragged painted edges */
+  .panel, .card { position:relative; }
+  #house.panel, #harvest.panel, #minimap, #resources.panel, #objective.panel, #buildMenu.panel, #raven.panel, #log { position:absolute; }
+  .panel { background:transparent !important; border:none !important; box-shadow:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; isolation:isolate; }
+  .panel::before { content:""; position:absolute; inset:-3px; z-index:-1; border-radius:16px; pointer-events:none;
+    background:var(--grain), var(--blots), radial-gradient(130% 110% at 25% 15%, rgba(54,58,78,.95), rgba(26,27,37,.96) 55%, rgba(16,16,23,.97));
+    box-shadow:0 0 0 1px rgba(230,220,203,.06), inset 0 0 26px rgba(0,0,0,.55), 0 14px 34px rgba(0,0,0,.55); filter:url(#wcEdge); }
+  .panel::after { content:""; position:absolute; inset:2px; z-index:-1; border-radius:13px; pointer-events:none; border:1px solid rgba(201,164,108,.22); filter:url(#wcEdge); }
+  .title { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; letter-spacing:10px !important; text-transform:uppercase;
+    background:linear-gradient(180deg,#f3e6cc 10%,#d9b98a 55%,#9c7550 100%); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)) drop-shadow(0 0 26px rgba(184,103,106,.25)); }
+  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag, #buildMenu .bm-title, .step { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; color:var(--ochre) !important; letter-spacing:3px !important; }
+  #house .name, #house .renown, .res .n, .slot .t, #buildMenu .slot b, .scard .sn, .hcard .hn, #duelScore, .code, .act, #duelLog .result, .tb, button { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; }
+  #house .name { color:var(--ochre2) !important; font-size:19px !important; } #house .renown { font-size:25px !important; color:#f4ead6 !important; }
+  .res .n { font-size:24px !important; color:#f4ead6 !important; }
+  .tag, #start .tag { font-family:'Cormorant Garamond',Georgia,serif !important; font-style:italic; font-size:19px !important; color:#bdb3a2 !important; }
+  /* buttons: pigment washes */
+  button { font-size:17px !important; letter-spacing:1.5px !important; color:var(--paper) !important; border:none !important; border-radius:12px !important;
+    background:var(--grain), radial-gradient(120% 140% at 30% 20%, rgba(78,84,108,.95), rgba(38,40,54,.95) 70%) !important;
+    box-shadow:inset 0 0 0 1px rgba(230,220,203,.12), inset 0 -6px 12px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.45) !important; text-shadow:0 1px 1px rgba(0,0,0,.6); }
+  button:hover { filter:brightness(1.18) saturate(1.1) !important; }
+  button.small { font-size:15px !important; }
+  button.primary, #lobbyStart, #helpClose, #winBtn, #tradeBtn { color:#2a1a10 !important; text-shadow:0 1px 0 rgba(255,240,215,.35) !important;
+    background:var(--grain), radial-gradient(130% 150% at 30% 20%, #ecd0a0 0%, #c99a62 45%, #8e5e3e 100%) !important;
+    box-shadow:inset 0 0 0 1px rgba(255,235,200,.35), inset 0 -8px 16px rgba(90,40,20,.35), 0 6px 20px rgba(201,140,90,.22) !important; }
+  button.ghost { background:transparent !important; box-shadow:none !important; color:var(--muted) !important; }
+  .act { color:var(--paper) !important; font-size:13px !important; letter-spacing:1px !important; }
+  .act.ready, .tb.on, .slot.active, #buildMenu .slot.active, .pick.sel, .rivals span.sel, .res.flash {
+    background:var(--grain), radial-gradient(120% 140% at 30% 20%, rgba(201,164,108,.55), rgba(110,72,50,.6)) !important; box-shadow:inset 0 0 0 1px rgba(230,201,149,.5), 0 0 18px rgba(201,164,108,.25) !important; color:#fff4dc !important; }
+  .act.fire, #challengeBtn { background:var(--grain), radial-gradient(120% 140% at 30% 20%, #b8676a, #5e2a30) !important; }
+  #raidBtn { background:var(--grain), radial-gradient(120% 140% at 30% 20%, #6a6aa0, #2a2846) !important; }
+  #tollBtn { background:var(--grain), radial-gradient(120% 140% at 30% 20%, rgba(201,164,108,.6), rgba(90,60,40,.8)) !important; }
+  #buildMenu .slot, .hcard, .seat, .scard, .cheatgrid section, .pick, .res { background:rgba(255,255,255,.035) !important; border:none !important; border-radius:12px !important;
+    box-shadow:inset 0 0 0 1px rgba(230,220,203,.08) !important; }
+  #buildMenu .slot:not(.poor) { background:radial-gradient(120% 140% at 0% 50%, rgba(201,164,108,.22), rgba(201,164,108,.03)) !important; box-shadow:inset 0 0 0 1px rgba(201,164,108,.28) !important; }
+  #buildMenu .slot b { font-size:16px !important; color:#f4ead6 !important; }
+  .res.loss { background:rgba(184,103,106,.45) !important; }
+  #announce .big { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; font-size:64px !important; letter-spacing:8px !important;
+    background:linear-gradient(180deg,#f6ead2,#d9b98a 60%,#9c7550); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    filter:drop-shadow(0 3px 0 rgba(0,0,0,.7)) drop-shadow(0 0 34px rgba(0,0,0,.95)); }
+  #announce .small { background:var(--grain), radial-gradient(130% 130% at 30% 20%, rgba(46,48,64,.95), rgba(18,18,26,.95)) !important; border:none !important; border-radius:14px !important;
+    box-shadow:inset 0 0 0 1px rgba(230,220,203,.1), 0 10px 26px rgba(0,0,0,.6) !important; font-family:'Cormorant Garamond',serif !important; font-size:20px !important; font-weight:600; }
+  #log div { background:var(--grain), linear-gradient(90deg, rgba(30,31,42,.9), rgba(20,20,28,.75)) !important; border:none !important; border-left:3px solid rgba(201,164,108,.6) !important; border-radius:8px !important; }
+  #objective { background:transparent !important; }
+  #minimap { border:none !important; background:#1a2430 !important; box-shadow:0 0 0 3px rgba(20,21,28,.9), 0 0 0 4px rgba(201,164,108,.35), 0 0 30px rgba(0,0,0,.6) !important; filter:url(#wcEdge) saturate(.85); }
+  #harvest .bar { background:rgba(0,0,0,.4) !important; border:none !important; box-shadow:inset 0 0 0 1px rgba(230,220,203,.1); }
+  #harvest .fill { background:linear-gradient(90deg,#8e5e3e,#e6c995) !important; filter:blur(.4px); }
+  #tip.ok { background:rgba(40,60,52,.92) !important; border:none !important; } #tip.bad { background:rgba(70,30,34,.92) !important; border:none !important; }
+  .overlay { background:radial-gradient(ellipse at center, rgba(28,26,40,.68), rgba(6,6,10,.95)) !important; }
+  .code, .online input, #netName, #joinCode { background:rgba(0,0,0,.35) !important; border:none !important; box-shadow:inset 0 0 0 1px rgba(230,220,203,.14) !important; color:var(--paper) !important; }
+  .rivals span { border:none !important; box-shadow:inset 0 0 0 1px rgba(230,220,203,.16) !important; background:rgba(255,255,255,.04) !important; font-family:'Cormorant Garamond',serif !important; font-weight:700 !important; font-size:18px !important; }
+  .hcard.sel { background:radial-gradient(130% 160% at 0% 50%, color-mix(in srgb, var(--hc) 38%, transparent), rgba(255,255,255,.02)) !important;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--hc) 70%, transparent), 0 0 22px color-mix(in srgb, var(--hc) 30%, transparent) !important; }
+  .hcard .hn { font-size:18px !important; filter:brightness(1.4) saturate(.8); }
+  #start { background:linear-gradient(90deg, rgba(8,8,13,.95) 0%, rgba(8,8,13,.8) 40%, rgba(8,8,13,.25) 78%, rgba(8,8,13,.08) 100%),
+               radial-gradient(ellipse at 75% 105%, rgba(184,103,106,.2), transparent 60%) !important; }
+  #start h1.title { font-size:clamp(38px,4.6vw,58px) !important; letter-spacing:7px !important; }
+  .rule { color:var(--rose) !important; } .rule span { background:linear-gradient(90deg, transparent, rgba(201,164,108,.7), transparent) !important; }
+  .dp { background:var(--grain), radial-gradient(circle at 35% 30%, rgba(70,74,96,.92), rgba(26,27,37,.92)) !important; border:none !important; }
+  .icw svg.ic { filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)) saturate(.85); }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wcEdge" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="4" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+
 <canvas id="view"></canvas>
 
 <div id="hud" class="hidden">

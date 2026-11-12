@@ -253,3 +253,12 @@ AI lords move around the world physically, so you **see** them walking to claim 
 - [x] Combat: no first-person PvP; conflict through Reavers and Dragonfire
 - [x] Harvest speed: random 30–60 s per harvest, Rune Stones cast twice per harvest (first harvest after landing at 15 s)
 - [x] Art style: low-poly stylized
+
+### Wall joints (update)
+Where two or more walls meet at a corner with no settlement, a corner tower closes the gap. Nobody, not even the owner, can slip through a bare joint. Owners still cross their own walls at the gate or right beside one of their own settlements.
+
+### Art direction (update)
+Soft watercolour with a dark mood:
+- **Rendering:** a post-process with pigment bleed, darker edges where washes meet, paper grain, uneven washes and wobbly hand-painted lines.
+- **Shading and light:** soft four-step shading, muted dusky skies and cool shadows.
+- **UI:** ink-wash panels with ragged painted edges, set in Cormorant Garamond.

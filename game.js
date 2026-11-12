@@ -166,11 +166,11 @@ const RES = {
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Pinewild',   color: 0x2e6b35, mini: '#2f6a38' },
-  stone:  { name: 'Greyquarry', color: 0x8a8782, mini: '#8c8a86' },
-  wheat:  { name: 'Goldfield',  color: 0xd2a945, mini: '#d0a848' },
-  cattle: { name: 'Highmoor',   color: 0x74a44a, mini: '#76a24c' },
-  ember:  { name: 'Ashvent',    color: 0x4a2c26, mini: '#5a3028' },
+  timber: { name: 'Pinewild',   color: 0x2c5a3c, mini: '#3a5e44' },
+  stone:  { name: 'Greyquarry', color: 0x7c7c84, mini: '#7e7e88' },
+  wheat:  { name: 'Goldfield',  color: 0xbe9a58, mini: '#b8975c' },
+  cattle: { name: 'Highmoor',   color: 0x6a8a52, mini: '#6c8a56' },
+  ember:  { name: 'Ashvent',    color: 0x4a2a2c, mini: '#563036' },
   cradle: { name: 'The Cradle', color: 0x4e3a34, mini: '#5a4038' },
 };
 const HOUSES = {
@@ -308,8 +308,8 @@ sun.shadow.bias = -0.0008; scene.add(sun);
 
 // comic look: 3-tone cel shading
 const toonRamp = (() => {
-  const d = new Uint8Array([105, 105, 105, 255, 185, 185, 185, 255, 255, 255, 255, 255]);
-  const t = new THREE.DataTexture(d, 3, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+  const d = new Uint8Array([90, 90, 90, 255, 135, 135, 135, 255, 190, 190, 190, 255, 240, 240, 240, 255]);   // soft washes, not hard bands
+  const t = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
 })();
 // ---------------------------------------------------------------- ink pass (outlines + halftone)
 const inkRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -325,24 +325,39 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
   fragmentShader: `#include <packing>
     uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px; varying vec2 vUv;
     float D(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, near, far); }
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+    float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + 7.1; a *= 0.5; } return v; }
     void main(){
-      vec2 o = px / res;
-      vec3 col = texture2D(tColor, vUv).rgb;
-      float d0 = D(vUv), dl = D(vUv - vec2(o.x, 0.)), dr = D(vUv + vec2(o.x, 0.)), du = D(vUv + vec2(0., o.y)), dd = D(vUv - vec2(0., o.y));
-      // silhouettes: big depth jumps; creases: depth curvature (second derivative)
+      vec2 px1 = 1.0 / res, sc = vUv * res;
+      // hand-painted wobble: sample the scene through a slow noise field
+      vec2 uv = vUv + (vec2(fbm(sc * 0.01), fbm(sc * 0.01 + 17.3)) - 0.5) * 4.0 * px1 * px;
+      vec3 c0 = texture2D(tColor, uv).rgb;
+      vec2 o = px1 * 2.2 * px;
+      vec3 bl = (texture2D(tColor, uv + vec2(o.x, 0.)).rgb + texture2D(tColor, uv - vec2(o.x, 0.)).rgb
+               + texture2D(tColor, uv + vec2(0., o.y)).rgb + texture2D(tColor, uv - vec2(0., o.y)).rgb) * 0.25;
+      vec3 col = mix(c0, bl, 0.5);                                         // pigment bleeds softly
+      col *= 1.0 - smoothstep(0.015, 0.2, length(c0 - bl)) * 0.32;         // and pools darker at the edges of each wash
+      vec2 q = px / res;
+      float d0 = D(uv), dl = D(uv - vec2(q.x, 0.)), dr = D(uv + vec2(q.x, 0.)), du = D(uv + vec2(0., q.y)), dd = D(uv - vec2(0., q.y));
       float jump = max(max(abs(d0 - dl), abs(d0 - dr)), max(abs(d0 - du), abs(d0 - dd))) / d0;
-      float crease = (abs(dl + dr - 2.0 * d0) + abs(du + dd - 2.0 * d0)) / d0;
-      float edge = max(smoothstep(0.035, 0.07, jump), smoothstep(0.012, 0.03, crease));
-      edge *= 1.0 - smoothstep(fadeNear, fadeFar, d0);          // lines fade into the mist
-      // comic colour: a little extra saturation + halftone dots in the deep shadows
+      float edge = smoothstep(0.04, 0.09, jump) * (1.0 - smoothstep(fadeNear, fadeFar, d0));
+      col = mix(col, col * vec3(0.32, 0.3, 0.38), edge * 0.55);            // soft ink-wash outlines
+      // a dark, muted palette: cool shadows, warm light
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
-      col = mix(vec3(lum), col, 1.14);                                   // rich, painterly colour
-      col = clamp(col, 0.0, 1.0);
-      col = col * col * (3.0 - 2.0 * col) * 0.35 + col * 0.65;           // gentle filmic contrast
-      col = mix(col, col * vec3(1.03, 1.0, 0.97), smoothstep(0.4, 0.9, lum));   // warm highlights
-      col = mix(col, vec3(0.04, 0.05, 0.08), edge * 0.75);              // ink lines
-      float vig = smoothstep(0.45, 1.05, length((vUv - 0.5) * vec2(1.15, 1.0)));
-      col *= 1.0 - 0.32 * vig;                                          // soft vignette
+      col = mix(vec3(lum), col, 0.8);
+      col = pow(max(col, 0.0), vec3(1.12));
+      col *= mix(vec3(0.8, 0.86, 1.05), vec3(1.06, 1.0, 0.9), smoothstep(0.08, 0.6, lum));
+      // uneven washes, pigment granulation and paper
+      float blot = fbm(sc * 0.0035 + 3.1), gran = fbm(sc * 0.08), paper = vnoise(sc * 0.6) * 0.5 + vnoise(sc * 0.23) * 0.5;
+      col *= 0.84 + 0.26 * blot;
+      col *= 0.94 + 0.09 * gran;
+      col *= 0.92 + 0.1 * paper;
+      col *= 0.88;                                                       // a darker mood overall
+      float vig = smoothstep(0.3, 1.0, length((vUv - 0.5) * vec2(1.15, 1.0)));
+      col *= 1.0 - 0.55 * vig;
+      col = mix(col, col * vec3(0.8, 0.84, 1.0), vig * 0.6);
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -546,14 +561,14 @@ const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
 function bannerTexture(num, icon) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d');
-  g.fillStyle = '#1a2438'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#070a12'; g.stroke();
+  g.fillStyle = '#22232e'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(33, 7, 62, 42, 7); g.stroke();
   g.font = '34px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon || '', 64, 29);
   g.fillStyle = '#f1e7cc'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
   g.lineWidth = 10; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 3; g.strokeStyle = '#c9a24e'; g.beginPath(); g.arc(64, 114, 47, 0, Math.PI * 2); g.stroke();
   const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#a3221a' : '#141c2c'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
+  g.fillStyle = red ? '#a3221a' : '#1c1d26'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
   g.fillText(String(num), 64, 108);
   const pips = 6 - Math.abs(7 - num);
   for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 150, 4, 0, Math.PI * 2); g.fill(); }
@@ -569,7 +584,7 @@ for (const t of tiles) {
 }
 
 // comic caption textures for labels in the world
-function labelTexture(text, bg = '#141c2c', fg = '#e3c98a') {
+function labelTexture(text, bg = '#1c1d26', fg = '#e3c98a') {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 100; const g = cv.getContext('2d');
   g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 10); g.fill(); g.lineWidth = 7; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(13, 13, 486, 74, 6); g.stroke();
@@ -877,8 +892,37 @@ function inGate(e, x, z) { const A = corners[e.a], B = corners[e.b], L = Math.hy
 // where the owner may pass their own wall: the gate, or right beside their own settlement at either end
 function ownerPass(e, x, z) {
   const A = corners[e.a], B = corners[e.b], L = Math.hypot(B.x - A.x, B.z - A.z), t = wallT(e, x, z);
-  return inGate(e, x, z) || t * L < WALL_TRIM + 1 || (1 - t) * L < WALL_TRIM + 1;
+  const byOwn = c => c.building && c.building.owner === e.road;   // only beside a settlement of theirs, never through a bare joint
+  return inGate(e, x, z) || (t * L < WALL_TRIM + 1 && byOwn(A)) || ((1 - t) * L < WALL_TRIM + 1 && byOwn(B));
 }
+// where two or more walls meet at a corner with no settlement, close the gap: short wall stubs into a corner tower
+const wallJoints = new Map();   // corner id -> mesh group
+function refreshJoint(c) {
+  const old = wallJoints.get(c.id); if (old) { scene.remove(old); wallJoints.delete(c.id); }
+  const ws = c.edges.map(i => edges[i]).filter(e => e.road !== null);
+  if (c.building || ws.length < 2) return;
+  const stone = [], g = new THREE.Group(), colours = new Map();
+  for (const e of ws) {
+    const o = corners[e.a === c.id ? e.b : e.a], L = Math.hypot(o.x - c.x, o.z - c.z), k = (WALL_TRIM + 0.3) / L;
+    const p0 = { x: c.x, z: c.z }, p1 = { x: c.x + (o.x - c.x) * k, z: c.z + (o.z - c.z) * k };
+    p0.y = heightAt(p0.x, p0.z); p1.y = heightAt(p1.x, p1.z);
+    const len = Math.hypot(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
+    _wo.position.set((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + WALL_H / 2 - 0.4, (p0.z + p1.z) / 2);
+    _wo.lookAt(p1.x, p1.y + WALL_H / 2 - 0.4, p1.z); _wo.scale.set(1, 1, 1); _wo.updateMatrix(); _wm.copy(_wo.matrix);
+    stone.push({ geo: WG.body, m: _wm.clone().multiply(_wt.makeScale(1, WALL_H + 0.8, len)) });
+    for (const side of [-1.0, 1.0]) for (const kk of [-0.25, 0.25]) stone.push({ geo: WG.merlon, m: _wm.clone().multiply(_wt.makeTranslation(side, WALL_H / 2 + 0.7, kk * len)) });
+    if (!colours.has(e.road)) colours.set(e.road, []);
+    colours.get(e.road).push({ geo: WG.walk, m: _wm.clone().multiply(_wt.makeTranslation(0, WALL_H / 2 + 0.44, 0)).multiply(new THREE.Matrix4().makeScale(1, 1, len * 0.85)) });
+  }
+  const y = heightAt(c.x, c.z), th = WALL_H + 3.2;   // a round corner tower
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.3, th, 10), wallStone); tower.position.set(c.x, y + th / 2 - 0.4, c.z); g.add(tower);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const m = new THREE.Mesh(WG.merlon, wallStone); m.position.set(c.x + Math.cos(a) * 1.8, y + th - 0.1, c.z + Math.sin(a) * 1.8); m.rotation.y = -a; g.add(m); }
+  g.add(new THREE.Mesh(mergeGeos(stone), wallStone));
+  for (const [pid, parts] of colours) g.add(new THREE.Mesh(mergeGeos(parts), (players[pid]?.house || HOUSE).mat));
+  g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
+  scene.add(g); wallJoints.set(c.id, g);
+}
+function refreshJointsAt(...cs) { for (const c of cs) refreshJoint(c); }
 const tollPasses = {};   // "pid:edgeId" -> time (duelClock) until which the gate lets them through
 const TOLL_TIME = 12;
 const hasPass = (pid, e) => (tollPasses[`${pid}:${e.id}`] || 0) > duelClock;
@@ -1123,7 +1167,7 @@ function buildHamlet(c, pid = P) {
   c.building = { owner: pid, type: 'hamlet' };
   const o = makeHamlet(players[pid]?.house || HOUSE); o.traverse(m => { m.castShadow = true; m.receiveShadow = true; }); placeAtCorner(o, c); scene.add(o);
   buildingObjs.set(c.id, o); PL(pid).built.hamlet++;
-  popIn(o); if (players.length) updateHighway();
+  popIn(o); refreshJoint(c); if (players.length) updateHighway();
 }
 function buildKeep(c, pid = P) {
   scene.remove(buildingObjs.get(c.id));
@@ -1134,7 +1178,7 @@ function buildKeep(c, pid = P) {
 }
 function buildRoad(e, pid = P) {
   e.road = pid; const o = makeRoad(e, players[pid]?.house || HOUSE); scene.add(o); PL(pid).built.road++; registerGate(o, e);
-  popIn(o);
+  popIn(o); refreshJointsAt(corners[e.a], corners[e.b]);
   if (players.length) updateHighway();
 }
 const pops = [];
@@ -1683,7 +1727,7 @@ function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.8, 0); egg.visible = false; rider.add(egg);
   // name plaque
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const x = cv.getContext('2d');
-  x.fillStyle = '#141c2c'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#070a12'; x.stroke();
+  x.fillStyle = '#1c1d26'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#070a12'; x.stroke();
   x.lineWidth = 2; x.strokeStyle = h.css; x.beginPath(); x.roundRect(10, 10, 300, 52, 5); x.stroke();
   x.fillStyle = '#e3c98a'; x.font = "bold 28px Cinzel, Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
@@ -2121,7 +2165,7 @@ const signFaint = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: tr
 const signCloth = { gold: mat(0xe0a020), white: mat(0xd8d2c4) };
 function signTexture(icon, title, cost, ok) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = ok ? '#22304a' : 'rgba(14,20,32,.82)';
+  g.fillStyle = ok ? '#2a2a36' : 'rgba(22,22,30,.82)';
   g.beginPath(); g.roundRect(8, 8, 304, 112, 10); g.fill();
   g.lineWidth = 7; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 3; g.strokeStyle = ok ? '#c9a75a' : '#4a5468'; g.beginPath(); g.roundRect(15, 15, 290, 98, 6); g.stroke();
@@ -3089,15 +3133,15 @@ function dragonStatus() {
 const C = h => new THREE.Color(h);
 // t, sky top, horizon, sun colour, sun intensity, hemi sky, hemi ground, hemi intensity, water
 const DAYKEYS = [
-  [0.00, 0x3a5080, 0xf0a878, 0xffb070, 1.3, 0xb0b8d0, 0x4a3a2c, 0.9, 0x2a5a78],   // dawn
-  [0.10, 0x3a72b8, 0xcfe0ec, 0xfff0d0, 2.4, 0xc4d6ea, 0x564630, 1.1, 0x2a6c8c],   // morning
-  [0.36, 0x2f6cbc, 0xd6e6f2, 0xfff6e0, 2.7, 0xcadcee, 0x5a4a34, 1.2, 0x2a7294],   // noon
-  [0.64, 0x3a6aae, 0xe6dcc6, 0xffe2b0, 2.4, 0xc4d0e0, 0x564630, 1.1, 0x2a6a8a],   // afternoon
-  [0.76, 0x2e3a78, 0xf08a50, 0xff9a50, 1.5, 0xb09ab8, 0x4a3426, 0.95, 0x24506e],  // sunset
-  [0.81, 0x161c3c, 0x6a4a78, 0x8a98d0, 0.75, 0x6a74a8, 0x2a2630, 0.85, 0x16304a],  // twilight
-  [0.90, 0x070c1e, 0x1a2644, 0x9aaee0, 0.8, 0x5a68a0, 0x22242e, 0.85, 0x0e2236],   // midnight
-  [0.97, 0x161c3c, 0x5a4470, 0x8a98d0, 0.75, 0x6a74a8, 0x2a2630, 0.85, 0x16304a],  // before dawn
-  [1.00, 0x3a5080, 0xf0a878, 0xffb070, 1.3, 0xb0b8d0, 0x4a3a2c, 0.9, 0x2a5a78],
+  [0.00, 0x2a3048, 0xb07a6a, 0xe8a07a, 1.2, 0x8a90a8, 0x30282a, 0.85, 0x1e3a4c],   // dawn
+  [0.10, 0x34486a, 0xa8b0b8, 0xf2e2c8, 1.9, 0xa0aec0, 0x3a3028, 1.0, 0x22465a],   // morning
+  [0.36, 0x344c70, 0xaeb6bc, 0xf6ead4, 2.0, 0xa8b4c4, 0x3c3229, 1.05, 0x244a5e],  // noon
+  [0.64, 0x324466, 0xb4a898, 0xf0d4aa, 2.1, 0xa0a8b8, 0x3a3028, 1.0, 0x22445a],   // afternoon
+  [0.76, 0x2a2a4a, 0xb0604a, 0xe88a5a, 1.3, 0x907a98, 0x30242a, 0.9, 0x1c3448],  // sunset
+  [0.81, 0x14162a, 0x4a3450, 0x8a90c0, 0.7, 0x5a6088, 0x221e26, 0.8, 0x122636],  // twilight
+  [0.90, 0x06080f, 0x141a2c, 0x9aa6d0, 0.7, 0x4a5480, 0x1c1c24, 0.8, 0x0a1a28],  // midnight
+  [0.97, 0x14162a, 0x42304c, 0x8a90c0, 0.7, 0x5a6088, 0x221e26, 0.8, 0x122636],  // before dawn
+  [1.00, 0x2a3048, 0xb07a6a, 0xe8a07a, 1.2, 0x8a90a8, 0x30282a, 0.85, 0x1e3a4c],
 ];
 const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
@@ -3356,7 +3400,7 @@ function syncCorner(c, v) {
     if (buildingObjs.get(c.id)) scene.remove(buildingObjs.get(c.id));
     c.building = { owner, type };
     const o = (type === 'keep' ? makeKeep : makeHamlet)(players[owner].house);
-    o.traverse(m => { m.castShadow = true; m.receiveShadow = true; }); placeAtCorner(o, c); scene.add(o); buildingObjs.set(c.id, o); popIn(o);
+    o.traverse(m => { m.castShadow = true; m.receiveShadow = true; }); placeAtCorner(o, c); scene.add(o); buildingObjs.set(c.id, o); popIn(o); refreshJoint(c);
   }
   if (roost >= 0 && c.roost == null) { c.roost = roost; const o = makeRoost(players[roost].house); placeAtCorner(o, c); scene.add(o); popIn(o); }
   if (tower >= 0 && c.tower == null) { c.tower = tower; const o = makeTower(players[tower].house); placeAtCorner(o, c); scene.add(o); popIn(o); }
@@ -3387,7 +3431,7 @@ function applySnapshot(s) {
   state.longest = players[P].longest;
   if (!!state.carrying !== !!s.pl[P].carrying) { state.carrying = s.pl[P].carrying; carryEgg.visible = state.carrying; }
   corners.forEach((c, i) => syncCorner(c, s.c[i]));
-  edges.forEach((e, i) => { const r = s.e[i]; if (r >= 0 && e.road === null) { e.road = r; const o = makeRoad(e, players[r].house); scene.add(o); popIn(o); registerGate(o, e); } });
+  edges.forEach((e, i) => { const r = s.e[i]; if (r >= 0 && e.road === null) { e.road = r; const o = makeRoad(e, players[r].house); scene.add(o); popIn(o); registerGate(o, e); refreshJointsAt(corners[e.a], corners[e.b]); } });
   tiles.forEach((t, i) => { t.scorchedUntil = s.sc[i]; const burning = s.sc[i] >= state.harvests; if (burning && !t.flames) addFlames(t); if (!burning && t.flames) removeFlames(t); });
   if (st.reaver !== reaverTile.id) placeReavers(tiles[st.reaver]);
   cradleEggs.forEach((e, i) => { e.taken = !!s.eggs[i]; e.mesh.visible = !e.taken; });
@@ -3907,4 +3951,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { refreshJoint, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
