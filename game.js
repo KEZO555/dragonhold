@@ -6,79 +6,73 @@ import * as THREE from './three.module.js';
 // Every emoji in the game's text is drawn with these icons instead: in the page (via a MutationObserver)
 // and on canvases (fillText/strokeText/measureText are taught to place icons).
 const INK = '#1E1A26';
+// ---- batch 1 icon set (docs/design/batch1): filled token-colour shapes; the outline is drawn on each shape
 const ICONS = {
-  timber: '<path d="M12 2 L19 12 H15.5 L20 19 H4 L8.5 12 H5 Z" fill="#3b6b34"/><rect x="10.3" y="19" width="3.4" height="3.5" fill="#6e4524"/>',
-  stone: '<path d="M2.5 19.5 L5.5 11 L10.5 7.5 L16.5 9 L21.5 18 L18 20.5 H5 Z" fill="#8f897e"/><path d="M10.5 7.5 L12 13.5 L16.5 9 M12 13.5 L7.5 20.5 M12 13.5 L18 20.5" fill="none"/>',
-  wheat: '<path d="M12 22 V6 M12 22 L7 9 M12 22 L17 9" fill="none"/><ellipse cx="12" cy="5" rx="1.8" ry="3" fill="#c9a043"/><ellipse cx="7" cy="8" rx="1.6" ry="2.8" fill="#c9a043" transform="rotate(-20 7 8)"/><ellipse cx="17" cy="8" rx="1.6" ry="2.8" fill="#c9a043" transform="rotate(20 17 8)"/><ellipse cx="10" cy="12" rx="1.3" ry="2.2" fill="#c9a043" transform="rotate(-15 10 12)"/><ellipse cx="14" cy="12" rx="1.3" ry="2.2" fill="#c9a043" transform="rotate(15 14 12)"/>',
-  cattle: '<path d="M7.5 7 C5.5 4 3.5 3.5 2.5 4.5 C4 5 5 6.5 6.5 8.5 Z M16.5 7 C18.5 4 20.5 3.5 21.5 4.5 C20 5 19 6.5 17.5 8.5 Z" fill="#e2d6b8"/><path d="M6.5 7.5 C9 5.5 15 5.5 17.5 7.5 L16.5 15 C16 18 14 19.5 12 19.5 C10 19.5 8 18 7.5 15 Z" fill="#7a5234"/><path d="M11 7 L13 7 L12.5 12 L11.5 12 Z" fill="#e2d6b8" stroke="none"/><ellipse cx="12" cy="17" rx="3.8" ry="2.8" fill="#c99a86"/><circle cx="10.6" cy="17" r=".6" fill="#17110d" stroke="none"/><circle cx="13.4" cy="17" r=".6" fill="#17110d" stroke="none"/><circle cx="9.6" cy="11" r=".9" fill="#17110d" stroke="none"/><circle cx="14.4" cy="11" r=".9" fill="#17110d" stroke="none"/>',
-  ember: '<path d="M12 1.8 C14.5 6.5 19 8.5 18.5 14.5 C18 19.5 14.5 22 12 22 C8.5 22 5.5 19.2 6 14.5 C6.4 10.5 9.5 9 12 1.8 Z" fill="#c8551e"/><path d="M12 10 C13.3 12.5 15 13.5 14.8 16.3 C14.6 18.6 13.2 19.7 12 19.7 C10.4 19.7 9.2 18.4 9.4 16.3 C9.6 14.4 11 13.6 12 10 Z" fill="#e8a33a"/>',
-  volcano: '<path d="M2 21 L9 8 H15 L22 21 Z" fill="#4e3a32"/><path d="M9 8 L10.5 11 L12 9.5 L13.5 11.5 L15 8 Z" fill="#c8551e"/><path d="M11 6 C10 4 12 3 11 1.5 M13.5 6 C14.5 4.5 13 3 14 2" fill="none" stroke="#6a6a6a"/>',
-  hamlet: '<path d="M5 11 H19 V21 H5 Z" fill="#b9ac90"/><path d="M2.5 12 L12 3.5 L21.5 12 Z" fill="#8e2a22"/><path d="M10 21 V15.5 H14 V21" fill="#5a3a1e"/><rect x="15.5" y="13.5" width="2.2" height="2.2" fill="#e8a33a"/>',
-  keep: '<path d="M4 22 V9 H6.5 V7 H8.5 V9 H11 V7 H13 V9 H15.5 V7 H17.5 V9 H20 V22 Z" fill="#8f897e"/><path d="M10 22 V16 A2 2 0 0 1 14 16 V22" fill="#4a3018"/><path d="M12 7 V2 L16 3.5 L12 5" fill="#8e2a22"/>',
-  wall: '<path d="M2 9 H5 V7 H8 V9 H10.5 V7 H13.5 V9 H16 V7 H19 V9 H22 V21 H2 Z" fill="#9a9080"/><path d="M2 13 H22 M2 17 H22 M7 9 V13 M15 9 V13 M11 13 V17 M19 13 V17 M7 17 V21 M15 17 V21" fill="none"/>',
-  tower: '<path d="M5 22 L8 12 H16 L19 22" fill="none"/><path d="M3 9 C7 5 17 5 21 9" fill="none" stroke-width="2"/><path d="M12 14 V3 M10 5 L12 2.5 L14 5" fill="none"/><rect x="7" y="11" width="10" height="2.5" fill="#6e4524"/>',
-  dragon: '<path d="M3 15 C4 10 8 7 13 7 L17 4 L16.5 7.5 C19 8 21 10 21.5 12.5 L17 13 L21 16 C19 18 15 18.5 12 17.5 L9 20 L8.5 17 C6 17.5 4 17 3 15 Z" fill="#3e2e28"/><circle cx="15.5" cy="10.5" r="1.1" fill="#e8a33a"/><path d="M6 12 C8 11 10 11.5 11 12.5" fill="none" stroke="#c8551e"/>',
-  wyrmling: '<path d="M3 15 C4 10 8 7 13 7 L17 4 L16.5 7.5 C19 8 21 10 21.5 12.5 L17 13 L21 16 C19 18 15 18.5 12 17.5 L9 20 L8.5 17 C6 17.5 4 17 3 15 Z" fill="#4a6038"/><circle cx="15.5" cy="10.5" r="1.1" fill="#e8a33a"/>',
-  egg: '<ellipse cx="12" cy="13" rx="6.5" ry="8.5" fill="#3e2c26"/><path d="M8 9 L10 12 L9 15 M15 8 L14 11 L16 14" fill="none" stroke="#e07a2a"/>',
-  trade: '<path d="M12 3 V20 M7 21 H17 M4 7 H20" fill="none"/><path d="M4 7 L1.8 13 H6.2 Z M20 7 L17.8 13 H22.2 Z" fill="#c9a75a"/><path d="M1.8 13 A2.2 1.6 0 0 0 6.2 13 Z M17.8 13 A2.2 1.6 0 0 0 22.2 13 Z" fill="#9a7a3a"/><circle cx="12" cy="3.5" r="1.4" fill="#c9a75a"/>',
-  scroll: '<path d="M6 4 H18 V18 A2.5 2.5 0 0 1 15.5 20.5 H5 A2.5 2.5 0 0 1 5 15.5 H6 Z" fill="#d9c9a3"/><path d="M5 15.5 A2.5 2.5 0 0 0 5 20.5" fill="none"/><path d="M18 4 A2 2 0 0 1 20 6 V7 H18" fill="#b9a67a"/><path d="M8.5 8 H15.5 M8.5 11 H15.5 M8.5 14 H13" fill="none"/>',
-  map: '<path d="M3 6 L9 4 L15 6 L21 4 V18 L15 20 L9 18 L3 20 Z" fill="#d9c9a3"/><path d="M9 4 V18 M15 6 V20" fill="none"/><path d="M5 12 C7 10 9 13 11 11 C13 9 15 12 18 10" fill="none" stroke="#8e2a22" stroke-dasharray="1.5 1.5"/>',
-  help: '<circle cx="12" cy="12" r="9.5" fill="#c9a75a"/><path d="M9.3 9.3 A2.8 2.8 0 1 1 12 12.4 V14" fill="none" stroke-width="2"/><circle cx="12" cy="17.3" r="1.2" fill="#17110d" stroke="none"/>',
-  guide: '<path d="M12 6 C9.5 4.5 6 4.5 3 5.5 V19 C6 18 9.5 18 12 19.5 C14.5 18 18 18 21 19 V5.5 C18 4.5 14.5 4.5 12 6 Z" fill="#d9c9a3"/><path d="M12 6 V19.5 M5.5 9 H9.5 M5.5 12 H9.5 M14.5 9 H18.5 M14.5 12 H18.5" fill="none"/>',
-  dpad: '<path d="M9 3 H15 V9 H21 V15 H15 V21 H9 V15 H3 V9 H9 Z" fill="#4a4a50"/><path d="M12 5 L13.5 7 H10.5 Z M12 19 L10.5 17 H13.5 Z M5 12 L7 10.5 V13.5 Z M19 12 L17 13.5 V10.5 Z" fill="#c9a75a" stroke="none"/>',
-  eye: '<path d="M2 12 C5 6.5 19 6.5 22 12 C19 17.5 5 17.5 2 12 Z" fill="#e2d6b8"/><circle cx="12" cy="12" r="3.6" fill="#8a6a2a"/><circle cx="12" cy="12" r="1.6" fill="#17110d" stroke="none"/>',
-  goal: '<circle cx="12" cy="12" r="9.5" fill="#e2d6b8"/><circle cx="12" cy="12" r="6.3" fill="#8e2a22"/><circle cx="12" cy="12" r="3.2" fill="#e2d6b8"/><circle cx="12" cy="12" r="1.2" fill="#8e2a22"/>',
-  compass: '<circle cx="12" cy="12" r="9.5" fill="#d9c9a3"/><path d="M12 4 L14.5 12 L12 20 L9.5 12 Z" fill="#8e2a22"/><path d="M12 12 L14.5 12 L12 20 L9.5 12 Z" fill="#e2d6b8"/>',
-  fast: '<path d="M3 5 L12 12 L3 19 Z M12 5 L21 12 L12 19 Z" fill="#c9a75a"/>',
-  star: '<path d="M12 2.5 L14.8 8.6 L21.5 9.3 L16.5 13.8 L17.9 20.5 L12 17.1 L6.1 20.5 L7.5 13.8 L2.5 9.3 L9.2 8.6 Z" fill="#d4a94a"/>',
-  horn: '<path d="M3 8 C7 9 13 9 19 4 L21 6 C19 12 15 16 9 17 L8 20 L5 19 L6 15.5 C4.5 14 3 11 3 8 Z" fill="#d9c08a"/><path d="M17.5 5.2 L20.6 8" fill="none" stroke="#6e4524" stroke-width="2.5"/>',
-  dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5" fill="#d9c9a3"/><circle cx="8" cy="8" r="1.5" fill="#17110d" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="#17110d" stroke="none"/><circle cx="16" cy="16" r="1.5" fill="#17110d" stroke="none"/>',
-  reavers: '<path d="M5 22 V2" fill="none" stroke-width="2"/><path d="M5 3 H19 L16 7.5 L19 12 H5 Z" fill="#1e1616"/><circle cx="11" cy="7.5" r="1.8" fill="#d9cfb8" stroke="none"/>',
-  swords: '<path d="M3 3 L5.5 3 L16 13.5 L14.5 15 Z" fill="#b8bcc6"/><path d="M21 3 L18.5 3 L8 13.5 L9.5 15 Z" fill="#b8bcc6"/><path d="M13 16 L17 12 M7 12 L11 16" fill="none" stroke-width="2"/><path d="M15.5 16.5 L19.5 20.5 M8.5 16.5 L4.5 20.5" fill="none" stroke="#6e4524" stroke-width="2.5"/>',
-  shield: '<path d="M12 2.5 L20 5.5 V11 C20 16 16.5 19.5 12 21.5 C7.5 19.5 4 16 4 11 V5.5 Z" fill="#2e4f7a"/><path d="M12 2.5 V21.5 M4 10 H20" fill="none" stroke="#c9a75a" stroke-width="1.6"/>',
-  feint: '<path d="M12 12 m-1 0 a1 1 0 1 1 2 0 a3 3 0 1 1 -6 0 a5 5 0 1 1 10 0 a7 7 0 1 1 -14 0" fill="none" stroke="#7a5ab0" stroke-width="2"/>',
-  yield: '<path d="M5 22 V2" fill="none" stroke-width="2"/><path d="M5 3 C9 1.5 12 5 19 3 V12 C12 14 9 10.5 5 12 Z" fill="#e2d6b8"/>',
-  raven: '<path d="M2 14 C6 13 8 9 12 9 C14 7 17 6.5 19 7.5 L22 7 L19.5 9.5 C19 13 15 16 10 16 L7 20 L7.5 16 C5 16 3 15.5 2 14 Z" fill="#22222c"/><circle cx="17.5" cy="8.8" r=".8" fill="#e8a33a" stroke="none"/>',
-  deal: '<ellipse cx="12" cy="17" rx="7" ry="3" fill="#b8902e"/><ellipse cx="12" cy="13" rx="7" ry="3" fill="#c9a043"/><ellipse cx="12" cy="9" rx="7" ry="3" fill="#d9b45a"/>',
-  dawn: '<path d="M2 18 H22" fill="none"/><path d="M5.5 18 A6.5 6.5 0 0 1 18.5 18 Z" fill="#d88a4a"/><path d="M12 5 V8 M5 9 L7 11 M19 9 L17 11 M2.5 14 H4.5 M19.5 14 H21.5" fill="none" stroke="#c86a2a"/>',
-  sun: '<circle cx="12" cy="12" r="5" fill="#d4a94a"/><path d="M12 1.5 V4.5 M12 19.5 V22.5 M1.5 12 H4.5 M19.5 12 H22.5 M4.6 4.6 L6.7 6.7 M17.3 17.3 L19.4 19.4 M4.6 19.4 L6.7 17.3 M17.3 6.7 L19.4 4.6" fill="none" stroke="#a87a1a" stroke-width="2"/>',
-  afternoon: '<circle cx="9" cy="9" r="4.5" fill="#d4a94a"/><path d="M7 19 H18.5 A3.5 3.5 0 0 0 17.5 12.2 A5 5 0 0 0 8 13.5 A3 3 0 0 0 7 19 Z" fill="#b8b4aa"/>',
-  dusk: '<path d="M2 15 H22" fill="none"/><path d="M6 15 A6 6 0 0 1 18 15 Z" fill="#b8552a"/><path d="M4 19 H20 M7 22 H17" fill="none" stroke="#5a4080"/>',
-  moon: '<path d="M15 3 A9 9 0 1 0 21 15 A7 7 0 1 1 15 3 Z" fill="#d8d0a8"/>',
-  night: '<path d="M13 5 A8 8 0 1 0 19 16 A6.3 6.3 0 1 1 13 5 Z" fill="#d8d0a8"/><path d="M18.5 3 l.6 1.4 1.4.6 -1.4.6 -.6 1.4 -.6 -1.4 -1.4 -.6 1.4 -.6 Z" fill="#e2d6b8" stroke="none"/>',
-  anchor: '<circle cx="12" cy="5" r="2.2" fill="none"/><path d="M12 7.2 V21 M8 10 H16 M4 14 C4 18 8 21 12 21 C16 21 20 18 20 14" fill="none" stroke-width="1.8"/>',
-  crown: '<path d="M3 18 L2 7 L7.5 11 L12 4 L16.5 11 L22 7 L21 18 Z" fill="#d4a94a"/><path d="M3 18 H21 V21 H3 Z" fill="#9a7a2a"/>',
-  warning: '<path d="M12 2.5 L22 20.5 H2 Z" fill="#c9a043"/><path d="M12 9 V14.5" fill="none" stroke-width="2.2"/><circle cx="12" cy="17.5" r="1.2" fill="#17110d" stroke="none"/>',
-  check: '<path d="M4 12.5 L9.5 18 L20 6.5" fill="none" stroke="#5a8a3a" stroke-width="3"/>',
-  cross: '<path d="M5 5 L19 19 M19 5 L5 19" fill="none" stroke="#a8322a" stroke-width="3"/>',
-  gate: '<path d="M3 22 V9 C3 4 21 4 21 9 V22 Z" fill="#8f897e"/><path d="M7 22 V11.5 C7 8 17 8 17 11.5 V22 Z" fill="#6e4524"/><path d="M12 9 V22 M7 15 H17" fill="none"/>',
-  hourglass: '<path d="M6 2.5 H18 M6 21.5 H18 M7 2.5 C7 8 12 10 12 12 C12 14 7 16 7 21.5 M17 2.5 C17 8 12 10 12 12 C12 14 17 16 17 21.5" fill="none"/><path d="M9 20.5 C10 17 14 17 15 20.5 Z" fill="#c9a043"/>',
-  person: '<path d="M7 9 C7 4 17 4 17 9 V12 H7 Z" fill="#8a8d96"/><path d="M9 10 H15" fill="none"/><path d="M3.5 21.5 C4 15.5 20 15.5 20.5 21.5 Z" fill="#6e4524"/>',
-  gear: '<path d="M12 2 L14 4.5 L17 3.5 L17.6 6.6 L20.6 7.4 L19.6 10.4 L22 12 L19.6 13.6 L20.6 16.6 L17.6 17.4 L17 20.5 L14 19.5 L12 22 L10 19.5 L7 20.5 L6.4 17.4 L3.4 16.6 L4.4 13.6 L2 12 L4.4 10.4 L3.4 7.4 L6.4 6.6 L7 3.5 L10 4.5 Z" fill="#8a8d96"/><circle cx="12" cy="12" r="3.5" fill="#2a2420"/>',
-  hammer: '<path d="M13 3 L21 3 L21 8 L13 8 Z" fill="#7a7d86"/><path d="M15.5 8 L5 20.5" fill="none" stroke="#6e4524" stroke-width="3"/>',
-  up: '<path d="M12 3 L20 12 H15 V21 H9 V12 H4 Z" fill="#c9a75a"/>',
-  wolf: '<path d="M3 3 L8 8 H16 L21 3 L20 11 C20 16 16 21 12 21.5 C8 21 4 16 4 11 Z" fill="#5a5a62"/><path d="M8 13 L10.5 14 M16 13 L13.5 14" fill="none" stroke="#e8a33a" stroke-width="1.8"/><path d="M10 18 L12 19.5 L14 18" fill="#17110d"/>',
-  stag: '<path d="M7 2 V6 L9 9 M5 4 L7 6 M3 5 L5 7 M17 2 V6 L15 9 M19 4 L17 6 M21 5 L19 7" fill="none" stroke="#6e4524" stroke-width="1.8"/><path d="M9 9 C9 7.5 15 7.5 15 9 L16.5 11 L14.5 20 C13.5 22 10.5 22 9.5 20 L7.5 11 Z" fill="#8a5e30"/><circle cx="10.4" cy="12.5" r=".9" fill="#17110d" stroke="none"/><circle cx="13.6" cy="12.5" r=".9" fill="#17110d" stroke="none"/>',
-  serpent: '<path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#17110d" stroke-width="5.5"/><path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#3a7a50" stroke-width="3.5"/><circle cx="19.2" cy="9" r="2.3" fill="#3a7a50"/><circle cx="19.8" cy="8.5" r=".6" fill="#17110d" stroke="none"/>',
+  timber: "<path fill=\"#5F6B5E\" d=\"M5 9h11a3.5 3.5 0 0 1 0 7H5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#5F6B5E\" d=\"M10 9.2l2.2-6 1.6.6-1.3 3.4 2.8-1.8.9 1.4-3.6 2.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"5\" cy=\"12.5\" rx=\"2.5\" ry=\"3.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#5F6B5E\" cx=\"5\" cy=\"12.5\" r=\"1\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  stone: "<path fill=\"#6E6880\" d=\"M7 20V10a5 5 0 0 1 10 0v10z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M4 19h16v3H4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M11.2 8h1.6v2.2h2v1.6h-2V16h-1.6v-4.2h-2v-1.6h2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wheat: "<path fill=\"#1E1A26\" d=\"M9.5 22l1.5-9h2l1.5 9z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"12\" cy=\"7\" rx=\"2\" ry=\"5.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"7.3\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(-32 7.3 9)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"16.7\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(32 16.7 9)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#A89A86\" x=\"9.4\" y=\"15\" width=\"5.2\" height=\"2.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  cattle: "<rect fill=\"#8E8AA3\" x=\"11.3\" y=\"1\" width=\"1.4\" height=\"4.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"12\" cy=\"13.5\" rx=\"5.6\" ry=\"8.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M6.8 10.3q5.2 2.6 10.4 0v1.9q-5.2 2.6-10.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M6.5 14.3q5.5 2.6 11 0v1.9q-5.5 2.6-11 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M7.6 18.2q4.4 2.2 8.8 0v1.6q-4.4 2.2-8.8 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  ember: "<path fill=\"#6E6880\" d=\"M7 7.5h10l2.2 4.5H4.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M4.8 12h14.4l1.8 6.5H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M3 18.5h18v1.6H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  waste: "<path fill=\"#CFC6BC\" d=\"M2 19h20v2.4H2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M4.6 19c0-5 1.5-9 5-11-2 3-2.6 6.5-2.6 11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10 19c0-6 1.5-10.5 5-13-2 3.5-2.6 7.5-2.6 13z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M15.4 19c0-5 1.5-8.5 4.6-10.5-1.9 2.8-2.2 6-2.2 10.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wall: "<path fill=\"#6E6880\" d=\"M2 21V10h3v2h3v-2h3v2h2v-2h3v2h3v-2h3v11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"2\" y=\"15.4\" width=\"20\" height=\"1.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  hamlet: "<path fill=\"#6E6880\" d=\"M14 22v-6l3-3 3 3v6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M8 22V11h6v11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M6.3 11L11 2.5l4.7 8.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M10 22v-4a1 1 0 0 1 2 0v4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  keep: "<path fill=\"#6E6880\" d=\"M4 21v-8l2.3-5.5L8.6 13v8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#6E6880\" d=\"M15.4 21v-8l2.3-5.5L20 13v8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M9.3 21V9L12 1.5 14.7 9v12z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#EDE6DA\" cx=\"12\" cy=\"12\" r=\"1.6\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M2.5 20h19v2.4h-19z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  roost: "<path fill=\"#EDE6DA\" d=\"M3 8c0 7.5 3 12 9 13v-2.4c-4.3-1-6.4-4.6-6.6-10.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M21 8c0 7.5-3 12-9 13v-2.4c4.3-1 6.4-4.6 6.6-10.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#6E6880\" d=\"M12 5.5c2.2 0 3.8 3.4 3.8 6.2a3.8 3.8 0 0 1-7.6 0c0-2.8 1.6-6.2 3.8-6.2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M8 20.6h8V23H8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  dragon: "<path fill=\"#1E1A26\" d=\"M5 22C5 16 6 12 8 9L6 3l5 4h4l6 4 1 2.5-6 1 4 2.5-7 .5-1 4.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#E0A24A\" cx=\"14.6\" cy=\"10.2\" r=\"1\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  tower: "<path fill=\"#3A3350\" d=\"M8 22l1-10.5h6L16 22z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M6.5 9h11v2.6h-11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M3.6 6.2c4.6-4.4 12.2-4.4 16.8 0l-1.2 1.4c-3.9-3.6-10.5-3.6-14.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"11.2\" y=\"0.8\" width=\"1.6\" height=\"8.4\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  hammer: "<path fill=\"#3A3350\" d=\"M4 4h11l5 3-5 3H4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#A89A86\" d=\"M9 10h3v12H9z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  trade: "<rect fill=\"#1E1A26\" x=\"11.2\" y=\"2.5\" width=\"1.6\" height=\"18\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"4\" y=\"5.6\" width=\"16\" height=\"1.7\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M7 20h10v2.2H7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M5.5 7.3L2.5 13h1.4l1.6-3.2L7.1 13h1.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M18.5 7.3l-3 5.7h1.4l1.6-3.2 1.6 3.2h1.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#6E6880\" d=\"M1.8 13h7.4a3.7 3.7 0 0 1-7.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#6E6880\" d=\"M14.8 13h7.4a3.7 3.7 0 0 1-7.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  scroll: "<path fill=\"#EDE6DA\" d=\"M6 3h13a2 2 0 0 1 0 4h-1v12a2.5 2.5 0 0 1-2.5 2.5H5a2 2 0 0 1 0-4h1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8.5\" y=\"8.2\" width=\"7\" height=\"1.4\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8.5\" y=\"11.2\" width=\"7\" height=\"1.4\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8.5\" y=\"14.2\" width=\"4.5\" height=\"1.4\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  fire: "<path fill=\"#E0A24A\" d=\"M12 1.5c1 4 6.5 6.5 6.5 12.5a6.5 6.5 0 0 1-13 0c0-3 1.5-4.8 3.2-6.4 0 2 .9 3.2 2 3.2.2-3-.4-6 1.3-9.3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M12 13c1.5 2 2.6 3 2.6 5a2.6 2.6 0 0 1-5.2 0c0-2 1.1-3 2.6-5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  map: "<path fill=\"#EDE6DA\" d=\"M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M8.5 4.2h1v13.9h-1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M14.5 5.9h1v13.9h-1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#8C3B4A\" cx=\"12\" cy=\"11.5\" r=\"1.7\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  eye: "<path fill=\"#EDE6DA\" d=\"M1.5 12C4 7 8 5 12 5s8 2 10.5 7C20 17 16 19 12 19s-8-2-10.5-7zM7.60 12.00a4.4 4.4 0 1 0 8.80 0a4.4 4.4 0 1 0 -8.80 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M12 8.2c1.9 1.8 1.9 5.8 0 7.6-1.9-1.8-1.9-5.8 0-7.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  help: "<path fill=\"#1E1A26\" d=\"M7.5 8.5a4.5 4.5 0 1 1 6.8 3.9c-1 .6-1.3 1.2-1.3 2.6h-2.6c0-2.3.7-3.5 2.4-4.5a1.9 1.9 0 1 0-2.7-2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#1E1A26\" cx=\"11.7\" cy=\"18.7\" r=\"1.7\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  guide: "<path fill=\"#EDE6DA\" d=\"M2 5c3-1 7-1 10 1 3-2 7-2 10-1v14c-3-1-7-1-10 1-3-2-7-2-10-1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11.3\" y=\"6\" width=\"1.4\" height=\"14\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  dpad: "<path fill=\"#6E6880\" d=\"M9 2h6v7h7v6h-7v7H9v-7H2V9h7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#1E1A26\" cx=\"12\" cy=\"12\" r=\"2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  goal: "<path fill=\"#3A3350\" d=\"M2.00 12.00a10 10 0 1 0 20.00 0a10 10 0 1 0 -20.00 0zM5.20 12.00a6.8 6.8 0 1 0 13.60 0a6.8 6.8 0 1 0 -13.60 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#8C3B4A\" cx=\"12\" cy=\"12\" r=\"3.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  compass: "<path fill=\"#6E6880\" d=\"M2.00 12.00a10 10 0 1 0 20.00 0a10 10 0 1 0 -20.00 0zM5.20 12.00a6.8 6.8 0 1 0 13.60 0a6.8 6.8 0 1 0 -13.60 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M12 3.5l3.2 8.5-3.2 8.5L8.8 12z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8C3B4A\" d=\"M12 3.5l3.2 8.5H8.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  fast: "<path fill=\"#1E1A26\" d=\"M2.5 5l9 7-9 7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M12.5 5l9 7-9 7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  gate: "<path fill=\"#3A3350\" d=\"M4 22V10a8 8 0 0 1 16 0v12zM7.5 22V10.5a4.5 4.5 0 0 1 9 0V22z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"9.2\" y=\"7\" width=\"1.3\" height=\"15\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"11.35\" y=\"6\" width=\"1.3\" height=\"16\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"13.5\" y=\"7\" width=\"1.3\" height=\"15\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"7.5\" y=\"13\" width=\"9\" height=\"1.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  up: "<path fill=\"#1E1A26\" d=\"M12 2l8.5 9.5H15V22H9V11.5H3.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  star: "<path fill=\"#EDE6DA\" d=\"M12 1l2.6 8.4L23 12l-8.4 2.6L12 23l-2.6-8.4L1 12l8.4-2.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M12 8l1.5 4-1.5 4-1.5-4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  crown: "<path fill=\"#EDE6DA\" d=\"M3.5 18L2 6.5l5.5 5L12 3.5l4.5 8 5.5-5L20.5 18z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M3.5 17.5h17V21h-17z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  horn: "<path fill=\"#EDE6DA\" d=\"M3 5.5l3.5-1C8 10 11.5 12.5 18 12l3 4-3 4C9 20.5 4 15 3 5.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M2.3 4l4.2-1.3.7 2.2L3 6.2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M18 11.6l3.4 4.4-3.4 4.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  dice: "<path fill=\"#EDE6DA\" d=\"M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM6.30 8.00a1.7 1.7 0 1 0 3.40 0a1.7 1.7 0 1 0 -3.40 0zM14.30 8.00a1.7 1.7 0 1 0 3.40 0a1.7 1.7 0 1 0 -3.40 0zM10.30 12.00a1.7 1.7 0 1 0 3.40 0a1.7 1.7 0 1 0 -3.40 0zM6.30 16.00a1.7 1.7 0 1 0 3.40 0a1.7 1.7 0 1 0 -3.40 0zM14.30 16.00a1.7 1.7 0 1 0 3.40 0a1.7 1.7 0 1 0 -3.40 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  hourglass: "<path fill=\"#EDE6DA\" d=\"M5.5 3h13v2c0 3.5-3 5.2-4.8 7 1.8 1.8 4.8 3.5 4.8 7v2h-13v-2c0-3.5 3-5.2 4.8-7-1.8-1.8-4.8-3.5-4.8-7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#A89A86\" d=\"M8.6 19.6c0-2 1.9-3.4 3.4-4.8 1.5 1.4 3.4 2.8 3.4 4.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"4\" y=\"1.8\" width=\"16\" height=\"2.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"4\" y=\"20\" width=\"16\" height=\"2.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  warning: "<path fill=\"#8C3B4A\" d=\"M12 2l11 19.5H1zM10.9 9h2.2v6h-2.2zM10.9 16.4h2.2v2.2h-2.2z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  check: "<path fill=\"#1E1A26\" d=\"M3 12.5l3-3 4 4 8-8.5 3 3-11 11.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  cross: "<path fill=\"#8C3B4A\" d=\"M5 3l7 7 7-7 2 2-7 7 7 7-2 2-7-7-7 7-2-2 7-7-7-7z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  person: "<path fill=\"#3A3350\" d=\"M4 22c0-6 3.5-9.5 8-9.5s8 3.5 8 9.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#EDE6DA\" cx=\"12\" cy=\"7\" r=\"4.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  gear: "<path fill=\"#6E6880\" d=\"M9.91 4.69L10.34 1.53L13.66 1.53L14.09 4.69L15.68 5.35L18.23 3.42L20.58 5.77L18.65 8.32L19.31 9.91L22.47 10.34L22.47 13.66L19.31 14.09L18.65 15.68L20.58 18.23L18.23 20.58L15.68 18.65L14.09 19.31L13.66 22.47L10.34 22.47L9.91 19.31L8.32 18.65L5.77 20.58L3.42 18.23L5.35 15.68L4.69 14.09L1.53 13.66L1.53 10.34L4.69 9.91L5.35 8.32L3.42 5.77L5.77 3.42L8.32 5.35zM8.80 12.00a3.2 3.2 0 1 0 6.40 0a3.2 3.2 0 1 0 -6.40 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  anchor: "<path fill=\"#1E1A26\" d=\"M9.20 4.60a2.8 2.8 0 1 0 5.60 0a2.8 2.8 0 1 0 -5.60 0zM10.90 4.60a1.1 1.1 0 1 0 2.20 0a1.1 1.1 0 1 0 -2.20 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"11\" y=\"7\" width=\"2\" height=\"13.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"7.5\" y=\"9.5\" width=\"9\" height=\"2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M2.8 13l3.2.6c.5 3 2.8 4.9 6 4.9s5.5-1.9 6-4.9l3.2-.6c-.5 5.2-4.1 8.6-9.2 8.6S3.3 18.2 2.8 13z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  egg: "<path fill=\"#6E6880\" d=\"M12 2c4 0 7 6.5 7 11.5a7 7 0 0 1-14 0C5 8.5 8 2 12 2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M8.4 9.6l1.8 1.8L12 9.6l1.8 1.8 1.8-1.8v2.2l-1.8 1.8L12 11.8l-1.8 1.8-1.8-1.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#E0A24A\" d=\"M9.4 16l2.6 1.8 2.6-1.8v1.8L12 19.6l-2.6-1.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wyrmling: "<path fill=\"#1E1A26\" d=\"M5 22C5 16 6 12 8 9L6 3l5 4h4l6 4 1 2.5-6 1 4 2.5-7 .5-1 4.5z\" transform=\"translate(4.6 .2) scale(.62)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#E0A24A\" cx=\"14.6\" cy=\"10.2\" r=\"1.1\" transform=\"translate(4.6 .2) scale(.62)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#6E6880\" d=\"M4.5 13.5l2.6 2.2 2.4-2.2 2.5 2.2 2.5-2.2 2.4 2.2 2.6-2.2c0 5.5-3.2 9-7.5 9s-7.5-3.5-7.5-9z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wyrm: "<path fill=\"#1E1A26\" d=\"M12 3.2a8.8 8.8 0 1 0 8.8 8.8h-3.2a5.6 5.6 0 1 1-5.6-5.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M11 1.6l7.5 1.6 2.2 2.6-9.7 1.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M17.6 12h3.2l-1.6 5.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M13.14 20.12L12.00 23.60L10.86 20.12zM8.93 19.60L6.20 22.05L6.95 18.46zM5.54 17.05L1.95 17.80L4.40 15.07zM3.88 13.14L0.40 12.00L3.88 10.86zM4.40 8.93L1.95 6.20L5.54 6.95z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#E0A24A\" cx=\"15.8\" cy=\"4.5\" r=\"0.9\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  dawn: "<path fill=\"#EDE6DA\" d=\"M5.5 18a6.5 6.5 0 0 1 13 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10.99 9.76L12.00 5.50L13.01 9.76zM15.24 10.36L18.25 7.17L17.00 11.37zM18.63 13.00L22.83 11.75L19.64 14.76zM4.36 14.76L1.17 11.75L5.37 13.00zM7.00 11.37L5.75 7.17L8.76 10.36z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"2\" y=\"18\" width=\"20\" height=\"2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  sun: "<circle fill=\"#EDE6DA\" cx=\"12\" cy=\"12\" r=\"5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10.74 5.52L12.00 0.70L13.26 5.52zM15.69 6.53L19.99 4.01L17.47 8.31zM18.48 10.74L23.30 12.00L18.48 13.26zM17.47 15.69L19.99 19.99L15.69 17.47zM13.26 18.48L12.00 23.30L10.74 18.48zM8.31 17.47L4.01 19.99L6.53 15.69zM5.52 13.26L0.70 12.00L5.52 10.74zM6.53 8.31L4.01 4.01L8.31 6.53z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  afternoon: "<circle fill=\"#EDE6DA\" cx=\"15.5\" cy=\"8.5\" r=\"4.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M14.43 3.00L15.50 0.10L16.57 3.00zM18.63 3.86L21.44 2.56L20.14 5.37zM21.00 7.43L23.90 8.50L21.00 9.57zM10.00 9.57L7.10 8.50L10.00 7.43zM10.86 5.37L9.56 2.56L12.37 3.86z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M5 20a3.6 3.6 0 0 1 .4-7.2 5 5 0 0 1 9.6-1.2 4.2 4.2 0 0 1 1.6 8.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  dusk: "<path fill=\"#EDE6DA\" d=\"M5.5 16a6.5 6.5 0 0 1 13 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"2\" y=\"16\" width=\"20\" height=\"2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"5\" y=\"19.4\" width=\"14\" height=\"1.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"8\" y=\"22\" width=\"8\" height=\"1.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  moon: "<path fill=\"#EDE6DA\" d=\"M15 2a10 10 0 1 0 7 15.5A9 9 0 0 1 15 2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  night: "<path fill=\"#EDE6DA\" d=\"M10 6a8.5 8.5 0 1 0 8 13A7.6 7.6 0 0 1 10 6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M17.5 2l1 2.9 2.9 1-2.9 1-1 2.9-1-2.9-2.9-1 2.9-1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M21 11.5l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  swords: "<path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  shield: "<path fill=\"#6E6880\" d=\"M3 3h18v7c0 6-4 10-9 12-5-2-9-6-9-12z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M11 3h2v18.4l-1 .6-1-.6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M3 8h18v2H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  feint: "<path fill=\"#1E1A26\" d=\"M2.5 17.5c5 0 5.5-11.5 10-11.5 3.4 0 3 5.2 5.4 5.6l-1.3-2.9 5.9 3.8-5.9 3.8 1.2-2.4c-4.4-.2-3.6-5.4-5.3-5.4-2.6 0-3 11.5-10 11.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  yield: "<rect fill=\"#1E1A26\" x=\"5\" y=\"2\" width=\"2\" height=\"20\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M7 3c4-1.5 6.5 1.5 12.5 0v9c-6 1.5-8.5-1.5-12.5 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  raven: "<path fill=\"#1E1A26\" d=\"M2.5 19.5l5.5-3.5c0-5 3-9 7.5-9.5 1-2 3-2.5 4.5-1.5l2.5 1.5-3 1c.5 5-2 9.5-7.5 11L11 22.5H9.4l.6-3.4c-2 .4-4.8.6-7.5.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#EDE6DA\" cx=\"18\" cy=\"7\" r=\"0.8\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  deal: "<path fill=\"#8C3B4A\" d=\"M8.6 16l-2.4 7 3.3-1.6 1.7 2.6 1.4-6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8C3B4A\" d=\"M15.4 16l2.4 7-3.3-1.6-1.7 2.6-1.4-6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8C3B4A\" d=\"M12.00 2.60L14.07 4.27L16.70 3.86L17.66 6.34L20.14 7.30L19.73 9.93L21.40 12.00L19.73 14.07L20.14 16.70L17.66 17.66L16.70 20.14L14.07 19.73L12.00 21.40L9.93 19.73L7.30 20.14L6.34 17.66L3.86 16.70L4.27 14.07L2.60 12.00L4.27 9.93L3.86 7.30L6.34 6.34L7.30 3.86L9.93 4.27zM7.6 12l1.7-1.7 2 2 3.8-4 1.7 1.7-5.5 5.7z\" fill-rule=\"evenodd\" transform=\"translate(0 -2.2)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wolf: "<path fill=\"#1E1A26\" d=\"M3 2l5 5h8l5-5v9l-4 6-2.5 5h-5L7 17l-4-6zM7.5 10.5l3 1.6-3 .9zM16.5 10.5l-3 1.6 3 .9z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  stag: "<path fill=\"#1E1A26\" d=\"M9.3 12h5.4l-1.1 7-1.6 3-1.6-3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M9.6 12.3L5.6 11l3.6 3.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M14.4 12.3l4-1.3-3.6 3.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M10.4 12.2c-.6-2.2-4.2-2.6-5.2-5.6V2h1.6v4c.5 1 1.3 1.6 2.2 2V4h1.6v5.2c.9.6 1.4 1.7 1.4 3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M10.4 12.2c-.6-2.2-4.2-2.6-5.2-5.6V2h1.6v4c.5 1 1.3 1.6 2.2 2V4h1.6v5.2c.9.6 1.4 1.7 1.4 3z\" transform=\"matrix(-1 0 0 1 24 0)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  serpent: "<path fill=\"#1E1A26\" d=\"M17 3c-5-1.5-10 0-10 4 0 3 3 4 6 5 2 .7 3.5 1.2 3.5 2.7 0 2-3.5 2.6-8 1.3L7 19c6 2 12.5.8 12.5-4 0-3.2-3-4.4-6-5.3-2-.6-3.5-1.1-3.5-2.4 0-1.6 3-2 6.5-1z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M15.5 1.8l5.5 1 1.8 2.2-1.8 2-5.5.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M9 15.6l-6.5 1.6L8 19.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  eclipse: "<path fill=\"#1E1A26\" d=\"M12.00 1.00L13.71 5.62L17.50 2.47L16.67 7.33L21.53 6.50L18.38 10.29L23.00 12.00L18.38 13.71L21.53 17.50L16.67 16.67L17.50 21.53L13.71 18.38L12.00 23.00L10.29 18.38L6.50 21.53L7.33 16.67L2.47 17.50L5.62 13.71L1.00 12.00L5.62 10.29L2.47 6.50L7.33 7.33L6.50 2.47L10.29 5.62zM8.80 12.00a3.2 3.2 0 1 0 6.40 0a3.2 3.2 0 1 0 -6.40 0z\" fill-rule=\"evenodd\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  great_wall: "<path fill=\"#6E6880\" d=\"M1 22V13h2.5v2H6v-2h2.5v2H11v-2h2v2h2.5v-2H18v2h2.5v-2H23v9z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M12 1l1.4 4.1 4.1 1.4-4.1 1.4L12 12l-1.4-4.1-4.1-1.4 4.1-1.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  mightiest_host: "<path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(-40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(-40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(-40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(-40 12 12)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8C3B4A\" d=\"M7 8.5h10V13c0 4-2.5 6.6-5 8-2.5-1.4-5-4-5-8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
 };
-ICONS.fire = ICONS.ember;
-ICONS.moth = '<path d="M12 2 V5.5" fill="none"/><ellipse cx="12" cy="13" rx="4.6" ry="7.4" fill="#EDE6DA"/><path d="M8 9.5 Q12 11.5 16 9.5 M7.5 13.5 Q12 15.5 16.5 13.5 M8.2 17.5 Q12 19.3 15.8 17.5" fill="none" stroke-width="1"/>';
-ICONS.iron = '<path d="M2.5 18 L6 11 H18 L21.5 18 Z" fill="#3A3350"/><path d="M6 11 L8 7.5 H16 L18 11 Z" fill="#6E6880"/><path d="M8.5 14.5 H15.5" fill="none" stroke="#8E8AA3"/>';
-// the design palette: every icon colour snaps to its nearest token; ember gold is kept for fire and light only
-{
-  const TOK = ['#1E1A26', '#3A3350', '#6E6880', '#8E8AA3', '#EDE6DA', '#CFC6BC', '#5F6B5E', '#A89A86', '#8C3B4A'];
-  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-  const near = (h, pool) => { const c = rgb(h); let best = pool[0], bd = 1e9; for (const t of pool) { const u = rgb(t), d = (u[0] - c[0]) ** 2 + (u[1] - c[1]) ** 2 + (u[2] - c[2]) ** 2; if (d < bd) { bd = d; best = t; } } return best; };
-  const LIGHT = new Set(['fire', 'volcano', 'horn', 'dawn', 'sun', 'dusk']);
-  for (const k of Object.keys(ICONS)) ICONS[k] = ICONS[k].replace(/#[0-9a-fA-F]{6}\b/g, h => near(h.length === 7 ? h : h, LIGHT.has(k) ? [...TOK, '#E0A24A'] : TOK))
-    .replace(/#([0-9a-fA-F]{3})\b/g, (m, x) => near('#' + x.split('').map(c => c + c).join(''), LIGHT.has(k) ? [...TOK, '#E0A24A'] : TOK));
-}
 // which emoji each icon replaces (variation selectors are ignored)
 const EMOJI_TO = {
-  '🌲': 'timber', '🪨': 'stone', '🌾': 'wheat', '🐄': 'cattle', '🔥': 'fire', '🦋': 'moth', '🔩': 'iron', '🌋': 'volcano', '🏠': 'hamlet', '🏘': 'hamlet', '🏰': 'keep',
+  '🌲': 'timber', '🪨': 'stone', '🌾': 'wheat', '🐄': 'cattle', '🔥': 'fire', '🦋': 'cattle', '🔩': 'ember', '🪺': 'roost', '🌑': 'eclipse', '🏯': 'great_wall', '🎖': 'mightiest_host', '🌋': 'waste', '🏠': 'hamlet', '🏘': 'hamlet', '🏰': 'keep',
   '🧱': 'wall', '🏹': 'tower', '🐉': 'dragon', '🐲': 'wyrmling', '🥚': 'egg', '⚖': 'trade', '📜': 'scroll', '🗺': 'map', '❓': 'help', '🎓': 'guide',
   '🎮': 'dpad', '👁': 'eye', '👀': 'eye', '🎯': 'goal', '🧭': 'compass', '⏩': 'fast', '★': 'star', '🎺': 'horn', '📯': 'horn', '🎲': 'dice',
-  '🏴': 'reavers', '⚔': 'swords', '🛡': 'shield', '🌀': 'feint', '🏳': 'yield', '🐦': 'raven', '🤝': 'deal', '🌅': 'dawn', '☀': 'sun', '🌤': 'afternoon',
+  '🏴': 'wyrm', '⚔': 'swords', '🛡': 'shield', '🌀': 'feint', '🏳': 'yield', '🐦': 'raven', '🤝': 'deal', '🌅': 'dawn', '☀': 'sun', '🌤': 'afternoon',
   '🌇': 'dusk', '🌙': 'moon', '🌌': 'night', '⚓': 'anchor', '👑': 'crown', '⚠': 'warning', '✔': 'check', '✖': 'cross', '✕': 'cross', '🚪': 'gate',
   '⏳': 'hourglass', '👤': 'person', '👋': 'person', '🤖': 'gear', '🔨': 'hammer', '⬆': 'up', '🐺': 'wolf', '🦌': 'stag', '🐍': 'serpent',
 };
@@ -87,6 +81,7 @@ const EMOJI_RE = new RegExp(`(?:${EMOJI_SRC})\\uFE0F?`, 'gu'), EMOJI_TEST = new 
 const iconSVG = (name, px) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"${px ? ` width="${px}" height="${px}"` : ' class="ic"'}><g stroke="${INK}" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${ICONS[name]}</g></svg>`;
 // images for drawing on canvases (loaded before any texture is made)
 const ICON_IMG = {};
+try { await Promise.race([Promise.all([document.fonts.load("700 28px 'Cormorant Garamond'"), document.fonts.load('700 25px Cinzel'), document.fonts.load("italic 500 20px 'Cormorant Garamond'")]), new Promise(r => setTimeout(r, 2500))]); } catch (_) {}
 await Promise.all(Object.keys(ICONS).map(n => new Promise(res => {
   const img = new Image(); img.onload = img.onerror = () => res(); ICON_IMG[n] = img;
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSVG(n, 128));
@@ -173,26 +168,26 @@ const COST = {
 const PAL = { ink: 0x1e1a26, violet: 0x3a3350, barrow: 0x6e6880, lavender: 0x8e8aa3, bone: 0xede6da, ashen: 0xcfc6bc,
   moss: 0x5f6b5e, straw: 0xa89a86, rose: 0x8c3b4a, ember: 0xe0a24a, mist: 0xb9b4c6 };
 const RES = {
-  timber: { name: 'Ashwood',    icon: '🌲' },
-  stone:  { name: 'Gravestone', icon: '🪨' },
-  wheat:  { name: 'Blackwheat', icon: '🌾' },
-  cattle: { name: 'Moth-silk',  icon: '🦋' },
-  ember:  { name: 'Iron',       icon: '🔩' },
+  timber: { name: 'Ashwood',    icon: '🌲', lore: 'Timber from the dead forests, light, grey and slow to burn.' },
+  stone:  { name: 'Gravestone', icon: '🪨', lore: 'Slabs cut from the barrows; the old names are sanded off first.' },
+  wheat:  { name: 'Blackwheat', icon: '🌾', lore: 'Dark grain that ripens under fog and bakes into bitter bread.' },
+  cattle: { name: 'Moth-silk',  icon: '🦋', lore: 'Thread unwound from moor cocoons, pale and stronger than rope.' },
+  ember:  { name: 'Iron',       icon: '🔩', lore: 'Ore from the crags, cold to the touch even in the forge.' },
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Deadwood',          color: 0x5f6b5e, mini: '#5F6B5E' },
-  stone:  { name: 'Barrow hills',      color: 0x6e6880, mini: '#6E6880' },
-  wheat:  { name: 'Blackwheat fields', color: 0xa89a86, mini: '#A89A86' },
-  cattle: { name: 'Moth moor',         color: 0x8e8aa3, mini: '#8E8AA3' },
-  ember:  { name: 'Iron crags',        color: 0x3a3350, mini: '#3A3350' },
-  cradle: { name: 'the Ashen Waste',   color: 0xcfc6bc, mini: '#CFC6BC' },
+  timber: { name: 'Deadwood',          color: 0x5f6b5e, mini: '#5F6B5E' , lore: 'A forest that stopped growing and never fell.' },
+  stone:  { name: 'Barrow hills',      color: 0x6e6880, mini: '#6E6880' , lore: 'Every mound is a grave, and every grave is a quarry.' },
+  wheat:  { name: 'Blackwheat fields', color: 0xa89a86, mini: '#A89A86' , lore: 'The only crop that asks for no sun.' },
+  cattle: { name: 'Moth moor',         color: 0x8e8aa3, mini: '#8E8AA3' , lore: 'The bushes hang heavy with cocoons, and the air is never still.' },
+  ember:  { name: 'Iron crags',        color: 0x3a3350, mini: '#3A3350' , lore: 'Sharp rock, deep shafts, and veins that ring when struck.' },
+  cradle: { name: 'the Ashen Waste',   color: 0xcfc6bc, mini: '#CFC6BC' , lore: 'Nothing grows here. The Wyrm sleeps under the ash.' },
 };
 const HOUSES = {
-  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0x8c3b4a, css: '#8C3B4A', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
-  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x8e8aa3, css: '#8E8AA3', style: 'stone',  desc: 'Stags of the highlands. Grey stone cottages and towered keeps.' },
-  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x5f6b5e, css: '#5F6B5E', style: 'fen',    desc: 'Serpents of the fens. Thatched stilt huts and round watchtowers.' },
-  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '☀️', color: 0xa89a86, css: '#A89A86', style: 'sun',    desc: 'The sun-house of the south. Sunstone domes and white towers.' },
+  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0x8c3b4a, css: '#8C3B4A', style: 'nordic', desc: 'Wolves of the barrow-north. Black timber halls behind bone palisades, grave-fires lit at dusk.' },
+  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x8e8aa3, css: '#8E8AA3', style: 'stone',  desc: 'Stags of the grey highlands. Slate chapels and antler-crowned spires above the mist.' },
+  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x5f6b5e, css: '#5F6B5E', style: 'fen',    desc: 'Serpents of the drowned fens. Leaning stilt-towers and lantern-lit causeways over black water.' },
+  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '🌑', color: 0xa89a86, css: '#A89A86', style: 'sun',    desc: 'House of the eclipsed sun. Pale domes and bell towers, their gold long tarnished.' },
 };
 let HOUSE = HOUSES.varn;
 const DAY_LENGTH = 480;            // seconds for a full day + night
@@ -696,16 +691,18 @@ const lavaLight = new THREE.PointLight(PAL.ember, 120, 40, 2);
 // ---------------------------------------------------------------- number banners
 function bannerTexture(num, icon) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
-  const g = cv.getContext('2d');
-  g.fillStyle = '#EDE6DA'; g.beginPath(); g.arc(64, 108, 58, 0, Math.PI * 2); g.fill();
-  g.lineWidth = 3; g.strokeStyle = 'rgba(58,51,80,.55)'; g.stroke();
-  g.font = '30px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.globalAlpha = 0.85; g.fillText(icon || '', 64, 70); g.globalAlpha = 1;
-  const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#8C3B4A' : '#1E1A26'; g.font = "700 54px 'Cormorant Garamond', Georgia, serif";
-  g.fillText(String(num), 64, 114);
+  const g = cv.getContext('2d'); g.scale(2, 2);
+  g.fillStyle = '#1E1A26'; g.fillRect(30.6, 0, 2.8, 9);
+  g.fill(new Path2D('M27.40 12.50a4.6 4.6 0 1 0 9.20 0a4.6 4.6 0 1 0 -9.20 0zM29.80 12.50a2.2 2.2 0 1 0 4.40 0a2.2 2.2 0 1 0 -4.40 0z'), 'evenodd');
+  g.fillRect(22, 16, 20, 2.6);
+  g.beginPath(); g.arc(32, 52, 29, 0, Math.PI * 2); g.fillStyle = '#EDE6DA'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#1E1A26'; g.stroke();
+  g.beginPath(); g.arc(32, 52, 25.4, 0, Math.PI * 2); g.lineWidth = 0.9; g.strokeStyle = '#8E8AA3'; g.stroke();
+  g.font = '14px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#1E1A26'; g.fillText(icon || '', 32, 36);   // the resource icon
+  const red = num === 6 || num === 8, ink = red ? '#8C3B4A' : '#1E1A26';
+  g.fillStyle = ink; g.font = `700 ${num > 9 ? 21 : 25}px Cinzel, Georgia, serif`; g.textBaseline = 'alphabetic'; g.fillText(String(num), 32, 63.5);   // lining figures
   const pips = 6 - Math.abs(7 - num);
-  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 10, 148, 3.5, 0, Math.PI * 2); g.fill(); }
-  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
+  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(32 + (i - (pips - 1) / 2) * 5.4, 72, 1.8, 0, Math.PI * 2); g.fill(); }
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4; return tx;
 }
 for (const t of tiles) {
   if (!t.num) continue;
@@ -777,12 +774,14 @@ function placeReavers(t) {
 placeReavers(reaverTile);
 
 // ---------------------------------------------------------------- rune stones (dice in the sky)
+const RUNE_PIPS = { 1: [[24, 19.4]], 2: [[14, 9.4], [34, 29.4]], 3: [[14, 9.4], [24, 19.4], [34, 29.4]], 4: [[14, 9.4], [34, 9.4], [14, 29.4], [34, 29.4]],
+  5: [[14, 9.4], [34, 9.4], [24, 19.4], [14, 29.4], [34, 29.4]], 6: [[14, 9.4], [34, 9.4], [14, 19.4], [34, 19.4], [14, 29.4], [34, 29.4]] };
 function runeTexture(n) {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = '#4b4a52'; g.beginPath(); g.roundRect(8, 8, 112, 112, 22); g.fill();
-  g.strokeStyle = '#ffb347'; g.lineWidth = 5; g.stroke();
-  g.fillStyle = '#ffcf7a'; g.shadowColor = '#ff7a00'; g.shadowBlur = 18; g.font = 'bold 70px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(String(n), 64, 68);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'); g.scale(128 / 48, 128 / 48);
+  const body = new Path2D('M10 3h27l8 7v28l-7 7H10l-7-8V10z');
+  g.fillStyle = '#EDE6DA'; g.fill(body); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = '#1E1A26'; g.stroke(body);
+  g.lineWidth = 1.1; g.strokeStyle = '#8E8AA3'; g.stroke(new Path2D('M10 5.6h26.2l6.4 5.6'));
+  g.fillStyle = '#1E1A26'; for (const [x, y] of RUNE_PIPS[n]) g.fill(new Path2D(`M${x} ${y}l3.6 4.6-3.6 4.6-3.6-4.6z`));
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
 const runeTex = [null, 1, 2, 3, 4, 5, 6].map(n => n && runeTexture(n));
@@ -792,20 +791,46 @@ const runes = [0, 1].map(i => {
 });
 
 // ---------------------------------------------------------------- buildings
-for (const h of Object.values(HOUSES)) { h.mat = mat(h.color); h.crestMat = crestMaterial(h); h.winMat = new THREE.MeshBasicMaterial({ color: PAL.violet }); }
 // a heraldic banner: the house colour with its crest, a gold border
+const SIGILS = {   // 24-unit sigil paths from the batch 1 banners
+  varn: [{ d: 'M3 2l5 5h8l5-5v9l-4 6-2.5 5h-5L7 17l-4-6zM7.5 10.5l3 1.6-3 .9zM16.5 10.5l-3 1.6 3 .9z', eo: true }],
+  calder: [{ d: 'M9.3 12h5.4l-1.1 7-1.6 3-1.6-3z' }, { d: 'M9.6 12.3L5.6 11l3.6 3.4z' }, { d: 'M14.4 12.3l4-1.3-3.6 3.4z' },
+    { d: 'M10.4 12.2c-.6-2.2-4.2-2.6-5.2-5.6V2h1.6v4c.5 1 1.3 1.6 2.2 2V4h1.6v5.2c.9.6 1.4 1.7 1.4 3z' },
+    { d: 'M10.4 12.2c-.6-2.2-4.2-2.6-5.2-5.6V2h1.6v4c.5 1 1.3 1.6 2.2 2V4h1.6v5.2c.9.6 1.4 1.7 1.4 3z', mirror: true }],
+  morrow: [{ d: 'M17 3c-5-1.5-10 0-10 4 0 3 3 4 6 5 2 .7 3.5 1.2 3.5 2.7 0 2-3.5 2.6-8 1.3L7 19c6 2 12.5.8 12.5-4 0-3.2-3-4.4-6-5.3-2-.6-3.5-1.1-3.5-2.4 0-1.6 3-2 6.5-1z' },
+    { d: 'M15.5 1.8l5.5 1 1.8 2.2-1.8 2-5.5.8z' }, { d: 'M9 15.6l-6.5 1.6L8 19.4z' }],
+  ashby: [{ d: 'M12.00 1.00L13.71 5.62L17.50 2.47L16.67 7.33L21.53 6.50L18.38 10.29L23.00 12.00L18.38 13.71L21.53 17.50L16.67 16.67L17.50 21.53L13.71 18.38L12.00 23.00L10.29 18.38L6.50 21.53L7.33 16.67L2.47 17.50L5.62 13.71L1.00 12.00L5.62 10.29L2.47 6.50L7.33 7.33L6.50 2.47L10.29 5.62zM8.80 12.00a3.2 3.2 0 1 0 6.40 0a3.2 3.2 0 1 0 -6.40 0z', eo: true }],
+};
+function drawSigil(g, key, color) {
+  g.fillStyle = color;
+  for (const p of SIGILS[key] || []) { g.save(); if (p.mirror) g.transform(-1, 0, 0, 1, 24, 0); g.fill(new Path2D(p.d), p.eo ? 'evenodd' : 'nonzero'); g.restore(); }
+}
+const clothOf = h => h.banner || h.css, sigilOn = h => /EDE6DA/i.test(clothOf(h)) ? '#1E1A26' : '#EDE6DA';
+// crest: the cloth with the sigil (shields, tabards, caparisons, pennants)
 function drawCrest(h, cv) {
-  const g = cv.getContext('2d'), bg = h.banner || h.css, light = /EDE6DA/i.test(bg);
-  g.clearRect(0, 0, 192, 128); g.fillStyle = bg; g.fillRect(0, 0, 192, 128);
-  g.fillStyle = 'rgba(30,26,38,.18)'; g.fillRect(0, 100, 192, 28);
-  const icon = ICON_IMG[EMOJI_TO[h.sigil.replace(/️/g, '')]];
-  if (icon) { g.fillStyle = light ? 'rgba(30,26,38,.12)' : 'rgba(237,230,218,.88)'; g.beginPath(); g.arc(96, 60, 42, 0, 7); g.fill(); g.drawImage(icon, 60, 24, 72, 72); }
+  const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 192, 128);
+  g.fillStyle = clothOf(h); g.fillRect(0, 0, 192, 128);
+  g.setTransform(4.2, 0, 0, 4.2, 96 - 50.4, 64 - 50.4); drawSigil(g, h.key, sigilOn(h)); g.setTransform(1, 0, 0, 1, 0, 0);
+}
+// banner: the hanging gonfalon with three tails (buildings)
+function drawBanner(h, cv) {
+  const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 192, 128); g.scale(2, 2);
+  g.fillStyle = '#1E1A26'; g.fillRect(0, 2, 96, 3.2);
+  const cloth = new Path2D('M5 5h86v44L72 39 48 60 24 39 5 49z');
+  g.fillStyle = clothOf(h); g.fill(cloth); g.lineWidth = 1.5; g.lineJoin = 'round'; g.strokeStyle = '#1E1A26'; g.stroke(cloth);
+  g.translate(31.2, 7.5); g.scale(1.4, 1.4); drawSigil(g, h.key, sigilOn(h)); g.setTransform(1, 0, 0, 1, 0, 0);
 }
 function crestMaterial(h) {
   const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128; drawCrest(h, cv);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
   const m = new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp }); m.userData.cv = cv; return m;
 }
+function bannerMaterial(h) {
+  const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128; drawBanner(h, cv);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }); m.userData.cv = cv; return m;
+}
+for (const h of Object.values(HOUSES)) { h.mat = mat(h.color); h.crestMat = crestMaterial(h); h.bannerMat = bannerMaterial(h); h.winMat = new THREE.MeshBasicMaterial({ color: PAL.violet }); }
 // colours by seat: you are ink plum with a bone-white banner; rivals are dried rose, moss grey and ash lavender
 function applyPalette() {
   const me = players[P]?.house || HOUSE, rest = [[PAL.rose, '#8C3B4A'], [PAL.moss, '#5F6B5E'], [PAL.lavender, '#8E8AA3'], [PAL.straw, '#A89A86']];
@@ -814,6 +839,7 @@ function applyPalette() {
   order.forEach((h, i) => { [h.color, h.css] = rest[i]; h.banner = h.css; });
   for (const h of Object.values(HOUSES)) {
     h.mat.color.setHex(h.color); drawCrest(h, h.crestMat.userData.cv); h.crestMat.map.needsUpdate = true;
+    drawBanner(h, h.bannerMat.userData.cv); h.bannerMat.map.needsUpdate = true;
     h.winMat.color.setHex(h === me ? PAL.ember : PAL.violet);
   }
 }
@@ -855,7 +881,7 @@ function torch(x, z, h = 2.2) {
 function flagPole(h) {
   const g = new THREE.Group();
   const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, h, 5), woodMat); p.position.y = h / 2; g.add(p);
-  const f = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.3, 0.08), houseCrest || houseMat); f.position.set(1.0, h - 0.8, 0); g.add(f);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.4), houseCrest || houseMat); f.position.set(1.05, h - 0.75, 0); g.add(f);
   const fin = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.45, 5), M.iron); fin.position.y = h + 0.2; g.add(fin);
   return g;
 }
@@ -962,7 +988,7 @@ const STYLES = {
     },
   },
 };
-function withHouse(h, fn) { const prev = houseMat, pc = houseCrest; houseMat = h.mat; houseCrest = h.crestMat; try { return fn(); } finally { houseMat = prev; houseCrest = pc; } }
+function withHouse(h, fn) { const prev = houseMat, pc = houseCrest; houseMat = h.mat; houseCrest = h.bannerMat; try { return fn(); } finally { houseMat = prev; houseCrest = pc; } }
 const GOTH = { body: mat(PAL.ink), roof: mat(PAL.violet), trim: mat(PAL.barrow) };
 function spire(r, hgt, m, x = 0, y = 0, z = 0) { const o = cone(r, hgt, 4, m, x, y, z); o.rotation.y = Math.PI / 4; return o; }
 function lancet(h, w, ht, x, y, z, ry = 0) {   // a pointed window
@@ -973,7 +999,7 @@ function lancet(h, w, ht, x, y, z, ry = 0) {   // a pointed window
 function banner(h, hgt, x, y, z) {
   const g = new THREE.Group();
   g.add(cyl(0.07, 0.07, hgt, 4, GOTH.body, 0, 0, 0));
-  const f = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.15, 0.06), h.crestMat); f.position.set(0.9, hgt - 0.75, 0); g.add(f);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.4), h.bannerMat); f.position.set(1.05, hgt - 0.7, 0); g.add(f);
   g.position.set(x, y, z); return g;
 }
 // Outpost (Hamlet): a narrow tower with a pointed roof and a little chapel beside it
@@ -1345,8 +1371,8 @@ function updateHighway() {
   }
   if (best !== h) {
     state.highwayHolder = best;
-    if (best === P) { announce('THE GREAT WALL', 'Your walls are the longest in Embervale. +2 Renown'); log('🧱 You hold the Great Wall (+2★)'); }
-    else if (best !== null) { announce('GREAT WALL SEIZED!', `${nameOf(best)} now holds the Great Wall (+2★)`); log(`🧱 ${nameOf(best)} takes the Great Wall`); }
+    if (best === P) { announce('THE GREAT WALL', 'Your walls are the longest in Embervale. +2 Renown'); log('🏯 You hold the Great Wall (+2★)'); }
+    else if (best !== null) { announce('GREAT WALL SEIZED!', `${nameOf(best)} now holds the Great Wall (+2★)`); log(`🏯 ${nameOf(best)} takes the Great Wall`); }
   }
 }
 
@@ -1477,7 +1503,7 @@ function resolveHarvest() {
   for (const t of tiles) {
     if (t.num !== sum) continue;
     pulse.push({ s: t.banner, t: 0 });
-    if (t === reaverTile) { if (t.corners.some(cid => owns(corners[cid]))) log(`🐉 The Wyrm blocks ${BIOME[t.type].name} (${sum})`); continue; }
+    if (t === reaverTile) { if (t.corners.some(cid => owns(corners[cid]))) log(`🏴 The Wyrm blocks ${BIOME[t.type].name} (${sum})`); continue; }
     if (t.scorchedUntil >= state.harvests) { if (t.corners.some(cid => owns(corners[cid]))) log(`🔥 ${BIOME[t.type].name} (${sum}) is scorched and yields nothing`); continue; }
     for (const cid of t.corners) {
       const c = corners[cid]; if (!c.building) continue;
@@ -1533,12 +1559,12 @@ function sendReavers(pid, t, prefix = '', title = 'THE WYRM WAKES!') {
     if (pid === P) steal = ` You steal 1 ${RES[k].icon} from ${nameOf(v)}!`;
     else if (v === P) { steal = ` ${nameOf(pid)} steals 1 ${RES[k].icon} from you!`; flashRes(k, true); }
     else if (seen) steal = ` ${nameOf(pid)} robs ${nameOf(v)}.`;
-    if (pid !== P) tell(pid, { log: `🐉 The Wyrm robs ${nameOf(v)} for you: +1 ${RES[k].icon}`, flash: [k] });
+    if (pid !== P) tell(pid, { log: `🏴 The Wyrm robs ${nameOf(v)} for you: +1 ${RES[k].icon}`, flash: [k] });
     if (v !== P) tell(v, { big: title, small: `${nameOf(pid)} steals 1 ${RES[k].icon} from you!`, flash: [k], loss: true });
   }
   const who = pid === P ? 'The Wyrm coils' : `${nameOf(pid)} sends the Wyrm. It coils`;
   announce(title, `${prefix}${who} ${where}.${steal}`);
-  log(`${title === 'THE WYRM WAKES!' ? '🐉 7!' : '⚔️ Sellswords!'} ${who} ${where}.${steal}`);
+  log(`${title === 'THE WYRM WAKES!' ? '🏴 7!' : '⚔️ Sellswords!'} ${who} ${where}.${steal}`);
   updateHUD(); refreshMarkers();
 }
 function startReaverPick(reason = 'raid') {
@@ -1727,8 +1753,8 @@ function updateHost() {
   for (const p of players) if (p.knights > bestN) { best = p.id; bestN = p.knights; }
   if (best !== h && best !== undefined) {
     state.hostHolder = best;
-    if (best === P) { announce('THE MIGHTIEST HOST', 'Your Sellswords are the strongest force. +2 Renown'); log('⚔️ You command the Mightiest Host (+2★)'); }
-    else { announce('A MIGHTY HOST!', `${nameOf(best)} commands the Mightiest Host (+2★)`); log(`⚔️ ${nameOf(best)} takes the Mightiest Host`); }
+    if (best === P) { announce('THE MIGHTIEST HOST', 'Your Sellswords are the strongest force. +2 Renown'); log('🎖️ You command the Mightiest Host (+2★)'); }
+    else { announce('A MIGHTY HOST!', `${nameOf(best)} commands the Mightiest Host (+2★)`); log(`🎖️ ${nameOf(best)} takes the Mightiest Host`); }
   }
 }
 function playScroll(pid, idx, arg) {
@@ -2364,7 +2390,7 @@ function signTexture(icon, title, cost, ok) {
 }
 const costIcons = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join('');
 const signMats = {};
-for (const [kind, icon, title] of [['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep ⬆'], ['road', '🧱', 'Wall'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']])
+for (const [kind, icon, title] of [['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep ⬆'], ['road', '🧱', 'Wall'], ['roost', '🪺', 'Roost'], ['tower', '🏹', 'Tower']])
   for (const ok of [true, false])
     signMats[kind + ok] = new THREE.SpriteMaterial({ map: signTexture(icon, title, costIcons(kind), ok), transparent: true, depthWrite: false });
 
@@ -2430,9 +2456,9 @@ function refreshMarkers() {
 
 // ---------------------------------------------------------------- HUD
 const $ = id => document.getElementById(id);
-$('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
+$('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}" title="${RES[k].name}: ${RES[k].lore}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
 const costStr = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join(' ');
-$('buildMenu').innerHTML = [['road', '🧱', 'Wall'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🐉', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
+$('buildMenu').innerHTML = [['road', '🧱', 'Wall'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🪺', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
   `<div class="slot" id="b-${k}" data-k="${k}"><i>${ic}</i><div><b>${nm}</b><div class="c">${costStr(k).replace(/ /g, '')}</div></div></div>`).join('');
 $('buildMenu').addEventListener('click', e => { const k = e.target.closest('[data-k]')?.dataset.k; if (!k || state.phase !== 'play') return; setMode(state.mode === k ? null : k); });
 function closeMenus() {}
@@ -2493,12 +2519,12 @@ function updateHUD() {
     $('actHome').classList.toggle('hidden', !!state.riding);
     document.querySelectorAll('#dpad .fly').forEach(b => b.classList.toggle('hidden', !state.riding));
   }
-  if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🧱 ${me.freeRoads} free walls` : '');
+  if (me) $('lorebits').textContent = `📜 ${me.scrolls.length} scrolls` + (secretOf(P) ? ` (👑 ${secretOf(P)} secret ★)` : '') + ` · ⚔️ ${me.knights} Sellswords` + (state.hostHolder === P ? ' · 🎖️ Mightiest Host +2★' : ' (Host: 3+ and the most)') + (me.freeRoads ? ` · 🧱 ${me.freeRoads} free walls` : '');
   $('housesub').textContent = `Hamlets ${state.built.hamlet}/${LIMITS.hamlet} · Keeps ${state.built.keep}/${LIMITS.keep} · Walls ${state.built.road}/${LIMITS.road}`;
-  $('highway').textContent = state.highwayHolder === P ? `🧱 Great Wall held (${state.longest} walls) +2★` : `Longest wall: ${state.longest} (Great Wall: 5+ and the longest)`;
+  $('highway').textContent = state.highwayHolder === P ? `🏯 Great Wall held (${state.longest} walls) +2★` : `Longest wall: ${state.longest} (Great Wall: 5+ and the longest)`;
   const bearer = state.order.length && state.hornIdx >= 0 ? hornBearer() : null;
   $('scores').innerHTML = players.map(p => `<div class="row ${p.id === P ? 'me' : ''}" style="--hc:${p.house.css}"><span class="sw"></span>${p.house.sigil} ${p.id === P ? 'You' : (!p.ai && p.name ? p.name : p.house.name.replace('House ', '')) + (!p.ai ? ' 👤' : '')}` +
-    `<span class="tags">${p.dragon ? { egg: '🥚', wyrmling: '🐲', grown: '🐉' }[p.dragon.stage] : ''}${p.scrolls?.length && p.id !== P ? '📜' + p.scrolls.length : ''}${state.highwayHolder === p.id ? '🧱' : ''}${state.hostHolder === p.id ? '⚔️' : ''}${bearer === p.id ? '🎺' : ''}</span><b>${p.id === P ? totalRenown(p.id) : renown(p.id)}★</b></div>`).join('');
+    `<span class="tags">${p.dragon ? { egg: '🥚', wyrmling: '🐲', grown: '🐉' }[p.dragon.stage] : ''}${p.scrolls?.length && p.id !== P ? '📜' + p.scrolls.length : ''}${state.highwayHolder === p.id ? '🏯' : ''}${state.hostHolder === p.id ? '🎖️' : ''}${bearer === p.id ? '🎺' : ''}</span><b>${p.id === P ? totalRenown(p.id) : renown(p.id)}★</b></div>`).join('');
 }
 function updateObjective() {
   const o = $('objective');
@@ -2772,7 +2798,7 @@ function drawMinimap() {
       mctx.font = `bold ${fs}px Georgia`; mctx.fillText(t.num, X(t.x), Y(t.z) + 1);
     } else { mctx.font = `${fs * 1.4}px serif`; mctx.fillText('🌋', X(t.x), Y(t.z)); }
     if (big && RES[t.type]) { mctx.font = `${fs * 1.1}px serif`; mctx.fillText(RES[t.type].icon, X(t.x), Y(t.z) - fs * 2.1); }
-    if (t === reaverTile && live) { mctx.font = `${fs * 1.3}px serif`; mctx.fillText('🐉', X(t.x) + fs * 1.5, Y(t.z) + fs * 0.9); }
+    if (t === reaverTile && live) { mctx.font = `${fs * 1.3}px serif`; mctx.fillText('🏴', X(t.x) + fs * 1.5, Y(t.z) + fs * 0.9); }
   }
   // war-table markers during landing
   if (state.phase === 'setup' && state.mode) {
@@ -2809,7 +2835,7 @@ function drawMinimap() {
     mctx.strokeStyle = reaverHover === reaverTile ? '#888' : '#d01818'; mctx.stroke();
     mctx.fillStyle = 'rgba(140,59,74,.3)'; mctx.fill();
     const owners = [...new Set(reaverHover.corners.map(cid => corners[cid].building?.owner).filter(o => o !== undefined && o !== P))];
-    const txt = reaverHover === reaverTile ? 'The Wyrm already lies here' : `🐉 Send the Wyrm here · rob: ${owners.length ? owners.map(o => players[o].house.sigil).join(' ') : 'nobody'}`;
+    const txt = reaverHover === reaverTile ? 'The Wyrm already lies here' : `🏴 Send the Wyrm here · rob: ${owners.length ? owners.map(o => players[o].house.sigil).join(' ') : 'nobody'}`;
     mctx.font = `${fs * 1.05}px Georgia`; const tw = mctx.measureText(txt).width + 30;
     mctx.fillStyle = 'rgba(30,26,38,.88)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
     mctx.fillStyle = '#EDE6DA'; mctx.fillText(txt, W / 2, W - fs * 2.1);

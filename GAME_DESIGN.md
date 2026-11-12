@@ -306,3 +306,13 @@ Still open, as decisions for the designer:
 - The spec's goal of 10 holds versus the current 12 Renown.
 - A fixed wall view versus free walking.
 - How trading is represented (ravens are already in).
+
+## Asset batch 1 (in the game)
+The files are in `docs/design/batch1/`: the notes, the contact sheet, 58 icons, the Rune Stones and the banners.
+- **Icons:** all 58 icons replace the old set. New keys are `waste`, `roost`, `wyrm` (which replaces `reavers`), `eclipse`, `great_wall` and `mightiest_host`. Moth-silk and Iron use the designer's `cattle` and `ember` icons, and the fire icon is separate.
+- **Number tokens:** a bone disc hanging from an iron hook, with the resource icon above the numeral; 6 and 8 are in dried rose. Numerals are drawn in Cinzel so the figures are lining; Cormorant's old-style "10" read as "IO".
+- **Rune Stones:** chipped bone dice with carved diamond pips.
+- **Banners:** a three-tailed gonfalon on an iron rod on every building. Shields, tabards and caparisons show the same sigil on plain cloth. Your banner is bone with an ink sigil; rivals' banners are their colour with a bone sigil.
+- **Houses:** new descriptions, and House Ashby's sigil is now the eclipse.
+- **Text:** flavour lines for every resource (tooltips on the resource pills) and terrain.
+- **Naming decisions accepted:** Hamlet / Keep stay, the goal stays 12 Renown, the dice are the Rune Stones, and the hurry button reads "Cast the stones".
