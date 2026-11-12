@@ -5,7 +5,7 @@ import * as THREE from './three.module.js';
 // ---------------------------------------------------------------- ICONS (dark medieval, illuminated-manuscript style)
 // Every emoji in the game's text is drawn with these icons instead: in the page (via a MutationObserver)
 // and on canvases (fillText/strokeText/measureText are taught to place icons).
-const INK = '#17110d';
+const INK = '#1E1A26';
 const ICONS = {
   timber: '<path d="M12 2 L19 12 H15.5 L20 19 H4 L8.5 12 H5 Z" fill="#3b6b34"/><rect x="10.3" y="19" width="3.4" height="3.5" fill="#6e4524"/>',
   stone: '<path d="M2.5 19.5 L5.5 11 L10.5 7.5 L16.5 9 L21.5 18 L18 20.5 H5 Z" fill="#8f897e"/><path d="M10.5 7.5 L12 13.5 L16.5 9 M12 13.5 L7.5 20.5 M12 13.5 L18 20.5" fill="none"/>',
@@ -61,9 +61,21 @@ const ICONS = {
   stag: '<path d="M7 2 V6 L9 9 M5 4 L7 6 M3 5 L5 7 M17 2 V6 L15 9 M19 4 L17 6 M21 5 L19 7" fill="none" stroke="#6e4524" stroke-width="1.8"/><path d="M9 9 C9 7.5 15 7.5 15 9 L16.5 11 L14.5 20 C13.5 22 10.5 22 9.5 20 L7.5 11 Z" fill="#8a5e30"/><circle cx="10.4" cy="12.5" r=".9" fill="#17110d" stroke="none"/><circle cx="13.6" cy="12.5" r=".9" fill="#17110d" stroke="none"/>',
   serpent: '<path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#17110d" stroke-width="5.5"/><path d="M5 20 C2 17 5 13 9 14 C13 15 15 12 12 9.5 C9.5 7.5 11 3 15.5 3.5 C19 4 21 7 19 9" fill="none" stroke="#3a7a50" stroke-width="3.5"/><circle cx="19.2" cy="9" r="2.3" fill="#3a7a50"/><circle cx="19.8" cy="8.5" r=".6" fill="#17110d" stroke="none"/>',
 };
+ICONS.fire = ICONS.ember;
+ICONS.moth = '<path d="M12 2 V5.5" fill="none"/><ellipse cx="12" cy="13" rx="4.6" ry="7.4" fill="#EDE6DA"/><path d="M8 9.5 Q12 11.5 16 9.5 M7.5 13.5 Q12 15.5 16.5 13.5 M8.2 17.5 Q12 19.3 15.8 17.5" fill="none" stroke-width="1"/>';
+ICONS.iron = '<path d="M2.5 18 L6 11 H18 L21.5 18 Z" fill="#3A3350"/><path d="M6 11 L8 7.5 H16 L18 11 Z" fill="#6E6880"/><path d="M8.5 14.5 H15.5" fill="none" stroke="#8E8AA3"/>';
+// the design palette: every icon colour snaps to its nearest token; ember gold is kept for fire and light only
+{
+  const TOK = ['#1E1A26', '#3A3350', '#6E6880', '#8E8AA3', '#EDE6DA', '#CFC6BC', '#5F6B5E', '#A89A86', '#8C3B4A'];
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const near = (h, pool) => { const c = rgb(h); let best = pool[0], bd = 1e9; for (const t of pool) { const u = rgb(t), d = (u[0] - c[0]) ** 2 + (u[1] - c[1]) ** 2 + (u[2] - c[2]) ** 2; if (d < bd) { bd = d; best = t; } } return best; };
+  const LIGHT = new Set(['fire', 'volcano', 'horn', 'dawn', 'sun', 'dusk']);
+  for (const k of Object.keys(ICONS)) ICONS[k] = ICONS[k].replace(/#[0-9a-fA-F]{6}\b/g, h => near(h.length === 7 ? h : h, LIGHT.has(k) ? [...TOK, '#E0A24A'] : TOK))
+    .replace(/#([0-9a-fA-F]{3})\b/g, (m, x) => near('#' + x.split('').map(c => c + c).join(''), LIGHT.has(k) ? [...TOK, '#E0A24A'] : TOK));
+}
 // which emoji each icon replaces (variation selectors are ignored)
 const EMOJI_TO = {
-  '🌲': 'timber', '🪨': 'stone', '🌾': 'wheat', '🐄': 'cattle', '🔥': 'ember', '🌋': 'volcano', '🏠': 'hamlet', '🏘': 'hamlet', '🏰': 'keep',
+  '🌲': 'timber', '🪨': 'stone', '🌾': 'wheat', '🐄': 'cattle', '🔥': 'fire', '🦋': 'moth', '🔩': 'iron', '🌋': 'volcano', '🏠': 'hamlet', '🏘': 'hamlet', '🏰': 'keep',
   '🧱': 'wall', '🏹': 'tower', '🐉': 'dragon', '🐲': 'wyrmling', '🥚': 'egg', '⚖': 'trade', '📜': 'scroll', '🗺': 'map', '❓': 'help', '🎓': 'guide',
   '🎮': 'dpad', '👁': 'eye', '👀': 'eye', '🎯': 'goal', '🧭': 'compass', '⏩': 'fast', '★': 'star', '🎺': 'horn', '📯': 'horn', '🎲': 'dice',
   '🏴': 'reavers', '⚔': 'swords', '🛡': 'shield', '🌀': 'feint', '🏳': 'yield', '🐦': 'raven', '🤝': 'deal', '🌅': 'dawn', '☀': 'sun', '🌤': 'afternoon',
@@ -157,27 +169,30 @@ const COST = {
   roost:  { stone: 2, ember: 2, timber: 1 },
   tower:  { stone: 2, timber: 1, ember: 1 },
 };
+// design tokens (DRAGONHOLD_DESIGN.md): use only these; ember gold is for fire and light only
+const PAL = { ink: 0x1e1a26, violet: 0x3a3350, barrow: 0x6e6880, lavender: 0x8e8aa3, bone: 0xede6da, ashen: 0xcfc6bc,
+  moss: 0x5f6b5e, straw: 0xa89a86, rose: 0x8c3b4a, ember: 0xe0a24a, mist: 0xb9b4c6 };
 const RES = {
-  timber: { name: 'Timber',     icon: '🌲' },
-  stone:  { name: 'Stone',      icon: '🪨' },
-  wheat:  { name: 'Sunwheat',   icon: '🌾' },
-  cattle: { name: 'Cattle',     icon: '🐄' },
-  ember:  { name: 'Emberstone', icon: '🔥' },
+  timber: { name: 'Ashwood',    icon: '🌲' },
+  stone:  { name: 'Gravestone', icon: '🪨' },
+  wheat:  { name: 'Blackwheat', icon: '🌾' },
+  cattle: { name: 'Moth-silk',  icon: '🦋' },
+  ember:  { name: 'Iron',       icon: '🔩' },
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Pinewild',   color: 0x4a6e72, mini: '#5a8088' },
-  stone:  { name: 'Greyquarry', color: 0x8c84a4, mini: '#9a92b4' },
-  wheat:  { name: 'Goldfield',  color: 0xd8b48e, mini: '#e2c09c' },
-  cattle: { name: 'Highmoor',   color: 0x7ea896, mini: '#88b4a2' },
-  ember:  { name: 'Ashvent',    color: 0x5a3050, mini: '#6a3a5e' },
-  cradle: { name: 'The Cradle', color: 0x3e2c4a, mini: '#4a3858' },
+  timber: { name: 'Deadwood',          color: 0x5f6b5e, mini: '#5F6B5E' },
+  stone:  { name: 'Barrow hills',      color: 0x6e6880, mini: '#6E6880' },
+  wheat:  { name: 'Blackwheat fields', color: 0xa89a86, mini: '#A89A86' },
+  cattle: { name: 'Moth moor',         color: 0x8e8aa3, mini: '#8E8AA3' },
+  ember:  { name: 'Iron crags',        color: 0x3a3350, mini: '#3A3350' },
+  cradle: { name: 'the Ashen Waste',   color: 0xcfc6bc, mini: '#CFC6BC' },
 };
 const HOUSES = {
-  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0xb85a78, css: '#e08aa6', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
-  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x5e7cc0, css: '#93b0ec', style: 'stone',  desc: 'Stags of the highlands. Grey stone cottages and towered keeps.' },
-  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x4e9a86, css: '#82d4b8', style: 'fen',    desc: 'Serpents of the fens. Thatched stilt huts and round watchtowers.' },
-  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '☀️', color: 0xd0a060, css: '#f2cc8a', style: 'sun',    desc: 'The sun-house of the south. Sunstone domes and white towers.' },
+  varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0x8c3b4a, css: '#8C3B4A', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
+  calder: { key: 'calder', name: 'House Calder', sigil: '🦌', color: 0x8e8aa3, css: '#8E8AA3', style: 'stone',  desc: 'Stags of the highlands. Grey stone cottages and towered keeps.' },
+  morrow: { key: 'morrow', name: 'House Morrow', sigil: '🐍', color: 0x5f6b5e, css: '#5F6B5E', style: 'fen',    desc: 'Serpents of the fens. Thatched stilt huts and round watchtowers.' },
+  ashby:  { key: 'ashby',  name: 'House Ashby',  sigil: '☀️', color: 0xa89a86, css: '#A89A86', style: 'sun',    desc: 'The sun-house of the south. Sunstone domes and white towers.' },
 };
 let HOUSE = HOUSES.varn;
 const DAY_LENGTH = 480;            // seconds for a full day + night
@@ -275,8 +290,8 @@ function heightAt(x, z) {
     else if (t.type === 'wheat') h = h * (1 - k * 0.7) + 1.9 * k * 0.7;
     else if (t.type === 'cradle') {
       const dc = Math.hypot(x, z), kk = Math.max(0, 1 - dc / (HEX_R * 0.9));
-      h += 26 * Math.pow(kk, 1.5);
-      if (dc < 6) h -= (6 - dc) * 2.4;
+      h += 7 * Math.pow(kk, 1.5);
+      if (dc < 6) h -= (6 - dc) * 0.6;
     }
   }
   const s = smooth(2.72, 3.25, d);
@@ -290,11 +305,11 @@ const canvas = document.getElementById('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false;   // flat washes: no realistic shadows
 renderer.shadowMap.type = THREE.PCFShadowMap;   // crisp, cel-style shadows
 const scene = new THREE.Scene();
-const FOG = 0xf0c9a0;
-scene.fog = new THREE.Fog(FOG, 160, 650);
+const FOG = PAL.mist;
+scene.fog = new THREE.Fog(FOG, 70, 520);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.3, 2500);
 camera.rotation.order = 'YXZ';
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); resizeInk(); });
@@ -308,7 +323,7 @@ sun.shadow.bias = -0.0008; scene.add(sun);
 
 // comic look: 3-tone cel shading
 const toonRamp = (() => {
-  const d = new Uint8Array([110, 110, 110, 255, 160, 160, 160, 255, 210, 210, 210, 255, 248, 248, 248, 255]);   // soft washes, not hard bands
+  const d = new Uint8Array([188, 188, 188, 255, 212, 212, 212, 255, 234, 234, 234, 255, 252, 252, 252, 255]);   // soft washes, not hard bands
   const t = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
 })();
 // ---------------------------------------------------------------- ink pass (outlines + halftone)
@@ -317,45 +332,51 @@ inkRT.depthTexture = new THREE.DepthTexture(1, 1); inkRT.depthTexture.type = THR
 const inkU = {
   tColor: { value: inkRT.texture }, tDepth: { value: inkRT.depthTexture }, res: { value: new THREE.Vector2(1, 1) },
   near: { value: 0.3 }, far: { value: 2500 }, fadeNear: { value: 200 }, fadeFar: { value: 600 }, px: { value: 1 },
+  invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() }, paper: { value: new THREE.Color(PAL.bone) },
 };
 const inkScene = new THREE.Scene(), inkCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: inkU, depthTest: false, depthWrite: false,
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `#include <packing>
-    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px; varying vec2 vUv;
+    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px; uniform mat4 invProj, camWorld; uniform vec3 paper; varying vec2 vUv;
     float D(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, near, far); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
       return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
     float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = p * 2.03 + 7.1; a *= 0.5; } return v; }
+    vec3 worldAt(vec2 uv, float z){ vec4 v = invProj * vec4(uv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0); v /= v.w; return (camWorld * v).xyz; }
     void main(){
       vec2 px1 = 1.0 / res, sc = vUv * res;
-      vec2 uv = vUv + (vec2(fbm(sc * 0.006), fbm(sc * 0.006 + 17.3)) - 0.5) * 2.0 * px1 * px;   // a faint hand-drawn wobble
+      // 1. wobbly edges: nothing is ruler-straight
+      vec2 uv = vUv + (vec2(fbm(sc * 0.0045), fbm(sc * 0.0045 + 17.3)) - 0.5) * 6.0 * px1 * px;
       vec3 c0 = texture2D(tColor, uv).rgb;
-      vec2 o = px1 * 1.6 * px;
+      vec2 o = px1 * 2.0 * px;
       vec3 bl = (texture2D(tColor, uv + vec2(o.x, 0.)).rgb + texture2D(tColor, uv - vec2(o.x, 0.)).rgb
                + texture2D(tColor, uv + vec2(0., o.y)).rgb + texture2D(tColor, uv - vec2(0., o.y)).rgb) * 0.25;
-      vec3 col = mix(c0, bl, 0.35);                                        // soft, painted surfaces
-      // glow: bright things bloom gently
-      vec3 glow = vec3(0.0); vec2 g = px1 * 9.0 * px;
-      for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; vec2 d = vec2(cos(a), sin(a)) * g;
-        glow += max(texture2D(tColor, uv + d).rgb - 0.55, 0.0) + max(texture2D(tColor, uv + d * 2.2).rgb - 0.55, 0.0) * 0.6; }
-      col += glow * 0.06;
+      vec3 col = mix(c0, bl, 0.4);
+      // 2. no outlines: a darker rim where pigment pools at the edge of each wash
+      col *= 1.0 - smoothstep(0.01, 0.12, length(c0 - bl)) * 0.26;
       vec2 q = px / res;
       float d0 = D(uv), dl = D(uv - vec2(q.x, 0.)), dr = D(uv + vec2(q.x, 0.)), du = D(uv + vec2(0., q.y)), dd = D(uv - vec2(0., q.y));
       float jump = max(max(abs(d0 - dl), abs(d0 - dr)), max(abs(d0 - du), abs(d0 - dd))) / d0;
-      float edge = smoothstep(0.04, 0.09, jump) * (1.0 - smoothstep(fadeNear, fadeFar, d0));
-      col = mix(col, col * vec3(0.42, 0.34, 0.55), edge * 0.5);           // soft plum outlines
-      // pastel goth grade: lifted plum shadows, creamy pastel lights
-      float lum = dot(col, vec3(0.299, 0.587, 0.114));
-      col = mix(vec3(lum), col, 0.82);
-      col = col * 0.92 + vec3(0.007, 0.003, 0.014);                        // blacks lift into plum
-      col = mix(col, col * vec3(0.86, 0.8, 1.08), 1.0 - smoothstep(0.05, 0.45, lum));   // shadows turn violet
-      col = mix(col, col * vec3(1.06, 0.98, 1.0), smoothstep(0.45, 0.9, lum));          // lights turn rosy
-      col *= 0.95 + 0.05 * vnoise(sc * 0.45);                              // the faintest paper
-      float vig = smoothstep(0.32, 1.05, length((vUv - 0.5) * vec2(1.15, 1.0)));
-      col = mix(col, col * vec3(0.5, 0.38, 0.62), vig * 0.75);              // a violet vignette
+      col *= 1.0 - smoothstep(0.04, 0.12, jump) * 0.16 * (1.0 - smoothstep(fadeNear, fadeFar, d0));
+      // 3. granulation, anchored in the world so it does not swim; paper shows through the wash
+      float z = texture2D(tDepth, uv).x, g;
+      if (z < 0.99999) { vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.16 + w.y * 0.09); }
+      else g = fbm(sc * 0.003 + 5.0);
+      float a = clamp(1.1 * g + 0.42, 0.74, 1.0);
+      col = pow(mix(pow(paper, vec3(0.4545)), pow(max(col, 0.0), vec3(0.4545)), a), vec3(2.2));   // mixed like pigment on paper, not in linear light
+      // 4. light is rare: only ember-gold things glow
+      vec3 glow = vec3(0.0); vec2 gr = px1 * 4.0 * px;
+      for (int i = 0; i < 8; i++) { float an = float(i) * 0.785398 + 0.3; vec2 dv = vec2(cos(an), sin(an)) * gr;
+        for (int k = 1; k <= 2; k++) { vec3 sm = texture2D(tColor, uv + dv * float(k) * 2.0).rgb; glow += vec3(0.75, 0.37, 0.07) * max(sm.r - sm.b * 2.4 - 0.1, 0.0) / float(k); } }
+      col += glow * 0.075;
+      // 5. visible paper grain over the whole frame
+      float n = vnoise(sc * 0.85) * 0.6 + vnoise(sc * 1.9) * 0.4;
+      col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.9 * n - 0.28, 0.0, 1.0) * 0.35);
+      // never pure black, never pure white
+      col = clamp(col, vec3(0.0130, 0.0103, 0.0185), vec3(0.846, 0.791, 0.701));
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -371,19 +392,26 @@ const mat = (color, o = {}) => new THREE.MeshToonMaterial({ color, gradientMap: 
 // sky dome: painted gradient, sun glow and moon (colours driven by the day/night cycle)
 const skyU = {
   top: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, bottom: { value: new THREE.Color(0x2a4a5a) },
-  sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, moonDir: { value: new THREE.Vector3(0, -1, 0) }, night: { value: 0 },
+  sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, moonDir: { value: new THREE.Vector3(0, -1, 0) }, night: { value: 0 }, uT: { value: 0 },
 };
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1800, 32, 16), new THREE.ShaderMaterial({
   uniforms: skyU, side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-  fragmentShader: `uniform vec3 top, horizon, bottom, sunCol, sunDir, moonDir; uniform float night; varying vec3 vDir;
+  fragmentShader: `uniform vec3 top, horizon, bottom, sunCol, sunDir, moonDir; uniform float night, uT; varying vec3 vDir;
+    float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float n1(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h1(i), h1(i + vec2(1, 0)), f.x), mix(h1(i + vec2(0, 1)), h1(i + vec2(1, 1)), f.x), f.y); }
+    float fb(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { v += a * n1(p); p = p * 2.02 + 3.7; a *= 0.5; } return v; }
     void main(){
       vec3 d = normalize(vDir); float h = d.y;
-      vec3 c = h > 0.0 ? mix(horizon, top, pow(h, 0.5)) : mix(horizon, bottom, min(1.0, -h * 5.0));
-      float s = max(dot(d, sunDir), 0.0);
-      c += sunCol * (pow(s, 6.0) * 0.45 * (1.0 - smoothstep(0.0, 0.6, h)) + pow(s, 900.0) * 3.0);
-      float m = max(dot(d, moonDir), 0.0);
-      c += vec3(0.9, 0.93, 1.0) * (smoothstep(0.99955, 0.9997, m) * 1.2 + pow(m, 40.0) * 0.12) * night;
+      vec3 c = h > 0.0 ? mix(horizon, top, pow(h, 0.6)) : mix(horizon, bottom, min(1.0, -h * 5.0));
+      // cloud washes: wet-in-wet bands of darker lavender
+      vec2 cp = d.xz / (h + 0.18) * 1.4 + vec2(uT * 0.004, 0.0);
+      float cl = smoothstep(0.42, 0.78, fb(cp)) * smoothstep(-0.02, 0.25, h);
+      c = mix(c, c * vec3(0.66, 0.64, 0.74), cl * 0.75);
+      // the sun by day and the moon by night are discs of bare paper, softly haloed
+      float s = max(dot(d, sunDir), 0.0), m = max(dot(d, moonDir), 0.0);
+      c = mix(c, sunCol * 0.95, smoothstep(0.9975, 0.9985, s) * 0.8 + pow(s, 60.0) * 0.12);
+      c = mix(c, vec3(0.85, 0.80, 0.72), (smoothstep(0.9975, 0.9985, m) * 0.9 + pow(m, 50.0) * 0.1) * night);
       gl_FragColor = vec4(c, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -399,8 +427,8 @@ const stars = (() => {
 
 // drifting glow motes: soft pastel specks by day, fireflies by night
 const motes = (() => {
-  const N = 520, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), ph = new Float32Array(N);
-  const pal = [0xf6b8cc, 0xb8a8f0, 0xa8e8d0, 0xfff0c0, 0xa8c8ff].map(h => new THREE.Color(h));
+  const N = 260, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), ph = new Float32Array(N);
+  const pal = [PAL.bone, PAL.ashen, PAL.mist].map(h => new THREE.Color(h));
   for (let i = 0; i < N; i++) {
     const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 175;
     pos.set([Math.cos(a) * r, 2 + Math.random() * 22, Math.sin(a) * r], i * 3);
@@ -409,20 +437,86 @@ const motes = (() => {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('phase', new THREE.BufferAttribute(ph, 1));
   const m = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uScale: { value: 1 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uScale: { value: 1 } }, transparent: true, depthWrite: false, vertexColors: true,
     vertexShader: `attribute float phase; uniform float uTime, uNight, uScale; varying vec3 vC; varying float vA;
       void main(){ vec3 p = position; float t = uTime * 0.25 + phase;
-        p += vec3(sin(t * 1.3) * 3.0, sin(t * 0.9 + phase) * 1.6, cos(t * 1.1) * 3.0);
+        p += vec3(sin(t * 1.3) * 3.0 + sin(uTime * 9.0 + phase) * 0.25, sin(t * 0.9 + phase) * 1.6 + abs(sin(uTime * 7.0 + phase)) * 0.4, cos(t * 1.1) * 3.0);
         vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
         float tw = 0.55 + 0.45 * sin(uTime * 2.2 + phase * 3.0);
-        vA = tw * mix(0.28, 1.0, uNight) * (1.0 - smoothstep(120.0, 260.0, -mv.z)); vC = color;
-        gl_PointSize = mix(5.0, 9.0, uNight) * uScale * 60.0 / max(-mv.z, 6.0); }`,
+        vA = (0.5 + 0.3 * tw) * (1.0 - smoothstep(90.0, 200.0, -mv.z)); vC = color * mix(1.0, 0.5, uNight);
+        gl_PointSize = 4.5 * uScale * 60.0 / max(-mv.z, 6.0); }`,
     fragmentShader: `varying vec3 vC; varying float vA;
-      void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vC * a * a * vA, 1.0); }`,
+      void main(){ vec2 pc = gl_PointCoord - 0.5; float d = length(pc * vec2(0.7, 1.3)); float a = smoothstep(0.5, 0.2, d); gl_FragColor = vec4(vC, a * vA); }`,
   });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts); return pts;
 })();
 function updateMotes(time) { motes.material.uniforms.uTime.value = time; motes.material.uniforms.uNight.value = night; motes.material.uniforms.uScale.value = renderer.getPixelRatio(); }
+
+// The Hold: a gothic cathedral-fortress inside the skeleton of a colossal dragon, always on the horizon, veiled by mist
+const holdObj = (() => {
+  const g = new THREE.Group();
+  const veil = (hex, k) => new THREE.Color(hex).lerp(new THREE.Color(PAL.mist), k);
+  const stone = new THREE.MeshToonMaterial({ color: veil(PAL.violet, 0.12), gradientMap: toonRamp, fog: false });
+  const roofM = new THREE.MeshToonMaterial({ color: veil(PAL.ink, 0.12), gradientMap: toonRamp, fog: false });
+  const hillM = new THREE.MeshToonMaterial({ color: veil(PAL.barrow, 0.45), gradientMap: toonRamp, fog: false });
+  const boneM = new THREE.MeshToonMaterial({ color: veil(PAL.lavender, 0.1), gradientMap: toonRamp, fog: false });
+  const lit = new THREE.MeshBasicMaterial({ color: PAL.ember, fog: false });
+  const add = (geo, m, x, y, z, ry = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
+  add(new THREE.SphereGeometry(120, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.4, 0.28, 0.9), hillM, 0, -4, 0);
+  add(new THREE.BoxGeometry(46, 60, 40), stone, 0, 52, 0);
+  add(new THREE.BoxGeometry(20, 110, 20), stone, 0, 55, 10);
+  add(new THREE.ConeGeometry(15, 70, 4), roofM, 0, 145, 10, Math.PI / 4);
+  for (const sx of [-1, 1]) {
+    add(new THREE.BoxGeometry(13, 80, 13), stone, sx * 26, 40, 14);
+    add(new THREE.ConeGeometry(10, 50, 4), roofM, sx * 26, 105, 14, Math.PI / 4);
+    for (const k of [0.6, 1.3]) add(new THREE.ConeGeometry(3.5, 22, 4), roofM, sx * 14 * k, 92, -10, Math.PI / 4);
+  }
+  add(new THREE.CircleGeometry(5.5, 14), lit, 0, 88, 20.2);
+  // ribs arcing over the towers like flying buttresses; the skull on the hill, the tail along the ridge
+  for (let i = 0; i < 7; i++) {
+    const r = 92 - Math.abs(i - 2.5) * 9, rib = add(new THREE.TorusGeometry(r, 3.2, 6, 24, Math.PI), boneM, 0, 8, -70 + i * 24);
+    rib.scale.set(1, 1.45, 1);
+  }
+  add(new THREE.CylinderGeometry(3.5, 3.5, 180, 8).rotateX(Math.PI / 2), boneM, 0, 8 + 92 * 1.45 * 0.98, -10);   // the spine
+  const skull = add(new THREE.SphereGeometry(18, 12, 8).scale(1.3, 0.8, 1), boneM, 120, 14, 40);
+  add(new THREE.ConeGeometry(11, 46, 6).rotateZ(-Math.PI / 2), boneM, 152, 10, 46);
+  for (const sz of [-1, 1]) add(new THREE.ConeGeometry(3, 28, 5).rotateZ(-1.0), boneM, 108, 34, 40 + sz * 10);
+  for (let i = 0; i < 12; i++) add(new THREE.SphereGeometry(6 - i * 0.35, 8, 6), boneM, -100 - i * 13, 10 - i * 0.4, -60 + Math.sin(i * 0.6) * 18);
+  g.position.set(-140, 0, -600); g.rotation.y = 0.35; g.scale.setScalar(1.0);
+  scene.add(g); return g;
+})();
+// mist banks drifting low over the isle and around the Hold
+const mists = (() => {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d');
+  const gr = x.createRadialGradient(128, 32, 4, 128, 32, 120); gr.addColorStop(0, 'rgba(237,230,218,.9)'); gr.addColorStop(0.55, 'rgba(237,230,218,.4)'); gr.addColorStop(1, 'rgba(237,230,218,0)');
+  x.setTransform(1, 0, 0, 0.27, 0, 23); x.fillStyle = gr; x.fillRect(0, -120, 256, 400);
+  const tx = new THREE.CanvasTexture(cv), out = [];
+  for (let i = 0; i < 16; i++) {
+    const far = i < 5, a = far ? -1.9 + i * 0.25 : Math.random() * Math.PI * 2, r = far ? rr(480, 620) : rr(110, 220);
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, opacity: far ? 0.75 : 0.45, fog: false }));
+    s.scale.set(far ? 520 : rr(160, 260), far ? 70 : rr(18, 30), 1); s.position.set(Math.cos(a) * r, far ? 28 : rr(4, 12), Math.sin(a) * r);
+    s.userData = { a, r, sp: rr(0.004, 0.01) * (Math.random() < 0.5 ? -1 : 1), far }; scene.add(s); out.push(s);
+  }
+  return out;
+})();
+// ravens circling the Hold's spires
+const ravens = (() => {
+  const out = [], m = new THREE.MeshBasicMaterial({ color: PAL.ink, fog: false, side: THREE.DoubleSide });
+  for (let i = 0; i < 6; i++) {
+    const b = new THREE.Group();
+    for (const sz of [-1, 1]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.6), m); w.position.x = sz * 3; w.rotation.x = -Math.PI / 2; const piv = new THREE.Group(); piv.add(w); b.add(piv); }
+    b.userData = { ph: Math.random() * 6, r: rr(60, 130), h: rr(150, 230), sp: rr(0.15, 0.3) }; scene.add(b); out.push(b);
+  }
+  return out;
+})();
+function updateAtmosphere(time) {
+  for (const s of mists) { const u = s.userData; u.a += u.sp * 0.016; if (!u.far) s.position.set(Math.cos(u.a) * u.r, s.position.y, Math.sin(u.a) * u.r); s.material.opacity = (u.far ? 0.75 : 0.45) * (1 - night * 0.55); }
+  const hp = holdObj.position;
+  for (const b of ravens) { const u = b.userData, a = time * u.sp + u.ph;
+    b.position.set(hp.x + Math.cos(a) * u.r, u.h + Math.sin(time * 0.7 + u.ph) * 8, hp.z + Math.sin(a) * u.r); b.rotation.y = -a;
+    const f = Math.sin(time * 6 + u.ph) * 0.5; b.children[0].rotation.z = f; b.children[1].rotation.z = -f; }
+  reavers.children[0].scale.setScalar(1 + Math.sin(time * 0.9) * 0.02);   // the Wyrm breathes in its sleep
+}
 
 // ground
 {
@@ -431,53 +525,51 @@ function updateMotes(time) { motes.material.uniforms.uTime.value = time; motes.m
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, heightAt(p.getX(i), p.getZ(i)));
   const ng = g.toNonIndexed(), np = ng.attributes.position, cols = new Float32Array(np.count * 3);
-  const c = new THREE.Color(), sand = new THREE.Color(0xd8bcb4), wet = new THREE.Color(0x8a7088);
+  const c = new THREE.Color(), sand = new THREE.Color(PAL.ashen), wet = new THREE.Color(PAL.barrow), mask = new Float32Array(np.count);
   for (let i = 0; i < np.count; i += 3) {
     const cx = (np.getX(i) + np.getX(i + 1) + np.getX(i + 2)) / 3, cz = (np.getZ(i) + np.getZ(i + 1) + np.getZ(i + 2)) / 3;
     const cy = (np.getY(i) + np.getY(i + 1) + np.getY(i + 2)) / 3;
     const t = tileAtWorld(cx, cz), j = hash2(Math.round(cx * 3), Math.round(cz * 3));
+    let m = 0;
     if (cy < 0.2) c.copy(wet);
     else if (cy < 1.0 || !t) c.copy(sand);
-    else {
-      c.setHex(BIOME[t.type].color);
-      if (t.type === 'wheat') { if (Math.sin((cx * 0.7 + cz * 0.4)) > 0.3) c.offsetHSL(0.01, 0.05, 0.07); }
-      else if (t.type === 'ember' && j < 0.1) c.setHex(0x8a2d10);
-      else if (t.type === 'stone' && cy > 6) c.offsetHSL(0, -0.05, 0.08);
-      else if (t.type === 'cradle') { c.lerp(new THREE.Color(0x2a2220), Math.min(1, cy / 26)); }
-      // soften colours toward borders so regions blend a little
-      const dd = Math.hypot(cx - t.x, cz - t.z) / HEX_R;
-      if (dd > 0.82 && t.type !== 'cradle') c.lerp(new THREE.Color(0x4f6136), (dd - 0.82) * 1.2);
-    }
-    if (cy > 1) c.offsetHSL(0, 0.04, Math.min(0.08, (cy - 3) * 0.009));   // painted light-on-hilltops
-    c.offsetHSL(0, 0, (j - 0.5) * 0.04);
-    for (let k = 0; k < 3; k++) { cols[(i + k) * 3] = c.r; cols[(i + k) * 3 + 1] = c.g; cols[(i + k) * 3 + 2] = c.b; }
+    else { c.setHex(BIOME[t.type].color); m = 1; }
+    c.offsetHSL(0, 0, (j - 0.5) * 0.02);
+    for (let k = 0; k < 3; k++) { cols[(i + k) * 3] = c.r; cols[(i + k) * 3 + 1] = c.g; cols[(i + k) * 3 + 2] = c.b; mask[i + k] = m; }
   }
-  ng.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  ng.setAttribute('color', new THREE.BufferAttribute(cols, 3)); ng.setAttribute('tileMask', new THREE.BufferAttribute(mask, 1));
   ng.computeVertexNormals();
-  const ground = new THREE.Mesh(ng, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp }));
+  const gm = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp });
+  gm.onBeforeCompile = sh => {
+    sh.uniforms.uR = { value: HEX_R }; sh.uniforms.uPaper = { value: new THREE.Color(PAL.bone) };
+    sh.vertexShader = 'attribute float tileMask; varying float vMask; varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMask = tileMask; vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = `uniform float uR; uniform vec3 uPaper; varying float vMask; varying vec3 vWP;
+      float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gh(i), gh(i + vec2(1, 0)), f.x), mix(gh(i + vec2(0, 1)), gh(i + vec2(1, 1)), f.x), f.y); }
+      ` + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      if (vMask > 0.5) {
+        vec2 p = vWP.xz;
+        float q = (0.57735 * p.x - p.y / 3.0) / uR, r = (2.0 / 3.0 * p.y) / uR, s3 = -q - r;
+        float rq = floor(q + 0.5), rr = floor(r + 0.5), rs = floor(s3 + 0.5);
+        float dq = abs(rq - q), dr = abs(rr - r), ds = abs(rs - s3);
+        if (dq > dr && dq > ds) rq = -rr - rs; else if (dr > ds) rr = -rq - rs;
+        vec2 c = vec2(uR * 1.7320508 * (rq + rr / 2.0), uR * 1.5 * rr), l = p - c;
+        float m = max(abs(l.x), max(abs(dot(l, vec2(0.5, 0.8660254))), abs(dot(l, vec2(-0.5, 0.8660254)))));
+        float edge = uR * 0.8660254 - m + (gn(p * 0.18) - 0.5) * 1.6 + (gn(p * 0.9) - 0.5) * 0.35;   // wobbly hand-painted border
+        float gap = 1.15;
+        diffuseColor.rgb *= 1.0 - 0.16 * (1.0 - smoothstep(gap, gap + 1.1, edge));                    // pigment pools at the wet edge
+        diffuseColor.rgb = mix(uPaper, diffuseColor.rgb, smoothstep(gap - 0.25, gap + 0.15, edge));  // bare paper between the tiles
+      }`);
+  };
+  const ground = new THREE.Mesh(ng, gm);
   ground.receiveShadow = true; scene.add(ground);
-}
-
-// region borders (subtle lines so the board reads clearly)
-{
-  const pts = [];
-  for (const e of edges) {
-    const A = corners[e.a], B = corners[e.b], N = 12;
-    for (let i = 0; i < N; i++) {
-      const t0 = i / N, t1 = (i + 1) / N;
-      const x0 = A.x + (B.x - A.x) * t0, z0 = A.z + (B.z - A.z) * t0, x1 = A.x + (B.x - A.x) * t1, z1 = A.z + (B.z - A.z) * t1;
-      pts.push(x0, heightAt(x0, z0) + 0.25, z0, x1, heightAt(x1, z1) + 0.25, z1);
-    }
-  }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  scene.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xd8c8a0, transparent: true, opacity: 0.22 })));
 }
 
 // sea
 const water = (() => {
   const g = new THREE.PlaneGeometry(2400, 2400, 80, 80); g.rotateX(-Math.PI / 2);
   const ng = g.toNonIndexed();
-  const m = new THREE.Mesh(ng, new THREE.MeshToonMaterial({ color: 0x2f7fa6, gradientMap: toonRamp, transparent: true, opacity: 0.9 }));
+  const m = new THREE.Mesh(ng, new THREE.MeshToonMaterial({ color: PAL.lavender, gradientMap: toonRamp, transparent: true, opacity: 0.92 }));
   m.position.y = 0.3; m.receiveShadow = true; scene.add(m);
   m.userData.base = Float32Array.from(ng.attributes.position.array);
   return m;
@@ -535,44 +627,41 @@ function instanced(geo, material, list, colorFn) {
 }
 const trees = [], rocks = [], tufts = [], vents = [], blackRocks = [];
 const windmills = [], cows = [], smoke = [];
+const mounds = [], standing = [], cocoons = [], peaks = [], ribs = [];
 for (const t of tiles) {
-  if (t.type === 'timber') for (let i = 0; i < 34; i++) { const p = placeIn(t, 6, HEX_R * 0.7); trees.push({ ...p, s: rr(0.8, 1.6), ry: rr(0, 6), g: rand() }); }
-  if (t.type === 'stone') {
-    for (let i = 0; i < 16; i++) { const p = placeIn(t, 6, HEX_R * 0.7); rocks.push({ ...p, s: rr(1.2, 3.2), rx: rr(0, 3), ry: rr(0, 3) }); }
-    // quarry crane
-    const p = placeIn(t, 9, 14), g = new THREE.Group();
-    const w = mat(0x6b4a2b);
-    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.6, 9, 0.6), w); mast.position.y = 4.5; g.add(mast);
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(7, 0.5, 0.5), w); arm.position.set(2.5, 8.8, 0); g.add(arm);
-    const blk = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 1.4), mat(0xb0a99c)); blk.position.set(5.5, 5, 0); g.add(blk);
-    g.position.set(p.x, p.y, p.z); g.rotation.y = rr(0, 6); g.traverse(o => o.castShadow = true); scene.add(g);
+  if (t.type === 'timber') for (let i = 0; i < 30; i++) { const p = placeIn(t, 5, HEX_R * 0.72); trees.push({ ...p, s: rr(0.8, 1.5), ry: rr(0, 6), g: rand() }); }
+  if (t.type === 'stone') for (let i = 0; i < 7; i++) {
+    const p = placeIn(t, 5, HEX_R * 0.66), s = rr(2.2, 3.6); mounds.push({ ...p, s, ry: rr(0, 6) });
+    if (rand() < 0.8) standing.push({ x: p.x + rr(-0.5, 0.5), z: p.z + rr(-0.5, 0.5), y: p.y + s * 0.45, s: rr(0.8, 1.2), ry: rr(0, 6), rz: rr(-0.12, 0.12) });
   }
-  if (t.type === 'wheat') {
-    for (let i = 0; i < 90; i++) { const p = placeIn(t, 5, HEX_R * 0.72); tufts.push({ ...p, s: rr(0.8, 1.3), ry: rr(0, 6) }); }
-    const p = placeIn(t, 8, 13), g = new THREE.Group();
-    const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2.2, 7, 6), mat(0xe8dcc0)); tower.position.y = 3.5; g.add(tower);
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(2, 2.2, 6), mat(0x7a3b22)); roof.position.y = 8.1; g.add(roof);
-    const blades = new THREE.Group(); blades.position.set(0, 6.6, 1.9);
-    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 0.1), mat(0xd9cfb5)); b.position.y = 2.5; const piv = new THREE.Group(); piv.rotation.z = k * Math.PI / 2; piv.add(b); blades.add(piv); }
-    g.add(blades); g.position.set(p.x, p.y, p.z); g.rotation.y = rr(0, 6); g.traverse(o => o.castShadow = true); scene.add(g);
-    windmills.push(blades);
-  }
-  if (t.type === 'cattle') {
-    for (let i = 0; i < 40; i++) { const p = placeIn(t, 5, HEX_R * 0.72); tufts.push({ ...p, s: rr(0.5, 0.8), ry: rr(0, 6), green: true }); }
-    for (let i = 0; i < 9; i++) cows.push(makeCow(t));
-  }
-  if (t.type === 'ember') {
-    for (let i = 0; i < 18; i++) { const p = placeIn(t, 6, HEX_R * 0.7); blackRocks.push({ ...p, s: rr(1, 2.6), rx: rr(0, 3), ry: rr(0, 3) }); }
-    for (let i = 0; i < 7; i++) { const p = placeIn(t, 6, HEX_R * 0.66); vents.push({ ...p, s: rr(0.8, 1.5), ry: rr(0, 6) }); }
+  if (t.type === 'wheat') for (let i = 0; i < 160; i++) { const p = placeIn(t, 4, HEX_R * 0.74); tufts.push({ ...p, s: rr(0.8, 1.4), ry: rr(0, 6), rz: rr(-0.18, 0.18) }); }
+  if (t.type === 'cattle') for (let i = 0; i < 18; i++) { const p = placeIn(t, 5, HEX_R * 0.7); cocoons.push({ ...p, y: p.y + 0.5, s: rr(0.7, 1.1), ry: rr(0, 6), rx: rr(-0.3, 0.3) }); }
+  if (t.type === 'ember') for (let i = 0; i < 9; i++) { const p = placeIn(t, 4, HEX_R * 0.62); peaks.push({ ...p, y: p.y - 0.5, s: rr(0.6, 1.15), ry: rr(0, 6) }); }
+  if (t.type === 'cradle') for (let k = 0; k < 2; k++) for (let i = 0; i < 4; i++) {   // two half-buried ribcages
+    const a0 = k ? 2.2 : -0.9, x = Math.cos(a0) * 15 + Math.cos(a0 + Math.PI / 2) * (i - 1.5) * 3.2, z = Math.sin(a0) * 15 + Math.sin(a0 + Math.PI / 2) * (i - 1.5) * 3.2;
+    ribs.push({ x, z, y: heightAt(x, z) - 0.6, s: 1.2 - Math.abs(i - 1.5) * 0.15, ry: -a0 });
   }
 }
-instanced(new THREE.CylinderGeometry(0.25, 0.4, 2, 5).translate(0, 1, 0), mat(0x4a3448), trees);
-instanced(new THREE.ConeGeometry(1.9, 5, 6).translate(0, 4.2, 0), swayMat(0xffffff, 0.35), trees, it => it.g < 0.33 ? 0x3c6470 : it.g < 0.66 ? 0x4a5a86 : 0x5a4a7e);
-instanced(new THREE.DodecahedronGeometry(1, 0), mat(0xa49cbc), rocks);
-instanced(new THREE.DodecahedronGeometry(1, 0), mat(0x2e2238), blackRocks);
-instanced(new THREE.ConeGeometry(0.35, 1.4, 4).translate(0, 0.7, 0), swayMat(0xffffff, 1.6), tufts, it => it.green ? 0x8cc4aa : 0xeccc9c);
-instanced(new THREE.ConeGeometry(0.9, 1.6, 5).translate(0, 0.6, 0), mat(0xff7aa8, { emissive: 0xff5a9a, emissiveIntensity: 1.3 }), vents);
-
+// a bare dead tree: trunk and two or three crooked branches
+const deadTree = (() => {
+  const parts = [], add = (geo, m4) => parts.push({ geo, m: m4 }), M4 = () => new THREE.Matrix4();
+  add(new THREE.CylinderGeometry(0.12, 0.28, 6, 5).translate(0, 3, 0), M4());
+  for (const [y, rz, ry, l] of [[3.2, 0.75, 0, 2.6], [4.2, -0.7, 0.6, 2.2], [5.0, 0.55, 2.4, 1.6], [2.5, -0.9, 3.6, 1.8]])
+    add(new THREE.CylinderGeometry(0.05, 0.11, l, 4).translate(0, l / 2, 0), M4().makeTranslation(0, y, 0).multiply(M4().makeRotationY(ry)).multiply(M4().makeRotationZ(rz)));
+  return mergeGeosEarly(parts);
+})();
+function mergeGeosEarly(parts) {
+  const pos = [], nor = [];
+  for (const { geo, m } of parts) { const g = (geo.index ? geo.toNonIndexed() : geo).applyMatrix4(m); pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array); }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return out;
+}
+instanced(deadTree, swayMat(PAL.ink, 0.12), trees);
+instanced(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1), mat(PAL.violet), mounds);
+instanced(new THREE.BoxGeometry(0.7, 2.2, 0.35).translate(0, 1.1, 0), mat(PAL.ink), standing);
+instanced(new THREE.BoxGeometry(0.07, 1.7, 0.07).translate(0, 0.85, 0), swayMat(PAL.ink, 1.4), tufts);
+instanced(new THREE.SphereGeometry(0.45, 8, 6).scale(1, 1.6, 1), mat(PAL.bone), cocoons);
+instanced(new THREE.ConeGeometry(2.3, 7, 4).translate(0, 3.5, 0), mat(PAL.ink), peaks);
+instanced(new THREE.TorusGeometry(3.4, 0.32, 5, 14, Math.PI * 0.85), mat(PAL.bone), ribs);
 function makeCow(t) {
   const g = new THREE.Group(), body = mat(pick([0x6b3f22, 0x8a5a33, 0xe9e2d4, 0x3b2a20]));
   const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 1.1), body); b.position.y = 1.2; g.add(b);
@@ -586,13 +675,13 @@ function makeCow(t) {
   return { g, t };
 }
 
-const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
+const lavaLight = new THREE.PointLight(PAL.ember, 120, 40, 2);
 // the Cradle: lava pool, smoke, three dragon eggs (teaser)
 {
-  const lava = new THREE.Mesh(new THREE.CircleGeometry(5.5, 10), new THREE.MeshBasicMaterial({ color: 0xff5a10 }));
+  const lava = new THREE.Mesh(new THREE.CircleGeometry(5.5, 10), new THREE.MeshBasicMaterial({ color: PAL.ember, transparent: true, opacity: 0.55 }));
   lava.rotation.x = -Math.PI / 2; lava.position.set(0, heightAt(0, 0) + 1.0, 0); scene.add(lava);
-  const glow = lavaLight; glow.intensity = 400; glow.position.set(0, heightAt(0, 0) + 4, 0); scene.add(glow);
-  const sm = mat(0x6b625c, { transparent: true, opacity: 0.55 });
+  const glow = lavaLight; glow.intensity = 120; glow.position.set(0, heightAt(0, 0) + 4, 0); scene.add(glow);
+  const sm = mat(PAL.lavender, { transparent: true, opacity: 0.35 });
   for (let i = 0; i < 26; i++) {
     const s = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(1.5, 3), 0), sm);
     s.userData.age = rr(0, 1); smoke.push(s); scene.add(s);
@@ -603,42 +692,39 @@ const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
 function bannerTexture(num, icon) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d');
-  g.fillStyle = '#2a2040'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#0e0818'; g.stroke();
-  g.lineWidth = 2; g.strokeStyle = '#c4b2ee'; g.beginPath(); g.roundRect(33, 7, 62, 42, 7); g.stroke();
-  g.font = '34px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon || '', 64, 29);
-  g.fillStyle = '#f4eaf6'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
-  g.lineWidth = 10; g.strokeStyle = '#0e0818'; g.stroke();
-  g.lineWidth = 3; g.strokeStyle = '#c4b2ee'; g.beginPath(); g.arc(64, 114, 47, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#EDE6DA'; g.beginPath(); g.arc(64, 108, 58, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 3; g.strokeStyle = 'rgba(58,51,80,.55)'; g.stroke();
+  g.font = '30px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.globalAlpha = 0.85; g.fillText(icon || '', 64, 70); g.globalAlpha = 1;
   const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#a3221a' : '#221a34'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
-  g.fillText(String(num), 64, 108);
+  g.fillStyle = red ? '#8C3B4A' : '#1E1A26'; g.font = "700 54px 'Cormorant Garamond', Georgia, serif";
+  g.fillText(String(num), 64, 114);
   const pips = 6 - Math.abs(7 - num);
-  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 150, 4, 0, Math.PI * 2); g.fill(); }
+  for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 10, 148, 3.5, 0, Math.PI * 2); g.fill(); }
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
 for (const t of tiles) {
   if (!t.num) continue;
   const y = heightAt(t.x, t.z);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 7, 5), mat(0x5a3a1e)); pole.position.set(t.x, y + 3.5, t.z); pole.castShadow = true; scene.add(pole);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 7, 5), mat(PAL.ink)); pole.position.set(t.x, y + 3.5, t.z); pole.castShadow = true; scene.add(pole);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bannerTexture(t.num, RES[t.type].icon), fog: false, alphaTest: 0.5 }));
   sp.scale.set(5, 6.9, 1); sp.position.set(t.x, y + 10, t.z); scene.add(sp);
   t.banner = sp; t.pole = pole;
 }
 
 // comic caption textures for labels in the world
-function labelTexture(text, bg = '#221a34', fg = '#f4dcec') {
+function labelTexture(text, bg = '#EDE6DA', fg = '#1E1A26') {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 100; const g = cv.getContext('2d');
-  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 10); g.fill(); g.lineWidth = 7; g.strokeStyle = '#0e0818'; g.stroke();
-  g.lineWidth = 2; g.strokeStyle = '#c4b2ee'; g.beginPath(); g.roundRect(13, 13, 486, 74, 6); g.stroke();
-  g.fillStyle = fg; g.font = "bold 38px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 54);
+  g.globalAlpha = 0.9; g.fillStyle = bg; g.beginPath(); g.roundRect(6, 10, 500, 80, 40); g.fill(); g.globalAlpha = 1;
+  g.lineWidth = 2; g.strokeStyle = 'rgba(58,51,80,.45)'; g.stroke();
+  g.fillStyle = fg; g.font = "700 40px 'Cormorant Garamond', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 52);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 // floating "+1 🌲" popups in the world
 const floats = [];
-function floatText(text, x, y, z, color = '#e8dcc0') {
+function floatText(text, x, y, z, color = '#1E1A26') {
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const g = cv.getContext('2d');
-  g.font = "bold 52px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineWidth = 10; g.strokeStyle = '#0e0818'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
+  g.font = "700 54px 'Cormorant Garamond', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineWidth = 10; g.strokeStyle = 'rgba(237,230,218,.92)'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
   s.scale.set(7, 2.6, 1); s.position.set(x, y, z); s.renderOrder = 10; scene.add(s);
@@ -658,23 +744,25 @@ function harvestPopups(sum) {
       const c = corners[cid]; if (!c.building) continue;
       if (c.building.owner !== P && !c.tiles.some(id => visible.has(id))) continue;
       const n = (c.building.type === 'keep' ? 2 : 1) + (state.dawnBounty ? 1 : 0);
-      floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#f4dcec' : '#d9cfb8');
+      floatText(`+${n} ${RES[t.type].icon}`, c.x + rr(-2, 2), c.y + (c.building.type === 'keep' ? 15 : 9), c.z + rr(-2, 2), c.building.owner === P ? '#1E1A26' : '#3A3350');
     }
   }
 }
 
 // ---------------------------------------------------------------- reavers
 const reavers = (() => {
-  const g = new THREE.Group(), tent = mat(0x3a1a1a), tent2 = mat(0x5c1f1f);
-  for (let i = 0; i < 4; i++) {
-    const a = i / 4 * Math.PI * 2, tn = new THREE.Mesh(new THREE.ConeGeometry(2, 3, 5), i % 2 ? tent : tent2);
-    tn.position.set(Math.cos(a) * 4.5, 1.5, Math.sin(a) * 4.5); g.add(tn);
+  const g = new THREE.Group(), ink = mat(PAL.ink), vio = mat(PAL.violet);
+  for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.TorusGeometry(4.2 - i * 1.1, 1.05 - i * 0.18, 8, 22), i % 2 ? vio : ink); c.rotation.x = Math.PI / 2; c.position.y = 0.8 + i * 1.3; g.add(c); }
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.9, 4.5, 8), ink); neck.position.set(3.6, 2.6, 1.2); neck.rotation.set(0.4, 0, -0.9); g.add(neck);
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.85, 2.8, 6), ink); head.position.set(5.6, 3.9, 1.9); head.rotation.set(0, 0, -1.9); g.add(head);
+  for (const sz of [-1, 1]) { const horn = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.3, 4), vio); horn.position.set(5.0, 4.8, 1.9 + sz * 0.4); horn.rotation.z = 0.5; g.add(horn); }
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.17, 6, 4), new THREE.MeshBasicMaterial({ color: PAL.ember })); eye.position.set(5.75, 4.2, 2.45); g.add(eye);
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 1.6, sp = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1.3, 4), vio); sp.position.set(Math.cos(a) * 4.2, 2.0, Math.sin(a) * 4.2); g.add(sp); }
+  for (const sz of [-1, 1]) {   // folded wings
+    const w = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5.5, 3), vio); w.position.set(-0.5, 4.4, sz * 1.6); w.rotation.set(sz * 0.5, 0, 0.35); w.scale.z = 0.25; g.add(w);
   }
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 8, 5), mat(0x222)); pole.position.y = 4; g.add(pole);
-  const flag = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 0.1), mat(0x111111)); flag.position.set(1.2, 7, 0); g.add(flag);
-  const fire = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.4, 5), new THREE.MeshBasicMaterial({ color: 0xff7a20 })); fire.position.set(0, 0.7, 2.5); g.add(fire);
-  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture('🏴 REAVERS · no harvest here', '#1a0c0a', '#e0a08a'), depthWrite: false, transparent: true })); tag.scale.set(11, 2.2, 1); tag.position.y = 11; g.add(tag);
-  g.traverse(o => o.castShadow = true); scene.add(g); return g;
+  const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture('The Wyrm · no harvest here'), depthWrite: false, transparent: true })); tag.scale.set(11, 2.2, 1); tag.position.y = 11; g.add(tag);
+  g.userData.breath = g.children[2]; scene.add(g); return g;
 })();
 let reaverTile = tiles.find(t => t.type === 'cradle');
 function placeReavers(t) {
@@ -699,28 +787,41 @@ const runes = [0, 1].map(i => {
 });
 
 // ---------------------------------------------------------------- buildings
-for (const h of Object.values(HOUSES)) { h.mat = mat(h.color); h.crestMat = crestMaterial(h); }
+for (const h of Object.values(HOUSES)) { h.mat = mat(h.color); h.crestMat = crestMaterial(h); h.winMat = new THREE.MeshBasicMaterial({ color: PAL.violet }); }
 // a heraldic banner: the house colour with its crest, a gold border
+function drawCrest(h, cv) {
+  const g = cv.getContext('2d'), bg = h.banner || h.css, light = /EDE6DA/i.test(bg);
+  g.clearRect(0, 0, 192, 128); g.fillStyle = bg; g.fillRect(0, 0, 192, 128);
+  g.fillStyle = 'rgba(30,26,38,.18)'; g.fillRect(0, 100, 192, 28);
+  const icon = ICON_IMG[EMOJI_TO[h.sigil.replace(/️/g, '')]];
+  if (icon) { g.fillStyle = light ? 'rgba(30,26,38,.12)' : 'rgba(237,230,218,.88)'; g.beginPath(); g.arc(96, 60, 42, 0, 7); g.fill(); g.drawImage(icon, 60, 24, 72, 72); }
+}
 function crestMaterial(h) {
-  const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = h.css; g.fillRect(0, 0, 192, 128);
-  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 96, 192, 32);
-  g.lineWidth = 8; g.strokeStyle = '#c4b2ee'; g.strokeRect(4, 4, 184, 120);
-  const icon = ICON_IMG[EMOJI_TO[h.sigil.replace(/\uFE0F/g, '')]];
-  if (icon) { g.fillStyle = 'rgba(232,220,192,.92)'; g.beginPath(); g.arc(96, 62, 44, 0, 7); g.fill(); g.drawImage(icon, 58, 24, 76, 76); }
+  const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128; drawCrest(h, cv);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp });
+  const m = new THREE.MeshToonMaterial({ map: t, gradientMap: toonRamp }); m.userData.cv = cv; return m;
+}
+// colours by seat: you are ink plum with a bone-white banner; rivals are dried rose, moss grey and ash lavender
+function applyPalette() {
+  const me = players[P]?.house || HOUSE, rest = [[PAL.rose, '#8C3B4A'], [PAL.moss, '#5F6B5E'], [PAL.lavender, '#8E8AA3'], [PAL.straw, '#A89A86']];
+  const order = [...players.map(p => p.house).filter(h => h !== me), ...Object.values(HOUSES).filter(h => h !== me && !players.some(p => p.house === h))];
+  me.color = PAL.ink; me.css = '#1E1A26'; me.banner = '#EDE6DA';
+  order.forEach((h, i) => { [h.color, h.css] = rest[i]; h.banner = h.css; });
+  for (const h of Object.values(HOUSES)) {
+    h.mat.color.setHex(h.color); drawCrest(h, h.crestMat.userData.cv); h.crestMat.map.needsUpdate = true;
+    h.winMat.color.setHex(h === me ? PAL.ember : PAL.violet);
+  }
 }
 let houseCrest = null;
 let houseMat = HOUSE.mat;
-const wallMat = mat(0xa89a7e), woodMat = mat(0x4e3420), stoneMat = mat(0x7a746a), roadMat = mat(0x6a5a46);
+const wallMat = mat(PAL.ashen), woodMat = mat(PAL.ink), stoneMat = mat(PAL.barrow), roadMat = mat(PAL.barrow);
 const M = {
-  woodDark: mat(0x4e3420), woodLight: mat(0x8a6338), turf: mat(0x5f8f3a), thatch: mat(0xc9a557), slate: mat(0x4f5866),
-  moss: mat(0x7d8a72), sand: mat(0xe3c995), white: mat(0xf0e8d8), plaster: wallMat, stone: stoneMat, iron: mat(0x2b2b2e),
+  woodDark: mat(PAL.ink), woodLight: mat(PAL.violet), turf: mat(PAL.moss), thatch: mat(PAL.straw), slate: mat(PAL.violet),
+  moss: mat(PAL.moss), sand: mat(PAL.ashen), white: mat(PAL.bone), plaster: wallMat, stone: stoneMat, iron: mat(PAL.ink),
 };
 // glowing bits that come alive at night
 const windowMat = new THREE.MeshToonMaterial({ gradientMap: toonRamp, color: 0x2a1c10, emissive: 0xffa040, emissiveIntensity: 0 });
-const flameMat = new THREE.MeshBasicMaterial({ color: 0xffa530 });
+const flameMat = new THREE.MeshBasicMaterial({ color: PAL.ember });
 const glowMat = (() => {
   const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d');
   const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,190,90,1)'); gr.addColorStop(0.4, 'rgba(255,140,40,.45)'); gr.addColorStop(1, 'rgba(255,120,30,0)');
@@ -857,14 +958,54 @@ const STYLES = {
   },
 };
 function withHouse(h, fn) { const prev = houseMat, pc = houseCrest; houseMat = h.mat; houseCrest = h.crestMat; try { return fn(); } finally { houseMat = prev; houseCrest = pc; } }
-const makeHamlet = (h = HOUSE) => withHouse(h, () => STYLES[h.style].hamlet());
-const makeKeep = (h = HOUSE) => withHouse(h, () => STYLES[h.style].keep());
+const GOTH = { body: mat(PAL.ink), roof: mat(PAL.violet), trim: mat(PAL.barrow) };
+function spire(r, hgt, m, x = 0, y = 0, z = 0) { const o = cone(r, hgt, 4, m, x, y, z); o.rotation.y = Math.PI / 4; return o; }
+function lancet(h, w, ht, x, y, z, ry = 0) {   // a pointed window
+  const g = new THREE.Group(); g.add(B(w, ht, 0.12, h.winMat, 0, 0, 0));
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(w * 0.72, w * 0.9, 4), h.winMat); tip.position.y = ht + w * 0.35; tip.rotation.y = Math.PI / 4; tip.scale.z = 0.15; g.add(tip);
+  g.position.set(x, y, z); g.rotation.y = ry; return g;
+}
+function banner(h, hgt, x, y, z) {
+  const g = new THREE.Group();
+  g.add(cyl(0.07, 0.07, hgt, 4, GOTH.body, 0, 0, 0));
+  const f = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.15, 0.06), h.crestMat); f.position.set(0.9, hgt - 0.75, 0); g.add(f);
+  g.position.set(x, y, z); return g;
+}
+// Outpost (Hamlet): a narrow tower with a pointed roof and a little chapel beside it
+function gothHamlet(h) {
+  const g = new THREE.Group();
+  g.add(B(2.5, 8.5, 2.5, GOTH.body)); g.add(B(2.9, 0.45, 2.9, GOTH.trim, 0, 8.5, 0)); g.add(spire(2.05, 6.5, GOTH.roof, 0, 8.95, 0));
+  g.add(lancet(h, 0.55, 1.5, 0, 5.2, 1.27)); g.add(lancet(h, 0.45, 1.1, 1.27, 2.4, 0, Math.PI / 2));
+  g.add(B(2.4, 3.8, 3.6, GOTH.body, 2.6, 0, -0.5)); g.add(roof(2.7, 3.4, 3.8, GOTH.roof, 2.6, 3.8, -0.5, 0));
+  g.add(lancet(h, 0.4, 0.9, 2.6, 1.4, 1.32));
+  for (const [x, z] of [[-2.2, 1.6], [-2.9, 0.4], [-2.4, -1.0]]) g.add(B(0.45, 0.8 + Math.random() * 0.3, 0.18, GOTH.trim, x, 0, z, Math.random()));   // little graveyard
+  g.add(banner(h, 3.2, 0, 15.2, 0));
+  return g;
+}
+// Hold (Keep): a gothic cluster of spires around a nave with a rose window
+function gothKeep(h) {
+  const g = new THREE.Group();
+  g.add(B(3.8, 14, 3.8, GOTH.body)); g.add(B(4.3, 0.5, 4.3, GOTH.trim, 0, 14, 0)); g.add(spire(3.1, 10, GOTH.roof, 0, 14.5, 0));
+  for (const sx of [-1, 1]) {
+    g.add(B(2.4, 10, 2.4, GOTH.body, sx * 3.6, 0, 0.6)); g.add(B(2.8, 0.4, 2.8, GOTH.trim, sx * 3.6, 10, 0.6)); g.add(spire(1.9, 6.5, GOTH.roof, sx * 3.6, 10.4, 0.6));
+    g.add(lancet(h, 0.45, 1.4, sx * 3.6, 6.2, 1.82));
+    const bt = B(0.6, 6, 1.6, GOTH.body, sx * 1.9, 0, 2.2); bt.rotation.x = -0.12; g.add(bt);   // buttresses
+  }
+  g.add(B(5.4, 7, 6.5, GOTH.body, 0, 0, -4.6)); g.add(roof(5.8, 4.2, 6.8, GOTH.roof, 0, 7, -4.6, 0));
+  const rose = new THREE.Mesh(new THREE.CircleGeometry(1.0, 12), h.winMat); rose.position.set(0, 10.2, 1.92); g.add(rose);
+  g.add(lancet(h, 0.7, 2.6, 0, 3.0, 1.92));
+  for (const x of [-1.4, 1.4]) g.add(lancet(h, 0.4, 1.4, x, 3.2, -1.3 + 0.03));
+  g.add(banner(h, 3.6, 0, 24.3, 0));
+  return g;
+}
+const makeHamlet = (h = HOUSE) => withHouse(h, () => gothHamlet(h));
+const makeKeep = (h = HOUSE) => withHouse(h, () => gothKeep(h));
 // Walls in the style of the Great Wall: a stone wall with battlements on both edges, a walkway
 // on top in the house colour, and a small watchtower at each end. (Internally they are still "roads".)
 const WALL_H = 2.6, WALL_TRIM = 4.5, GATE_HALF = 2.2;   // a gate in the middle of every wall
 const wallGates = [];   // { e, pivots: [left, right], open }
 const boxAt = (...args) => B(...args);   // (inside makeRoad, B is a corner)
-const wallStone = mat(0x857d70), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
+const wallStone = mat(PAL.barrow), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
 function mergeGeos(parts) {
   const pos = [], nor = [];
   for (const { geo, m } of parts) {
@@ -1243,8 +1384,8 @@ function tryBuild(tgt = currentTarget) {
   sfx('build');
   if (state.phase === 'setup') advanceSetup(tgt);
   else {
-    log({ road: '🧱 Wall built', hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Cradle (the volcano)', tower: '🏹 Scorpion Tower built: dragons cannot scorch the regions around it' }[kind]);
-    if (kind === 'roost') announce('THE ROOST IS READY', 'Walk to the Cradle (the volcano), press E at an egg, and carry it home');
+    log({ road: '🧱 Wall built', hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Ashen Waste', tower: '🏹 Scorpion Tower built: dragons cannot scorch the regions around it' }[kind]);
+    if (kind === 'roost') announce('THE ROOST IS READY', 'Walk to the Ashen Waste, press E at an egg, and carry it home');
     if (state.mode && (!canAfford(state.mode) || limitHit(state.mode))) setMode(null);
     state.builtInPlay = true; updateObjective();
   }
@@ -1331,7 +1472,7 @@ function resolveHarvest() {
   for (const t of tiles) {
     if (t.num !== sum) continue;
     pulse.push({ s: t.banner, t: 0 });
-    if (t === reaverTile) { if (t.corners.some(cid => owns(corners[cid]))) log(`🏴 Reavers block ${BIOME[t.type].name} (${sum})`); continue; }
+    if (t === reaverTile) { if (t.corners.some(cid => owns(corners[cid]))) log(`🐉 The Wyrm blocks ${BIOME[t.type].name} (${sum})`); continue; }
     if (t.scorchedUntil >= state.harvests) { if (t.corners.some(cid => owns(corners[cid]))) log(`🔥 ${BIOME[t.type].name} (${sum}) is scorched and yields nothing`); continue; }
     for (const cid of t.corners) {
       const c = corners[cid]; if (!c.building) continue;
@@ -1369,12 +1510,12 @@ function reaverRaid() {
     const t = aiChooseReaverTile(bearer);
     sendReavers(bearer, t, lostTxt);
   } else if (bearer === P) {
-    announce('REAVER RAID!', lostTxt + 'You hold the Horn: choose where the Reavers strike.');
+    announce('THE WYRM WAKES!', lostTxt + 'You hold the Horn: choose where the Wyrm descends.');
     startReaverPick();
-  } else { state.pickFor = bearer; state.pickT = 25; log(`🎺 ${nameOf(bearer)} holds the Horn and chooses where the Reavers strike…`); }
+  } else { state.pickFor = bearer; state.pickT = 25; log(`🎺 ${nameOf(bearer)} holds the Horn and chooses where the Wyrm descends…`); }
   updateHUD(); refreshMarkers();
 }
-function sendReavers(pid, t, prefix = '', title = 'REAVER RAID!') {
+function sendReavers(pid, t, prefix = '', title = 'THE WYRM WAKES!') {
   placeReavers(t); computeVisibility();
   const seen = visible.has(t.id) || pid === P;
   const where = seen ? `in ${BIOME[t.type].name}${t.num ? ' (' + t.num + ')' : ''}` : 'somewhere in the mist';
@@ -1387,12 +1528,12 @@ function sendReavers(pid, t, prefix = '', title = 'REAVER RAID!') {
     if (pid === P) steal = ` You steal 1 ${RES[k].icon} from ${nameOf(v)}!`;
     else if (v === P) { steal = ` ${nameOf(pid)} steals 1 ${RES[k].icon} from you!`; flashRes(k, true); }
     else if (seen) steal = ` ${nameOf(pid)} robs ${nameOf(v)}.`;
-    if (pid !== P) tell(pid, { log: `🏴 Your Reavers rob ${nameOf(v)}: +1 ${RES[k].icon}`, flash: [k] });
+    if (pid !== P) tell(pid, { log: `🐉 The Wyrm robs ${nameOf(v)} for you: +1 ${RES[k].icon}`, flash: [k] });
     if (v !== P) tell(v, { big: title, small: `${nameOf(pid)} steals 1 ${RES[k].icon} from you!`, flash: [k], loss: true });
   }
-  const who = pid === P ? 'Your Reavers make camp' : `${nameOf(pid)} sends the Reavers. They make camp`;
+  const who = pid === P ? 'The Wyrm coils' : `${nameOf(pid)} sends the Wyrm. It coils`;
   announce(title, `${prefix}${who} ${where}.${steal}`);
-  log(`${title === 'REAVER RAID!' ? '🏴 7!' : '⚔️ Sellswords!'} ${who} ${where}.${steal}`);
+  log(`${title === 'THE WYRM WAKES!' ? '🐉 7!' : '⚔️ Sellswords!'} ${who} ${where}.${steal}`);
   updateHUD(); refreshMarkers();
 }
 function startReaverPick(reason = 'raid') {
@@ -1405,7 +1546,7 @@ function finishReaverPick(t) {
     if (state.reaverReason === 'sellsword') netAct({ a: 'scroll_play', idx: state.sellswordIdx, arg: t.id }); else netAct({ a: 'reaver_pick', t: t.id });
     lockPointer(); return;
   }
-  sendReavers(P, t, '', state.reaverReason === 'sellsword' ? 'SELLSWORDS!' : 'REAVER RAID!'); lockPointer();
+  sendReavers(P, t, '', state.reaverReason === 'sellsword' ? 'SELLSWORDS!' : 'THE WYRM WAKES!'); lockPointer();
 }
 const pulse = [];
 
@@ -1557,7 +1698,7 @@ function aiPlayScroll(p) {
 
 // ---------------------------------------------------------------- Lore Scrolls (development cards)
 const SCROLLS = {
-  sellsword: { name: 'Sellsword', icon: '⚔️', desc: 'Move the Reavers and rob a rival there. Counts toward the Mightiest Host.' },
+  sellsword: { name: 'Sellsword', icon: '⚔️', desc: 'Move the Wyrm and rob a rival there. Counts toward the Mightiest Host.' },
   renown:    { name: 'Renown Scroll', icon: '👑', desc: '+1 Renown, kept secret from the other houses.' },
   roads:     { name: 'Wall Builders', icon: '🧱', desc: 'Build your next 2 walls for free.' },
   harvest:   { name: 'Bountiful Harvest', icon: '🌾', desc: 'Take any 2 resources.' },
@@ -1637,17 +1778,17 @@ function reportBuild(pid, t) {
 // A lord on horseback: a horse in a caparison of the house colour, an armoured rider with a plumed helm,
 // a crest shield and a lance with the house banner.
 // A lord on horseback, in some detail: a barded warhorse and an armoured knight with crest shield, lance and cloak.
-const COATS = { varn: { coat: 0x1e1a18, socks: false }, calder: { coat: 0x7a7a82, socks: true }, morrow: { coat: 0x5a3e26, socks: false }, ashby: { coat: 0xc8bea8, socks: true } };
+const COATS = { varn: { coat: PAL.ink, socks: false }, calder: { coat: PAL.ashen, socks: false }, morrow: { coat: PAL.violet, socks: true }, ashby: { coat: PAL.straw, socks: true } };
 const KM = {};   // shared materials per house (built once)
 function knightMats(h) {
   if (KM[h.key]) return KM[h.key];
   const c = COATS[h.key] || COATS.morrow;
   return (KM[h.key] = {
-    coat: mat(c.coat), sock: mat(c.socks ? 0xe8e0cc : c.coat), mane: mat(0x15110e), hoof: mat(0x241c16),
-    steel: mat(0x9ea2ac), darkSteel: mat(0x55585f), leather: mat(0x4a3020), gold: mat(0xb8913a), skin: mat(0xc89a78),
-    cloth: h.mat, clothDS: new THREE.MeshToonMaterial({ color: h.color, gradientMap: toonRamp, side: THREE.DoubleSide }),
+    coat: mat(c.coat), sock: mat(c.socks ? PAL.bone : c.coat), mane: mat(PAL.ink), hoof: mat(PAL.ink),
+    steel: mat(PAL.lavender), darkSteel: mat(PAL.barrow), leather: mat(PAL.ink), gold: mat(PAL.straw), skin: mat(PAL.ashen),
+    cloth: h.mat, clothDS: Object.assign(h.mat.clone(), { side: THREE.DoubleSide }),
     crestDS: new THREE.MeshToonMaterial({ map: h.crestMat.map, gradientMap: toonRamp, side: THREE.DoubleSide }),
-    eye: new THREE.MeshBasicMaterial({ color: 0x0a0806 }),
+    eye: new THREE.MeshBasicMaterial({ color: PAL.ink }),
   });
 }
 const KG = {   // shared geometry
@@ -1769,9 +1910,9 @@ function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.8, 0); egg.visible = false; rider.add(egg);
   // name plaque
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const x = cv.getContext('2d');
-  x.fillStyle = '#221a34'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#0e0818'; x.stroke();
-  x.lineWidth = 2; x.strokeStyle = h.css; x.beginPath(); x.roundRect(10, 10, 300, 52, 5); x.stroke();
-  x.fillStyle = '#f4dcec'; x.font = "bold 28px Cinzel, Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
+  x.globalAlpha = 0.9; x.fillStyle = '#EDE6DA'; x.beginPath(); x.roundRect(4, 6, 312, 60, 30); x.fill(); x.globalAlpha = 1;
+  x.lineWidth = 4; x.strokeStyle = h.css; x.stroke();
+  x.fillStyle = '#1E1A26'; x.font = "700 30px 'Cormorant Garamond', Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
   const tag = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthWrite: false, transparent: true }));
   tag.scale.set(4.4, 1.0, 1); tag.position.y = 5.3; g.add(tag);
@@ -1978,7 +2119,7 @@ function tapAt(sx, sy) {
   closeMenus();
   const hit = groundAt(sx, sy);
   if (!hit || state.riding) return;   // tapping the ground never moves you: walk with WASD / arrows / D-pad
-  // an egg in the Cradle?
+  // an egg in the Ashen Waste?
   const egg = cradleEggs.find(e => !e.taken && Math.hypot(e.x - hit.x, e.z - hit.z) < 4);
   if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else log('🥚 Get closer to the egg first'); return; }
   const rb = isNight() && corners.find(c => c.building && c.building.owner !== P && Math.hypot(c.x - hit.x, c.z - hit.z) < 5);
@@ -2303,8 +2444,8 @@ $('actDragon').addEventListener('click', () => {
   if (d) return log(`🥚 ${dragonStatus()}`);
   if (!roostOf(P)) { setMode('roost'); return log('🐉 First build a Dragon Roost beside one of your Keeps (gold signs show where)'); }
   const egg = cradleEggs.filter(e => !e.taken).sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z))[0];
-  if (!egg) return log('⚠️ No dragon eggs are left in the Cradle');
-  if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else { walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); log('🥚 Walking to the Cradle to fetch an egg…'); }
+  if (!egg) return log('⚠️ No dragon eggs are left in the Ashen Waste');
+  if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else { walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); log('🥚 Walking to the Ashen Waste to fetch an egg…'); }
 });
 $('modeChip').addEventListener('click', () => setMode(null));
 $('ravenYes').addEventListener('click', () => answerRaven(true));
@@ -2364,7 +2505,7 @@ function updateObjective() {
       'Build a wall from your second Hamlet. Then the mist rolls in'];
     html = myLandingTurn() ? `🎯 <b>Your turn</b> · ${msgs[players[P]?.setupStep || 0]}` : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
   } else if (state.reaverPick) {
-    html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Reavers block it and rob a rival there';
+    html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Wyrm blocks it and robs a rival there';
   } else if (state.phase === 'play' && guideOn) {
     const g = nextGoal(); currentGoal = g;
     html = `<span class="goal-tag">🎯 NEXT GOAL</span> ${g.text}`;
@@ -2606,31 +2747,31 @@ function drawMinimap() {
   const X = x => W / 2 + x * sc, Y = z => W / 2 + z * sc;
   const fs = W * (big ? 0.03 : 0.042);
   mctx.clearRect(0, 0, W, W);
-  mctx.fillStyle = '#132028'; mctx.fillRect(0, 0, W, W);
+  mctx.fillStyle = '#E4DCCF'; mctx.fillRect(0, 0, W, W);
   mctx.textAlign = 'center'; mctx.textBaseline = 'middle';
   for (const t of tiles) {
     const known = isKnown(t), live = visible.has(t.id);
     hexPath(t, X, Y);
     mctx.fillStyle = known ? BIOME[t.type].mini : '#4b525c'; mctx.fill();
-    if (known && !live) { mctx.fillStyle = 'rgba(20,24,30,.45)'; mctx.fill(); }
-    mctx.strokeStyle = 'rgba(255,240,200,.5)'; mctx.lineWidth = 1.5 * u; mctx.stroke();
+    if (known && !live) { mctx.fillStyle = 'rgba(185,180,198,.55)'; mctx.fill(); }
+    mctx.strokeStyle = 'rgba(237,230,218,.95)'; mctx.lineWidth = 2.5 * u; mctx.stroke();
     if (!known) {   // drifting mist
-      mctx.fillStyle = 'rgba(220,226,235,.18)';
+      mctx.fillStyle = 'rgba(142,138,163,.35)';
       for (let k = 0; k < 4; k++) { mctx.beginPath(); mctx.arc(X(t.x) + Math.cos(k * 1.7 + t.id) * 12 * sc / 1.5, Y(t.z) + Math.sin(k * 2.3 + t.id) * 9 * sc / 1.5, 11 * sc / 1.5, 0, 7); mctx.fill(); }
-      mctx.fillStyle = 'rgba(255,255,255,.55)'; mctx.font = `bold ${fs}px Georgia`; mctx.fillText('?', X(t.x), Y(t.z));
+      mctx.fillStyle = 'rgba(30,26,38,.5)'; mctx.font = `bold ${fs}px Georgia`; mctx.fillText('?', X(t.x), Y(t.z));
       continue;
     }
     if (t.num) {
-      mctx.fillStyle = '#efe0bd'; mctx.beginPath(); mctx.arc(X(t.x), Y(t.z), fs * 0.95, 0, 7); mctx.fill();
+      mctx.fillStyle = '#EDE6DA'; mctx.beginPath(); mctx.arc(X(t.x), Y(t.z), fs * 0.95, 0, 7); mctx.fill();
       mctx.fillStyle = (t.num === 6 || t.num === 8) ? '#b3261e' : '#2b1d12';
       mctx.font = `bold ${fs}px Georgia`; mctx.fillText(t.num, X(t.x), Y(t.z) + 1);
     } else { mctx.font = `${fs * 1.4}px serif`; mctx.fillText('🌋', X(t.x), Y(t.z)); }
     if (big && RES[t.type]) { mctx.font = `${fs * 1.1}px serif`; mctx.fillText(RES[t.type].icon, X(t.x), Y(t.z) - fs * 2.1); }
-    if (t === reaverTile && live) { mctx.font = `${fs * 1.3}px serif`; mctx.fillText('🏴', X(t.x) + fs * 1.5, Y(t.z) + fs * 0.9); }
+    if (t === reaverTile && live) { mctx.font = `${fs * 1.3}px serif`; mctx.fillText('🐉', X(t.x) + fs * 1.5, Y(t.z) + fs * 0.9); }
   }
   // war-table markers during landing
   if (state.phase === 'setup' && state.mode) {
-    mctx.fillStyle = 'rgba(255,211,106,.9)';
+    mctx.fillStyle = 'rgba(224,162,74,.9)';
     if (state.mode === 'road') edges.forEach(e => { if (!roadProblem(e)) { mctx.beginPath(); mctx.arc(X(e.mx), Y(e.mz), 5 * u, 0, 7); mctx.fill(); } });
     else corners.forEach(c => { if (!hamletProblem(c)) { mctx.beginPath(); mctx.arc(X(c.x), Y(c.z), 4.5 * u, 0, 7); mctx.fill(); } });
   }
@@ -2640,7 +2781,7 @@ function drawMinimap() {
   mctx.lineWidth = 4 * u;
   for (const e of edges) if (e.road !== null && (e.road === P || (cornerKnown(corners[e.a]) && cornerKnown(corners[e.b])))) {
     const A = corners[e.a], B = corners[e.b]; mctx.strokeStyle = css(e.road); mctx.beginPath(); mctx.moveTo(X(A.x), Y(A.z)); mctx.lineTo(X(B.x), Y(B.z)); mctx.stroke();
-    mctx.fillStyle = '#d9c9a3'; mctx.beginPath(); mctx.arc(X((A.x + B.x) / 2), Y((A.z + B.z) / 2), 2.2 * u, 0, 7); mctx.fill();   // the gate
+    mctx.fillStyle = '#EDE6DA'; mctx.beginPath(); mctx.arc(X((A.x + B.x) / 2), Y((A.z + B.z) / 2), 2.2 * u, 0, 7); mctx.fill();   // the gate
   }
   for (const c of corners) if (c.building && cornerKnown(c)) {
     const s = (c.building.type === 'keep' ? 9 : 6) * u;
@@ -2649,7 +2790,7 @@ function drawMinimap() {
   }
   // rival lords you can currently see
   for (const p of players) if (p.id !== P && p.avatar && p.avatar.visible && state.phase === 'play') {
-    mctx.fillStyle = p.house.css; mctx.strokeStyle = '#17110d'; mctx.lineWidth = 2 * u;
+    mctx.fillStyle = p.house.css; mctx.strokeStyle = '#EDE6DA'; mctx.lineWidth = 2 * u;
     mctx.beginPath(); mctx.arc(X(p.pos.x), Y(p.pos.z), 7 * u, 0, 7); mctx.fill(); mctx.stroke();
     mctx.font = `${9 * u}px serif`; mctx.fillText(p.house.sigil, X(p.pos.x), Y(p.pos.z) + 0.5 * u);
   }
@@ -2661,12 +2802,12 @@ function drawMinimap() {
   if (state.reaverPick && reaverHover) {
     hexPath(reaverHover, X, Y); mctx.lineWidth = 5 * u;
     mctx.strokeStyle = reaverHover === reaverTile ? '#888' : '#d01818'; mctx.stroke();
-    mctx.fillStyle = 'rgba(208,24,24,.25)'; mctx.fill();
+    mctx.fillStyle = 'rgba(140,59,74,.3)'; mctx.fill();
     const owners = [...new Set(reaverHover.corners.map(cid => corners[cid].building?.owner).filter(o => o !== undefined && o !== P))];
-    const txt = reaverHover === reaverTile ? 'The Reavers are already here' : `🏴 Send Reavers here · rob: ${owners.length ? owners.map(o => players[o].house.sigil).join(' ') : 'nobody'}`;
+    const txt = reaverHover === reaverTile ? 'The Wyrm already lies here' : `🐉 Send the Wyrm here · rob: ${owners.length ? owners.map(o => players[o].house.sigil).join(' ') : 'nobody'}`;
     mctx.font = `${fs * 1.05}px Georgia`; const tw = mctx.measureText(txt).width + 30;
-    mctx.fillStyle = 'rgba(22,16,12,.85)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
-    mctx.fillStyle = '#f3e9d2'; mctx.fillText(txt, W / 2, W - fs * 2.1);
+    mctx.fillStyle = 'rgba(30,26,38,.88)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
+    mctx.fillStyle = '#EDE6DA'; mctx.fillText(txt, W / 2, W - fs * 2.1);
   }
   // hover preview on the war table
   if (mapHover) {
@@ -2676,16 +2817,16 @@ function drawMinimap() {
     else { mctx.beginPath(); mctx.arc(X(mapHover.c.x), Y(mapHover.c.z), 10 * u, 0, 7); mctx.fill(); mctx.stroke(); }
     const txt = mapHover.problem ? '✖ ' + mapHover.problem : mapHover.c ? cornerInfo(mapHover.c) : 'Click to build this wall';
     mctx.font = `${fs * 1.05}px Georgia`; const tw = mctx.measureText(txt).width + 30;
-    mctx.fillStyle = 'rgba(22,16,12,.85)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
+    mctx.fillStyle = 'rgba(30,26,38,.88)'; mctx.fillRect(W / 2 - tw / 2, W - fs * 3.2, tw, fs * 2.2);
     mctx.fillStyle = ok ? '#f3e9d2' : '#ff9a8a'; mctx.fillText(txt, W / 2, W - fs * 2.1);
   }
   if (state.phase !== 'play') return;
   if (beacon.visible) { mctx.font = `${18 * u}px serif`; mctx.fillText('🎯', X(beacon.position.x), Y(beacon.position.z)); }
-  if (destMarker.visible) { mctx.strokeStyle = '#fff'; mctx.lineWidth = 2 * u; mctx.setLineDash([4 * u, 4 * u]); mctx.beginPath(); mctx.moveTo(X(player.pos.x), Y(player.pos.z)); mctx.lineTo(X(destMarker.position.x), Y(destMarker.position.z)); mctx.stroke(); mctx.setLineDash([]); }
+  if (destMarker.visible) { mctx.strokeStyle = '#1E1A26'; mctx.lineWidth = 2 * u; mctx.setLineDash([4 * u, 4 * u]); mctx.beginPath(); mctx.moveTo(X(player.pos.x), Y(player.pos.z)); mctx.lineTo(X(destMarker.position.x), Y(destMarker.position.z)); mctx.stroke(); mctx.setLineDash([]); }
   // player arrow
   const px = X(player.pos.x), py = Y(player.pos.z), a = -player.yaw;   // arrow points where you look
   mctx.save(); mctx.translate(px, py); mctx.rotate(a);
-  mctx.scale(u, u); mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2;
+  mctx.scale(u, u); mctx.fillStyle = '#EDE6DA'; mctx.strokeStyle = '#1E1A26'; mctx.lineWidth = 2;
   mctx.beginPath(); mctx.moveTo(0, -11); mctx.lineTo(7, 8); mctx.lineTo(0, 4); mctx.lineTo(-7, 8); mctx.closePath(); mctx.fill(); mctx.stroke();
   mctx.restore();
 }
@@ -2740,7 +2881,7 @@ function startMatch(seats) {
     built: st.id === P ? state.built : { road: 0, hamlet: 0, keep: 0, roost: 0, tower: 0 },
     longest: 0, scrolls: [], knights: 0, freeRoads: 0, playedAt: -1, setupStep: 0, setupCorner: null,
   });
-  HOUSE = players[P].house; houseMat = HOUSE.mat; buildGhosts(); dayT = 0.1;
+  HOUSE = players[P].house; houseMat = HOUSE.mat; applyPalette(); buildGhosts(); dayT = 0.1;
   if (!NET.guest) makeDeck();
   document.querySelector('#house .name').textContent = `${HOUSE.sigil} ${players[P].name || HOUSE.name}`;
   $('start').classList.add('hidden'); $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden');
@@ -2754,7 +2895,7 @@ function startMatch(seats) {
 $('againBtn').addEventListener('click', () => location.reload());
 
 // ---------------------------------------------------------------- DRAGONS (Milestone 3)
-// Roost on a Keep → fetch an egg from the Cradle → feed it (🔥 ×3) → Wyrmling (+1★, ride) → feed (🐄🐄 ×3)
+// Roost on a Keep → fetch an egg from the Ashen Waste → feed it (🔥 ×3) → Wyrmling (+1★, ride) → feed (🐄🐄 ×3)
 // → Grown Dragon (+2★, Dragonfire, Dragon's Eye). A grown dragon eats 🐄🔥 every 3rd harvest or turns Restless.
 const DRAGON_FEED = { egg: { ember: 1 }, wyrmling: { cattle: 2 } };
 const UPKEEP = { cattle: 1, ember: 1 };
@@ -2854,7 +2995,7 @@ function makeDragon(h) {
   scene.add(g); return g;
 }
 
-// --- eggs waiting in the Cradle (one per house)
+// --- eggs waiting in the Ashen Waste (one per house)
 const cradleEggs = [0, 1, 2, 3].map(i => {
   const a = i * Math.PI / 2 + 0.5, x = Math.cos(a) * 9, z = Math.sin(a) * 9, m = makeEgg();
   m.position.set(x, heightAt(x, z) + 1.2, z); scene.add(m);
@@ -2885,7 +3026,7 @@ function tryEgg() {
   if (me.dragon) { log('🐉 Your house already has a dragon'); return; }
   if (!roostOf(P)) { log('⚠️ First build a Dragon Roost beside one of your Keeps (key 4)'); return; }
   const e = cradleEggs.find(e => !e.taken && Math.hypot(e.x - player.pos.x, e.z - player.pos.z) < 6);
-  if (!e) { log('⚠️ Walk right up to a glowing egg in the Cradle (the volcano), then press E'); return; }
+  if (!e) { log('⚠️ Walk right up to a glowing egg in the Ashen Waste, then press E'); return; }
   if (NET.guest) { netAct({ a: 'egg', i: cradleEggs.indexOf(e) }); return; }
   e.taken = true; e.mesh.visible = false; state.carrying = true; carryEgg.visible = true; sfx('build');
   announce('A DRAGON EGG!', 'Carry it home to your Roost. You walk slower while carrying it');
@@ -3163,7 +3304,7 @@ function dragonStatus() {
   const me = players[P], d = me.dragon;
   if (!d) {
     if (state.carrying) return '🥚 Carry the egg to your Roost!';
-    if (roostOf(P)) return '🥚 Fetch an egg from the Cradle (volcano): walk up and press E';
+    if (roostOf(P)) return '🥚 Fetch an egg from the Ashen Waste: walk up and press E';
     return '🐉 Dragons: build a Roost beside a Keep (key 4)';
   }
   if (d.stage === 'egg') return `🥚 Egg warming ${d.progress}/3 · eats ${iconsOf(DRAGON_FEED.egg)} each harvest`;
@@ -3174,16 +3315,16 @@ function dragonStatus() {
 // ---------------------------------------------------------------- day / night
 const C = h => new THREE.Color(h);
 // t, sky top, horizon, sun colour, sun intensity, hemi sky, hemi ground, hemi intensity, water
-const DAYKEYS = [
-  [0.00, 0x2e2862, 0xd0909e, 0xffb8c4, 1.1, 0xa898c8, 0x34263c, 0.85, 0x28325c],   // dawn
-  [0.10, 0x3e4888, 0xc8b0c8, 0xfce8ee, 1.7, 0xb4acd8, 0x3a2c44, 0.95, 0x2c4470],   // morning
-  [0.36, 0x424e90, 0xc4b8d0, 0xfff0ee, 1.85, 0xb8b2dc, 0x3c2e46, 1.0, 0x2e4a76],  // noon
-  [0.64, 0x3c4484, 0xd0b0bc, 0xffdcd4, 1.7, 0xb2a6d0, 0x3a2c44, 0.95, 0x2a4270],  // afternoon
-  [0.76, 0x2c225c, 0xe0909e, 0xffa0ac, 1.2, 0xa088c0, 0x34243c, 0.9, 0x26305e],   // sunset
-  [0.81, 0x140f34, 0x50386c, 0xa49ce4, 0.6, 0x5e5494, 0x241c30, 0.75, 0x161c48],  // twilight
-  [0.90, 0x08061a, 0x1e1638, 0xaaa2ea, 0.55, 0x463e80, 0x1c1628, 0.7, 0x0e1238],  // midnight
-  [0.97, 0x140f34, 0x4a3266, 0xa49ce4, 0.6, 0x5e5494, 0x241c30, 0.75, 0x161c48],  // before dawn
-  [1.00, 0x2e2862, 0xd0909e, 0xffb8c4, 1.1, 0xa898c8, 0x34263c, 0.85, 0x28325c],
+const DAYKEYS = [   // [t, sky top, horizon, sun, sun power, hemi sky, hemi ground, hemi power, sea]
+  [0.00, 0x6e6880, 0xc8b0ac, 0xe8d8cc, 1.6, 0xb0a8bc, 0x3a3350, 1.0, 0x6e6880],   // dawn
+  [0.10, 0x8e8aa3, 0xd6d0d0, 0xf0e8de, 2.1, 0xd0cad6, 0x5a5468, 1.15, 0x8e8aa3],  // morning
+  [0.36, 0x9692ac, 0xdcd6d2, 0xf2ece2, 2.2, 0xd6d0da, 0x5e586c, 1.2, 0x8e8aa3],   // noon
+  [0.64, 0x8e8aa3, 0xd8ccc8, 0xf0e2d6, 2.1, 0xd0c8d2, 0x5a5468, 1.15, 0x8a86a0],  // afternoon
+  [0.76, 0x5e5878, 0xb89a9e, 0xe0c4bc, 1.6, 0xa89cb4, 0x3a3350, 1.0, 0x6e6880],   // dusk
+  [0.81, 0x2e2a40, 0x5a5270, 0xa8a4c0, 0.9, 0x6a6488, 0x2a2638, 0.85, 0x3a3350],  // twilight
+  [0.90, 0x1e1a26, 0x3a3350, 0xa8a4c0, 0.8, 0x524c70, 0x1e1a26, 0.8, 0x2a2638],   // midnight
+  [0.97, 0x2e2a40, 0x544a68, 0xa8a4c0, 0.9, 0x6a6488, 0x2a2638, 0.85, 0x3a3350],  // before dawn
+  [1.00, 0x6e6880, 0xc8b0ac, 0xe8d8cc, 1.6, 0xb0a8bc, 0x3a3350, 1.0, 0x6e6880],
 ];
 const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
@@ -3211,7 +3352,8 @@ function updateDayNight(dt) {
   skyU.top.value.copy(dayCols.top); skyU.horizon.value.copy(dayCols.hor); skyU.sunCol.value.copy(dayCols.sun).multiplyScalar(1 - night);
   skyU.sunDir.value.copy(_sunDir); skyU.moonDir.value.copy(_sunDir).negate(); skyU.night.value = night;
   skyU.bottom.value.copy(dayCols.water).multiplyScalar(0.8);
-  scene.fog.color.copy(dayCols.hor).multiplyScalar(0.62);
+  scene.fog.color.setHex(PAL.mist).lerp(_ca.setHex(0x2e2a40), night); skyU.uT.value = performance.now() / 1000;
+  inkU.paper.value.setHex(PAL.bone).lerp(_cb.setHex(0x3a3350), night * 0.85);
   // the sun by day, the moon by night (same light, so shadows always work)
   const lightDir = _sunDir.y > -0.05 ? _sunDir : _sunDir.clone().negate();
   sun.position.copy(lightDir).multiplyScalar(300); sun.color.copy(dayCols.sun); sun.intensity = sunI;
@@ -3489,7 +3631,7 @@ function applySnapshot(s) {
     if (state.mode !== want) setMode(want);
     updateObjective();
   }
-  if (st.pickFor === P && !state.reaverPick) { announce('REAVER RAID!', 'You hold the Horn: choose where the Reavers strike (25 s)'); startReaverPick('raid'); }
+  if (st.pickFor === P && !state.reaverPick) { announce('THE WYRM WAKES!', 'You hold the Horn: choose where the Wyrm descends (25 s)'); startReaverPick('raid'); }
   else if (st.pickFor !== P && state.reaverPick && state.reaverReason === 'raid') { state.reaverPick = false; setWarMap(false); updateObjective(); }
   const key = JSON.stringify([state.res, s.c, s.e, state.harvests, state.phase]);
   if (key !== NET.prevKey) { NET.prevKey = key; refreshMarkers(); }
@@ -3506,8 +3648,8 @@ function guestEvents(prev, s) {
     clearTimeout(state.runeHide); state.runeHide = setTimeout(() => runes.forEach(r => r.visible = false), 2600);
     if (sum === 7) {
       const lost = delta.filter(([, n]) => n < 0); lost.forEach(([k]) => flashRes(k, true));
-      announce('REAVER RAID!', lost.length ? 'They plunder your Hold: ' + lost.map(([k, n]) => `${n} ${RES[k].icon}`).join(' ') : 'The Reavers come ashore');
-      log(`🎲 Rune Stones show ${d1} + ${d2} = 7: Reaver Raid!`); sfx('raid');
+      announce('THE WYRM WAKES!', lost.length ? 'They plunder your Hold: ' + lost.map(([k, n]) => `${n} ${RES[k].icon}`).join(' ') : 'The Wyrm stirs');
+      log(`🎲 Rune Stones show ${d1} + ${d2} = 7: the Wyrm wakes!`); sfx('raid');
     } else {
       harvestPopups(sum);
       const gain = delta.filter(([, n]) => n > 0); gain.forEach(([k]) => flashRes(k));
@@ -3520,7 +3662,7 @@ function guestEvents(prev, s) {
   s.c.forEach((v, i) => {
     const pv = prev.c[i]; if (!v || (pv && pv[1] === v[1] && pv[2] === v[2] && pv[3] === v[3])) return;
     const owner = v[0], kind = !pv ? 'hamlet' : pv[1] !== v[1] ? 'keep' : pv[2] !== v[2] ? 'roost' : 'tower';
-    if (owner === P) log({ hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Cradle (the volcano)', tower: '🏹 Scorpion Tower built' }[kind]);
+    if (owner === P) log({ hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Ashen Waste', tower: '🏹 Scorpion Tower built' }[kind]);
     else if (state.phase === 'play') reportBuild(owner, { kind, c: corners[i] });
     else log(`${nameOf(owner)} lands at ${corners[i].tiles.map(id => tiles[id]).map(t => t.num ? RES[t.type].icon + t.num : '🌋').join(' ')}`);
   });
@@ -3973,7 +4115,7 @@ function loop() {
   for (let i = 0; i < wp.count; i++) { const x = base[i * 3], z = base[i * 3 + 2]; wp.array[i * 3 + 1] = Math.sin(x * 0.05 + time) * 0.35 + Math.cos(z * 0.07 + time * 0.8) * 0.35; }
   wp.needsUpdate = true; water.geometry.computeVertexNormals();
   windmills.forEach(b => b.rotation.z += dt * 0.8);
-  windU.value = time; updateMotes(time);
+  windU.value = time; updateMotes(time); updateAtmosphere(time);
   clouds.forEach(c => { c.position.x += dt * 3; if (c.position.x > 600) c.position.x = -600; });
   const top = heightAt(0, 0) + 2;
   smoke.forEach(s => { s.userData.age += dt * 0.12; if (s.userData.age > 1) s.userData.age = 0; const a = s.userData.age; s.position.set(Math.sin(a * 9 + s.id) * 3 + a * 18, top + a * 45, Math.cos(a * 7 + s.id) * 3); s.scale.setScalar(0.6 + a * 2.4); });
@@ -3987,6 +4129,7 @@ function loop() {
   if (annTimer > 0) { annTimer -= dt; if (annTimer <= 0) $('announce').classList.remove('show'); }
 
   inkU.fadeNear.value = scene.fog.near * 1.4; inkU.fadeFar.value = scene.fog.far * 1.1;
+  camera.updateMatrixWorld(); inkU.invProj.value.copy(camera.projectionMatrixInverse); inkU.camWorld.value.copy(camera.matrixWorld);
   renderer.setRenderTarget(inkRT); renderer.render(scene, camera);
   renderer.setRenderTarget(null); renderer.render(inkScene, inkCam);
   requestAnimationFrame(loop);

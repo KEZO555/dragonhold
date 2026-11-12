@@ -489,6 +489,96 @@
   #duelLog .result.win { color:var(--mint) !important; } #duelLog .result.lose { color:var(--rose) !important; }
   .icw svg.ic { filter:drop-shadow(0 1px 1px rgba(10,4,20,.7)) saturate(.8) brightness(1.08); }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+  /* ===================== DESIGN SPEC: gothic shapes, watercolour edges (HUD stays crisp) ===================== */
+  :root { --ink:#1E1A26; --violet:#3A3350; --barrow:#6E6880; --lav:#8E8AA3; --bone:#EDE6DA; --ashen:#CFC6BC; --moss:#5F6B5E; --straw:#A89A86; --rose:#8C3B4A; --ember:#E0A24A;
+    --gold:var(--ink); --gold2:var(--ink); --ochre:var(--ink); --ochre2:var(--ink); --text:var(--ink); --paper:var(--bone); --muted:#5a5468; --hair:rgba(58,51,80,.25); --goldDim:rgba(58,51,80,.35); }
+  html,body { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:500 !important; color:var(--ink) !important; background:var(--ink); font-size:17px; }
+  b { color:var(--ink) !important; font-weight:700; }
+  .icw svg.ic { filter:none !important; }
+  /* plates: bone white at 86%, no paper, no wobble */
+  .panel::before, .panel::after { display:none !important; }
+  .panel { background:rgba(237,230,218,.86) !important; border:1px solid rgba(58,51,80,.22) !important; border-radius:12px !important; color:var(--ink) !important;
+    box-shadow:0 6px 22px rgba(30,26,38,.28) !important; backdrop-filter:blur(3px) !important; -webkit-backdrop-filter:blur(3px) !important; }
+  .title { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; letter-spacing:.18em !important; text-transform:uppercase;
+    background:none !important; -webkit-background-clip:border-box !important; background-clip:border-box !important; color:var(--ink) !important; filter:none !important; text-shadow:none !important; }
+  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag, #buildMenu .bm-title, .step { font-family:'Cormorant Garamond',Georgia,serif !important; color:var(--violet) !important; letter-spacing:.14em !important; font-weight:700 !important; }
+  #house .name, #house .renown, .res .n, .slot .t, #buildMenu .slot b, .scard .sn, .hcard .hn, #duelScore, .code, .act, #duelLog .result, .tb, button { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; }
+  #house .name { color:var(--ink) !important; font-size:19px !important; letter-spacing:.18em !important; }
+  #house .renown { color:var(--ink) !important; font-size:26px !important; } #house .sub, #houseToggle { color:var(--muted) !important; }
+  #harvest .label, #harvestLabel { font-style:italic; font-size:17px !important; color:var(--ink) !important; }
+  .tag, #start .tag { font-family:'Cormorant Garamond',Georgia,serif !important; font-style:italic; color:var(--violet) !important; font-size:20px !important; }
+  .muted { color:var(--muted) !important; font-size:15px; }
+  /* buttons: outlined pills; ember gold is the one filled button */
+  button { font-size:17px !important; letter-spacing:.06em !important; color:var(--ink) !important; background:transparent !important; border:1px solid rgba(30,26,38,.45) !important;
+    border-radius:999px !important; box-shadow:none !important; text-shadow:none !important; min-height:44px; padding:6px 20px; animation:none !important; transition:background .2s, transform .2s !important; }
+  button:hover { background:rgba(30,26,38,.07) !important; transform:none !important; filter:none !important; box-shadow:none !important; }
+  button.small { font-size:16px !important; min-height:40px; }
+  button.primary, #startBtn, #lobbyStart, #helpClose, #againBtn, #hurryBtn { background:var(--ember) !important; color:var(--ink) !important; border:1px solid var(--ember) !important; text-shadow:none !important; box-shadow:0 0 18px rgba(224,162,74,.35) !important; }
+  button.primary:hover, #startBtn:hover, #hurryBtn:hover { background:#e8ae5c !important; }
+  button.ghost { border-color:transparent !important; color:var(--violet) !important; }
+  #tradeBtn { background:transparent !important; box-shadow:none !important; border:1px solid rgba(30,26,38,.45) !important; color:var(--ink) !important; }
+  .tb { font-size:15px !important; padding:6px 14px !important; background:rgba(237,230,218,.86) !important; min-height:40px; }
+  .tb.on { background:var(--ink) !important; color:var(--bone) !important; border-color:var(--ink) !important; }
+  /* the bottom bar: an ink band; bone text pills */
+  #resources.panel { background:rgba(30,26,38,.9) !important; border:1px solid rgba(237,230,218,.2) !important; }
+  .res { background:transparent !important; border:1px solid rgba(237,230,218,.35) !important; border-radius:999px !important; box-shadow:none !important; height:44px; display:flex; align-items:center; justify-content:center; gap:4px; width:auto !important; padding:0 12px !important; }
+  .res .n { color:var(--bone) !important; font-size:22px !important; }
+  .res .ic .icw svg.ic { width:26px; height:26px; }
+  .res.flash { background:rgba(237,230,218,.2) !important; border-color:var(--bone) !important; box-shadow:none !important; }
+  .res.loss { background:rgba(140,59,74,.6) !important; border-color:var(--rose) !important; }
+  .act { background:rgba(30,26,38,.9) !important; color:var(--bone) !important; border:1px solid rgba(237,230,218,.35) !important; border-radius:22px !important; font-size:14px !important; letter-spacing:.08em !important; text-transform:none !important; }
+  .act:hover { background:rgba(58,51,80,.95) !important; }
+  .act.ready, .act.fire { background:var(--ember) !important; color:var(--ink) !important; border-color:var(--ember) !important; box-shadow:0 0 16px rgba(224,162,74,.35) !important; }
+  .act.poor { opacity:.45 !important; filter:none !important; }
+  .act i .icw svg.ic { width:26px !important; height:26px !important; filter:brightness(0) invert(.92) sepia(.15) !important; }
+  .act.ready i .icw svg.ic, .act.fire i .icw svg.ic { filter:none !important; }
+  .res .icw svg.ic { filter:drop-shadow(0 0 1.2px rgba(237,230,218,.95)) drop-shadow(0 0 1.2px rgba(237,230,218,.6)) !important; }
+  /* build bar */
+  #buildMenu .slot, .hcard, .seat, .scard, .cheatgrid section, .pick { background:transparent !important; border:1px solid rgba(30,26,38,.2) !important; border-radius:12px !important; box-shadow:none !important; color:var(--ink) !important; }
+  #buildMenu .slot:not(.poor) { background:rgba(30,26,38,.06) !important; border-color:rgba(30,26,38,.5) !important; }
+  #buildMenu .slot.active, .slot.active, .pick.sel, .rivals span.sel { background:var(--ink) !important; color:var(--bone) !important; border-color:var(--ink) !important; box-shadow:none !important; }
+  #buildMenu .slot.active b { color:var(--bone) !important; }
+  #buildMenu .slot b { color:var(--ink) !important; font-size:17px !important; }
+  .slot.poor { opacity:.5 !important; filter:none !important; }
+  /* messages */
+  #announce .big { font-family:'Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; color:var(--ink) !important; background:none !important; -webkit-background-clip:border-box !important; background-clip:border-box !important;
+    letter-spacing:.18em !important; font-size:56px !important; filter:none !important; text-shadow:0 0 18px rgba(237,230,218,.95), 0 0 40px rgba(237,230,218,.8) !important; }
+  #announce .small { background:rgba(237,230,218,.86) !important; color:var(--ink) !important; border:1px solid rgba(58,51,80,.22) !important; border-radius:999px !important; box-shadow:0 6px 22px rgba(30,26,38,.25) !important; font-size:19px !important; font-style:italic; }
+  #log div { background:rgba(237,230,218,.86) !important; color:var(--ink) !important; border:none !important; border-left:3px solid var(--violet) !important; border-radius:8px !important; font-size:15px !important; animation:fade 12s forwards !important; }
+  #objective, #objective.panel { color:var(--ink) !important; background:rgba(237,230,218,.88) !important; }
+  #objective .goal-tag { color:var(--rose) !important; }
+  #tip { color:var(--ink) !important; background:rgba(237,230,218,.9) !important; } #tip.ok { border-color:var(--moss) !important; background:rgba(237,230,218,.92) !important; } #tip.bad { border-color:var(--rose) !important; background:rgba(237,230,218,.92) !important; }
+  #harvest .bar { background:rgba(30,26,38,.15) !important; border:none !important; box-shadow:none !important; height:6px !important; }
+  #harvest .fill { background:var(--violet) !important; box-shadow:none !important; filter:none !important; }
+  #minimap { background:#E4DCCF !important; border:none !important; box-shadow:0 0 0 3px rgba(237,230,218,.9), 0 6px 22px rgba(30,26,38,.3) !important; filter:none !important; }
+  #modeChip { background:var(--ink) !important; color:var(--bone) !important; border:none !important; box-shadow:0 6px 18px rgba(30,26,38,.3) !important; }
+  #challengeBtn { background:var(--rose) !important; color:var(--bone) !important; border-color:var(--rose) !important; }
+  #raidBtn, #tollBtn { background:var(--ink) !important; color:var(--bone) !important; border-color:var(--ink) !important; }
+  #challengeBtn .muted, #raidBtn .muted, #tollBtn .muted { color:var(--ashen) !important; font-family:'Cormorant Garamond',serif !important; }
+  #raven { background:rgba(237,230,218,.92) !important; }
+  .dp { background:rgba(237,230,218,.86) !important; color:var(--ink) !important; border:1px solid rgba(30,26,38,.3) !important; border-radius:50% !important; min-height:0; } .dp.held { background:var(--ink) !important; color:var(--bone) !important; }
+  #scores { border-top:1px solid rgba(58,51,80,.2) !important; }
+  #scores .row { font-size:16px !important; } #scores .row.me { color:var(--ink) !important; font-weight:700; } #scores .row .sw { border:1px solid rgba(30,26,38,.5) !important; }
+  /* overlays */
+  .overlay { background:rgba(30,26,38,.55) !important; animation:none; }
+  .overlay .card { animation:none; }
+  .code, .online input, #netName, #joinCode { background:rgba(255,255,255,.35) !important; color:var(--ink) !important; border:1px solid rgba(30,26,38,.35) !important; box-shadow:none !important; border-radius:999px !important; min-height:44px; font-family:'Cormorant Garamond',serif !important; font-size:17px !important; }
+  .rivals span { background:transparent !important; border:1px solid rgba(30,26,38,.35) !important; box-shadow:none !important; color:var(--ink) !important; border-radius:999px !important; height:40px !important; line-height:38px !important; width:44px !important; font-size:18px !important; }
+  .rivals span.sel { color:var(--bone) !important; }
+  .hcard .hn { color:var(--ink) !important; font-size:19px !important; filter:none !important; } .hcard .hd { color:var(--violet) !important; font-size:14px !important; }
+  .hcard.sel { background:rgba(30,26,38,.08) !important; border:1px solid var(--ink) !important; box-shadow:inset 6px 0 0 var(--hc) !important; }
+  .hcard .sig .icw svg.ic { width:40px; height:40px; }
+  #start { background:linear-gradient(90deg, rgba(30,26,38,.55) 0%, rgba(30,26,38,.25) 45%, rgba(30,26,38,0) 75%) !important; }
+  #start h1.title { color:var(--bone) !important; font-size:clamp(40px,5vw,62px) !important; text-shadow:0 2px 18px rgba(30,26,38,.6) !important; }
+  #start .brand .tag { color:var(--bone) !important; text-shadow:0 1px 10px rgba(30,26,38,.7); }
+  .rule { color:var(--ember) !important; } .rule span { background:linear-gradient(90deg, transparent, rgba(237,230,218,.8), transparent) !important; }
+  #duel { background:rgba(30,26,38,.6) !important; }
+  #duelLog .result.win { color:var(--moss) !important; } #duelLog .result.lose { color:var(--rose) !important; }
+  #duelScore .pips { color:var(--rose) !important; }
+  #tradeTable b.on { color:var(--rose) !important; }
+  .st { min-height:32px !important; padding:0 10px !important; font-size:17px !important; }
+  #duelMoves button { border-radius:16px !important; }
+  #dpad .dp { min-height:0 !important; }
 </style>
 </head>
 <body>
@@ -552,7 +642,7 @@
     <div class="brand">
       <h1 class="title">Dragonhold</h1>
       <div class="rule"><span></span>◆<span></span></div>
-      <div class="tag">The volcano sleeps. The houses gather.<br>Claim the Isles of Embervale.</div>
+      <div class="tag">The Wyrm sleeps. The houses gather.<br>Claim the Isles of Embervale.</div>
     </div>
     <div class="card panel startCard">
       <div class="step">Choose your house</div>
@@ -623,16 +713,16 @@
       <section><h3>HARVESTS</h3>
         Fast at first, then every <b>30–60 s</b>; Rune Stones cast <b>twice</b>.<br>
         Matching regions pay <b>Hamlet 1 · Keep 2</b>.<br>
-        <b>7 = Reavers:</b> over 7 cards → lose half; the Horn-Bearer blocks a region and robs 1.</section>
+        <b>7 = the Wyrm wakes:</b> over 7 cards → lose half; the Horn-Bearer blocks a region and robs 1.</section>
       <section><h3>COSTS</h3>
-        Wall 🌲🪨 · Hamlet 🌲🪨🌾🐄<br>Keep 🌾🌾🔥🔥🔥 · Scroll 🌾🐄🔥<br>Roost 🪨🪨🔥🔥🌲 · Tower 🪨🪨🌲🔥<br>
+        Wall 🌲🪨 · Hamlet 🌲🪨🌾🦋<br>Keep 🌾🌾🔩🔩🔩 · Scroll 🌾🦋🔩<br>Roost 🪨🪨🔩🔩🌲 · Tower 🪨🪨🌲🔩<br>
         <span class="muted">Hamlets: corners, not next to another settlement, touching your wall.</span><br>🧱 <b>Walls block rival lords</b>; you cross your own walls at their 🚪 <b>gate</b> (middle) or beside your own settlement; rivals may pass a gate by <b>paying its owner 1 resource</b>. No duels or raids through walls.</section>
       <section><h3>TRADE</h3>
         <b>Guild</b> 4 of one kind → 1 (<b>3:1 at dusk</b>)<br><b>Ravens</b>: any bundle to the AI houses; they take fair deals that help them</section>
       <section><h3>SCROLLS</h3>
         Play from the next harvest, one per harvest.<br>Sellsword · Renown (secret ★) · Wall Builders · Bountiful Harvest · Royal Decree</section>
       <section><h3>DRAGONS</h3>
-        Roost beside a Keep → egg from the volcano → 🔥 ×3 → <b>Wyrmling</b> (ride) → 🐄🐄 ×3 → <b>Grown</b>: Dragonfire + Dragon's Eye. Upkeep 🐄🔥 every 3rd harvest. Towers stop Dragonfire.</section>
+        Roost beside a Keep → egg from the Ashen Waste → 🔩 ×3 → <b>Wyrmling</b> (ride) → 🦋🦋 ×3 → <b>Grown</b>: Dragonfire + Dragon's Eye. Upkeep 🦋🔩 every 3rd harvest. Towers stop Dragonfire.</section>
       <section><h3>DUELS ⚔️</h3>
         Best of 3: <b>Strike › Feint › Block › Strike</b>; ties to the mightier.<br>Might = 1 + Sellswords + own land + grown dragon.<br>Winner takes 2–3 cards · Yield = pay 1.</section>
       <section><h3>TIME OF DAY</h3>
@@ -662,7 +752,7 @@
 <div id="lore" class="overlay hidden">
   <div class="card panel" style="min-width:640px">
     <h2 class="title" style="font-size:44px;letter-spacing:4px">LORE SCROLLS</h2>
-    <div class="muted">Study a scroll for 🌾🐄🔥. Each can be played from the next harvest on, one scroll per harvest. Play 3+ Sellswords (and the most) to command the <b>Mightiest Host</b> (+2★).</div>
+    <div class="muted">Study a scroll for 🌾🦋🔩. Each can be played from the next harvest on, one scroll per harvest. Play 3+ Sellswords (and the most) to command the <b>Mightiest Host</b> (+2★).</div>
     <div style="margin:12px 0"><button id="buyScroll">📜 BUY A SCROLL</button> <span id="deckLeft" class="muted" style="margin-left:8px"></span></div>
     <div id="loreStatus" style="min-height:20px;margin-bottom:6px"></div>
     <div id="hand" class="hand"></div>

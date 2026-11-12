@@ -270,3 +270,39 @@ Soft watercolour with a dark mood:
 3. **The world breathes.** Pines and grass sway in the wind. Pastel motes drift by day and become fireflies by night. UI panels and announcements float and fade in.
 4. **Goth mood.** Days are an eternal dusk and nights are a deep indigo. Pines are violet and teal, and the volcano fields are plum-wine with rose-glowing vents.
 5. **Indie polish.** A small palette, readable silhouettes and calm serif type (Cormorant Garamond).
+
+## Art direction v2: the design spec (supersedes "Pastel Goth")
+The art direction now follows `docs/design/DRAGONHOLD_DESIGN.md` ("gothic shapes, watercolour edges"), with the reference images beside it.
+
+What is implemented:
+- **Palette:** the eight colour tokens only. Ember gold is reserved for light: lit windows, the rose window, the Ashen Waste glow, the Wyrm's eye and the primary button.
+- **Watercolour pass:**
+  - wobbly edges, and wet-edge darkening with no outlines
+  - world-anchored granulation, mixed like pigment
+  - ember-only glow and paper grain
+  - clamped so there is no pure black or white
+- **Tiles:** hex tiles show unpainted paper gaps with wobbly borders and a darker wet rim inside each tile.
+- **Terrain and resources:**
+
+  | Terrain | Resource | Decoration |
+  |---|---|---|
+  | Deadwood | Ashwood | bare ink trees |
+  | Barrow hills | Gravestone | violet mounds with standing stones |
+  | Blackwheat fields | Blackwheat | ink strokes |
+  | Moth moor | Moth-silk | bone cocoons |
+  | Iron crags | Iron | ink peaks |
+  | the Ashen Waste | none | bone ribs (the Wyrm sleeps here) |
+
+- **Rules text:** 7 wakes the Wyrm, which replaces the Reavers.
+- **Buildings:** gothic ink-plum towers with pointed roofs, a Hamlet is a narrow tower with a chapel, and a Keep is a spired hold with a rose window. Banners are in the owner's colour. Your windows burn ember; rivals' windows stay dark.
+- **Seat colours:** you are ink plum with a bone-white banner; rivals are dried rose, moss grey and ash lavender.
+- **Atmosphere:**
+  - The Hold sits on the horizon: a cathedral inside a dragon skeleton.
+  - Mist banks drift low, ravens circle and moths flutter.
+  - Clouds wash across a sky with a paper moon.
+- **HUD:** crisp bone plates at 86%, Cormorant Garamond, outlined pills, a single ember button ("Harvest now", "Play vs AI"), and 44 px hit targets.
+
+Still open, as decisions for the designer:
+- The spec's goal of 10 holds versus the current 12 Renown.
+- A fixed wall view versus free walking.
+- How trading is represented (ravens are already in).

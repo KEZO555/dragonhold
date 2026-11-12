@@ -20,17 +20,17 @@
 ## Harvests
 - They start fast (first after 8 s, then 12–20 s) and slow to **30–60 s**. The Rune Stones are cast **twice** each harvest.
 - Regions showing the cast number produce: **Hamlet 1, Keep 2** (per region corner you own).
-- **7 = Reaver Raid:** anyone holding **more than 7** cards loses half. The Horn-Bearer (rotates each harvest) moves the Reavers: their region produces nothing, and they rob 1 card from a rival there.
+- **7 = the Wyrm wakes:** anyone holding **more than 7** cards loses half. The Horn-Bearer (rotates each harvest) moves the Wyrm: their region produces nothing, and they rob 1 card from a rival there.
 
 ## Costs (supply limit)
 | Build | Cost | Limit |
 |---|---|---|
 | Wall | 🌲🪨 | 15 |
-| Hamlet | 🌲🪨🌾🐄 | 5 |
-| Keep (upgrade) | 🌾🌾🔥🔥🔥 | 4 |
-| Lore Scroll | 🌾🐄🔥 | 25 in the library |
-| Dragon Roost (beside a Keep) | 🪨🪨🔥🔥🌲 | 1 |
-| Scorpion Tower | 🪨🪨🌲🔥 | 3 |
+| Hamlet | 🌲🪨🌾🦋 | 5 |
+| Keep (upgrade) | 🌾🌾🔩🔩🔩 | 4 |
+| Lore Scroll | 🌾🦋🔩 | 25 in the library |
+| Dragon Roost (beside a Keep) | 🪨🪨🔩🔩🌲 | 1 |
+| Scorpion Tower | 🪨🪨🌲🔩 | 3 |
 
 **Placement:** Hamlets go on corners, never next to another settlement, and must touch your wall. Walls extend your walls or settlements.
 
@@ -42,16 +42,16 @@
 
 ## Lore Scrolls
 - You can play a scroll from the **next harvest** on, **one per harvest**.
-- **Sellsword** (move the Reavers + rob) · **Renown Scroll** (+1★ secret) · **Wall Builders** (2 free walls) · **Bountiful Harvest** (take 2) · **Royal Decree** (claim everyone's stock of one resource)
+- **Sellsword** (move the Wyrm + rob) · **Renown Scroll** (+1★ secret) · **Wall Builders** (2 free walls) · **Bountiful Harvest** (take 2) · **Royal Decree** (claim everyone's stock of one resource)
 
 ## Dragons
 1. Build a **Roost** beside a Keep.
-2. Fetch an **egg** from the volcano and carry it home.
-3. The egg eats 🔥 at 3 harvests → **Wyrmling** (+1★, ride it).
-4. It eats 🐄🐄 at 3 harvests → **Grown dragon** (+2★).
+2. Fetch an **egg** from the Ashen Waste and carry it home.
+3. The egg eats 🔩 at 3 harvests → **Wyrmling** (+1★, ride it).
+4. It eats 🦋🦋 at 3 harvests → **Grown dragon** (+2★).
 
 - **Grown dragon:** 🔥 **Dragonfire** scorches a rival region so it produces nothing next harvest (recharges after 3 harvests). The **Dragon's Eye** lifts the mist.
-- **Upkeep:** 🐄🔥 every 3rd harvest. If you can't pay, the dragon turns **Restless**: no riding, fire or Eye until fed.
+- **Upkeep:** 🦋🔩 every 3rd harvest. If you can't pay, the dragon turns **Restless**: no riding, fire or Eye until fed.
 - **Scorpion Tower:** rival dragons can't scorch regions touching it.
 
 ## Duels ⚔️
