@@ -2238,13 +2238,14 @@ addEventListener('keydown', e => {
   if (e.code === 'Digit3') setMode(state.mode === 'keep' ? null : 'keep');
   if (e.code === 'Digit4') setMode(state.mode === 'roost' ? null : 'roost');
   if (e.code === 'Digit5') setMode(state.mode === 'tower' ? null : 'tower');
-  if (e.code === 'KeyE' && state.phase === 'play') tryEgg();
-  if (e.code === 'KeyF' && state.phase === 'play') toggleRide();
+  if (e.code === 'KeyE' && state.phase === 'play' && !board.on) tryEgg();
+  if (e.code === 'KeyF' && state.phase === 'play') { if (board.on) setBoard(false); toggleRide(); }
   if (e.code === 'KeyG' && state.riding) dragonfire();
-  if (e.code === 'KeyQ') setMode(null);
+  if (e.code === 'KeyQ' && !board.on) setMode(null);
   if (e.code === 'KeyM' && state.phase === 'play') toggleMap();
   if (e.code === 'KeyH') $('helpOverlay').classList.toggle('hidden');
   if (e.code === 'KeyR') recall();
+  if (e.code === 'KeyB' && state.phase === 'play') setBoard(!board.on);
   if (e.code === 'Space') e.preventDefault();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -2265,6 +2266,7 @@ canvas.addEventListener('pointermove', e => {
   if (!ptr.down || e.pointerId !== ptr.id) return;
   const dx = e.clientX - ptr.lx, dy = e.clientY - ptr.ly; ptr.lx = e.clientX; ptr.ly = e.clientY;
   ptr.moved += Math.abs(dx) + Math.abs(dy);
+  if (ptr.moved > 6 && board.on) { if (!pinch.on) boardPan(dx, dy); return; }
   if (ptr.moved > 6) {
     const k = e.pointerType === 'touch' ? 0.006 : 0.0042;
     player.yaw += dx * k; player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch + dy * k));   // drag the world around you
@@ -2278,10 +2280,19 @@ canvas.addEventListener('pointerup', e => {
 canvas.addEventListener('pointercancel', () => { ptr.down = false; });
 canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') ptr.hover = null; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('wheel', e => { if (!board.on) return; e.preventDefault(); boardZoom(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+// pinch to zoom the board (two fingers)
+const pinch = { on: false, d: 0 }, touches = new Map();
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') touches.set(e.pointerId, [e.clientX, e.clientY]); if (touches.size === 2) { const [a, b] = [...touches.values()]; pinch.on = true; pinch.d = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+canvas.addEventListener('pointermove', e => {
+  if (!touches.has(e.pointerId)) return; touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch.on && touches.size === 2 && board.on) { const [a, b] = [...touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch.d > 0) boardZoom(pinch.d / d); pinch.d = d; ptr.moved = 99; }
+});
+for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, e => { touches.delete(e.pointerId); if (touches.size < 2) pinch.on = false; });
 
 // what is under a screen point?
 const _rc = new THREE.Raycaster(), _ndc = new THREE.Vector2();
-function groundAt(sx, sy, maxD = 320) {
+function groundAt(sx, sy, maxD = board.on ? 700 : 320) {
   _ndc.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); _rc.setFromCamera(_ndc, camera);
   const o = _rc.ray.origin, d = _rc.ray.direction;
   for (let t = 0.5; t < maxD; t += t < 80 ? 0.5 : 1.5) {
@@ -2312,7 +2323,7 @@ function tapAt(sx, sy) {
   if (rb) { if (Math.hypot(rb.x - player.pos.x, rb.z - player.pos.z) < RAID_RANGE) tryRaid(rb); else log('🌙 Get closer to raid it'); return; }
   const foe = players.find(p => p.id !== P && p.avatar && p.avatar.visible && Math.hypot(p.pos.x - hit.x, p.pos.z - hit.z) < 3.5);
   if (foe) { if (Math.hypot(foe.pos.x - player.pos.x, foe.pos.z - player.pos.z) < DUEL_RANGE) challenge(foe.id); else log('⚔️ Ride closer to challenge them'); return; }
-  const tgt = hit.d < 120 ? targetNear(hit) : null;
+  const tgt = hit.d < (board.on ? 600 : 120) ? targetNear(hit) : null;
   if (tgt && !tgt.problem) { currentTarget = tgt; tryBuild(tgt); return; }   // gold sign: build it
   if (tgt && state.mode) { log('⚠️ ' + tgt.problem); sfx('bad'); return; }   // placing something: explain why not
 }
@@ -2352,8 +2363,9 @@ function onOwnRoad(x, z) {
 }
 
 function updatePlayer(dt) {
-  if (keys.ArrowLeft) player.yaw += 2 * dt;
-  if (keys.ArrowRight) player.yaw -= 2 * dt;
+  if (board.on) { updateBoard(dt); if (!player.autoTarget) { placeCamera(dt); return; } }
+  else if (keys.ArrowLeft) player.yaw += 2 * dt;
+  if (keys.ArrowRight && !board.on) player.yaw -= 2 * dt;
   if (state.riding) return updateFlight(dt);
   let fx = 0, fz = 0;
   if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
@@ -2415,9 +2427,46 @@ function setView(m) {
   $('btnView').textContent = VIEWS[m].label;
 }
 const _look = new THREE.Vector3();
+// ---------------------------------------------------------------- BOARD VIEW
+// A tilted top-down camera over the board, like looking down at the table: drag (or WASD / D-pad) to pan,
+// wheel or pinch to zoom, Q/E or ←/→ to turn. Click gold markers and plaques to build from here; your lord stays put.
+const board = { on: false, cx: 0, cz: 0, dist: 150, yaw: 0, tilt: 0.95, sx: 0, sz: 0 };
+function setBoard(on) {
+  if (on && (state.riding || state.phase !== 'play')) { if (state.riding) log('⚠️ Land your dragon first'); return; }
+  board.on = on;
+  if (on) { board.dist = innerWidth < innerHeight ? 260 : 150; board.cx = board.sx = player.pos.x * 0.6; board.cz = board.sz = player.pos.z * 0.6; board.yaw = Math.round(player.yaw / (Math.PI / 3)) * Math.PI / 3; }
+  camera.fov = on ? 45 : VIEWS[viewMode].fov; camera.updateProjectionMatrix();
+  const k = on ? 1.8 : 1;   // plaques and number tokens read from above
+  cornerSigns.forEach(s => s.label.scale.set(6.2 * k, 2.5 * k, 1)); edgeSigns.forEach(s => s.label.scale.set(4.6 * k, 1.85 * k, 1));
+  tiles.forEach(t => t.banner && t.banner.scale.set(5 * (on ? 1.5 : 1), 6.9 * (on ? 1.5 : 1), 1));
+  clouds.forEach(c => c.visible = !on);   // the clouds would hide the board from above
+  $('actBoard').classList.toggle('ready', on); $('hud').classList.toggle('board-on', on);
+  if (on) log('🗺️ Board view: drag to pan, scroll or pinch to zoom, click a gold marker to build. Press Board again to walk');
+  updateObjective();
+}
+function updateBoard(dt) {
+  let fx = 0, fz = 0;
+  if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA) fx -= 1; if (keys.KeyD) fx += 1;
+  if (keys.ArrowLeft || keys.KeyQ) board.yaw += 1.6 * dt; if (keys.ArrowRight || keys.KeyE) board.yaw -= 1.6 * dt;
+  const sp = board.dist * 0.9 * dt, sin = Math.sin(board.yaw), cos = Math.cos(board.yaw);
+  board.cx += (fx * cos + fz * sin) * sp; board.cz += (-fx * sin + fz * cos) * sp;
+  const L = Math.hypot(board.cx, board.cz); if (L > 170) { board.cx *= 170 / L; board.cz *= 170 / L; }
+  board.sx += (board.cx - board.sx) * Math.min(1, dt * 8); board.sz += (board.cz - board.sz) * Math.min(1, dt * 8);
+}
+function boardPan(dx, dy) {   // drag the table: the board follows the finger
+  const k = board.dist / innerHeight * 1.4, sin = Math.sin(board.yaw), cos = Math.cos(board.yaw);
+  board.cx += (-dx * cos - dy * sin) * k; board.cz += (dx * sin - dy * cos) * k;
+}
+function boardZoom(f) { board.dist = Math.max(45, Math.min(320, board.dist * f)); }
+function placeBoardCamera() {
+  const y0 = heightAt(board.sx, board.sz), h = Math.sin(board.tilt) * board.dist, back = Math.cos(board.tilt) * board.dist;
+  camera.position.set(board.sx + Math.sin(board.yaw) * back, y0 + h, board.sz + Math.cos(board.yaw) * back);
+  _look.set(board.sx, y0, board.sz); camera.lookAt(_look);
+}
 function placeCamera(dt) {
   const v = VIEWS[viewMode];
-  if (viewMode === 'hero') {
+  if (board.on) placeBoardCamera();
+  else if (viewMode === 'hero') {
     const cp = Math.cos(player.pitch), dx = -Math.sin(player.yaw) * cp, dy = Math.sin(player.pitch), dz = -Math.cos(player.yaw) * cp;
     const x = player.pos.x - dx * v.back, z = player.pos.z - dz * v.back;
     const y = Math.max(player.pos.y + v.eye + v.up - dy * v.back, heightAt(x, z) + 1.2);
@@ -2433,7 +2482,7 @@ function placeCamera(dt) {
     meAvatar.children.forEach(o => { if (o.isSprite) o.visible = false; });
   }
   if (meAvatar) {
-    meAvatar.visible = viewMode === 'hero' && state.phase === 'play' && !state.riding;
+    meAvatar.visible = (viewMode === 'hero' || board.on) && state.phase === 'play' && !state.riding;
     const moving = Math.hypot(player.pos.x - meLast.x, player.pos.z - meLast.z) > 0.01; meLast = { x: player.pos.x, z: player.pos.z };
     meAvatar.position.copy(player.pos); meAvatar.rotation.y = player.yaw + Math.PI;
     animateAvatar(meAvatar, moving, performance.now() / 1000);
@@ -2622,7 +2671,8 @@ function closeMenus() {}
 $('actTrade').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleTrade(); });
 $('actLore').addEventListener('click', () => { closeMenus(); if (state.phase === 'play' && !state.reaverPick) toggleLore(); });
 $('actMap').addEventListener('click', () => { closeMenus(); if (state.phase === 'play') toggleMap(); });
-$('actHome').addEventListener('click', () => { closeMenus(); recall(); });
+$('actHome').addEventListener('click', () => { closeMenus(); recall(); if (board.on) { board.cx = player.pos.x; board.cz = player.pos.z; } });
+$('actBoard').addEventListener('click', () => { closeMenus(); setBoard(!board.on); });
 $('actFire').addEventListener('click', () => dragonfire());
 $('actDragon').addEventListener('click', () => {
   closeMenus(); if (state.phase !== 'play') return;
@@ -2708,7 +2758,7 @@ function updateObjective() {
   if (beacon.visible) beacon.position.set(go.x, heightAt(go.x, go.z), go.z);
 }
 let currentGoal = null, objectiveGo = null;
-$('objective').addEventListener('click', e => { if (!e.target.closest('#goBtn') || !objectiveGo) return; if (state.riding) flyTo(objectiveGo); else walkTo(objectiveGo); });
+$('objective').addEventListener('click', e => { if (!e.target.closest('#goBtn') || !objectiveGo) return; if (board.on) { board.cx = objectiveGo.x; board.cz = objectiveGo.z; return; } if (state.riding) flyTo(objectiveGo); else walkTo(objectiveGo); });
 const beacon = (() => {   // a pillar of light over the next goal
   const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.2, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xe8c070, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   m.geometry.translate(0, 35, 0); m.visible = false; scene.add(m); return m;
@@ -2769,7 +2819,7 @@ function modeGoal() {
   if (!canAfford(m)) return { text: `Placing a <b>${kindName[m]}</b>: you still need ${needTxt(m)}. ${how}`, target: null };
   if (!near) return { text: `No spot for a <b>${kindName[m]}</b> right now. ${how}. Press ✕ to cancel`, target: null };
   const tgt = m === 'road' ? { x: near.x.mx, z: near.x.mz } : at(near.x);
-  return { text: `Placing a <b>${kindName[m]}</b>: ${spots.length} spot${spots.length > 1 ? 's' : ''} glow gold. Walk close and <b>click the gold marker</b>. ${how}`, target: tgt };
+  return { text: `Placing a <b>${kindName[m]}</b>: ${spots.length} spot${spots.length > 1 ? 's' : ''} glow gold. ${board.on ? '<b>Click a gold marker</b>' : 'Walk close and <b>click the gold marker</b>, or press <b>Board</b> to build from above'}. ${how}`, target: tgt };
 }
 // dangers worth interrupting for
 function dangerGoal() {
@@ -4435,4 +4485,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { edgeSigns, camera, get wyrmFly() { return wyrmFly; }, aiRavenOffer, refreshJoint, challenge, startDuel, toggleTrade, setView, buildHamlet, buildKeep, setWarMap, placeReavers, showWin, setDpad, get ravenOffer() { return ravenOffer; }, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { board, setBoard, edgeSigns, camera, get wyrmFly() { return wyrmFly; }, aiRavenOffer, refreshJoint, challenge, startDuel, toggleTrade, setView, buildHamlet, buildKeep, setWarMap, placeReavers, showWin, setDpad, get ravenOffer() { return ravenOffer; }, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

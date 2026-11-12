@@ -776,6 +776,9 @@
     #modeChip { bottom:auto !important; top:176px !important; z-index:6; }
     #hud:has(#minimap.big) #buildMenu, #hud:has(#minimap.big) #topBtns { display:none !important; }
   }
+  /* board view */
+  #hud.board-on #dpad .dp.up::after, #hud.board-on #dpad .dp::after { content:none; }
+  #hud.board-on #objective { box-shadow:0 0 0 2px var(--violet) !important; }
 </style>
 </head>
 <body>
@@ -824,7 +827,7 @@
     <button class="act" id="actLore" title="Lore Scrolls (L)"><i>📜</i><span>Scrolls</span></button>
     <button class="act" id="actDragon" title="Dragon"><i>🐉</i><span id="actDragonLabel">Dragon</span></button>
     <button class="act fire hidden" id="actFire" title="Dragonfire (G)"><i>🔥</i><span>Fire</span></button>
-    <button class="act" id="actMap" title="War map (M)"><i>🗺️</i><span>Map</span></button>
+    <button class="act" id="actBoard" title="Board view: build from above (B)"><i>👁️</i><span>Board</span></button><button class="act" id="actMap" title="War map (M)"><i>🗺️</i><span>Map</span></button>
     <button class="act" id="actHome" title="Recall to your Hamlet"><i>🏠</i><span>Home</span></button>
   </div>
   <div id="topBtns"><button id="btnHelp" class="tb" title="Help (H)">❓ Help</button><button id="btnGuide" class="tb on" title="Guide on / off">🎓 Guide: ON</button><button id="btnDpad" class="tb" title="Touch D-pad">🎮 D-pad</button><button id="btnView" class="tb" title="Change the camera view">👁️ View: High</button></div>
@@ -924,7 +927,7 @@
       <section><h3>TIME OF DAY</h3>
         🌅 <b>Dawn</b>: next harvest +1 per building<br>🌇 <b>Dusk</b>: Guild 3:1, fair deals accepted<br>🌙 <b>Night</b>: raid rival buildings (steal 1). Owner near → duel · tower → fails</section>
       <section class="wide"><h3>CONTROLS</h3>
-        <b>Drag</b> to look · <b>WASD / arrows / D-pad</b> to walk · <b>click the map</b> to travel · <b>click a gold sign</b> to build · build bar on the left · buttons at the bottom · 🎮 D-pad on touch · 👁️ View changes the camera</section>
+        <b>Drag</b> to look · <b>WASD / arrows / D-pad</b> to walk · <b>Board</b> (B): a top-down view to build from above: drag to pan, scroll or pinch to zoom · <b>click the map</b> to travel · <b>click a gold sign</b> to build · build bar on the left · buttons at the bottom · 🎮 D-pad on touch · 👁️ View changes the camera</section>
     </div>
     <div style="text-align:center;margin-top:10px"><button id="helpClose">GOT IT</button></div>
   </div>

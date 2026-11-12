@@ -405,3 +405,13 @@ The "Next goal" line now works in four layers, in this order:
   - The coach sits above the resource row; resources show icon and count; labelled action seals.
   - Prompts and raven offers hide the coach while they show.
   - Trade, scrolls and help fit the screen width.
+
+## Board view
+A tilted top-down camera over the table, for building without walking. Toggle it with the **Board** seal or the B key.
+- **Moving the view:** drag, WASD, arrows or the D-pad pan the board; the mouse wheel or a pinch zooms; Q/E or ←/→ turn it.
+- **Building:** click any gold marker or plaque, at any distance. Your lord stays where they stood.
+- **Hidden on purpose:** clouds, so nothing blocks the view from above.
+- **Bigger on purpose:** plaques and number tokens, so they read from above.
+- **Coach:** Go centres the board on the goal, and while placing, the coach suggests Board.
+- **Start zoom:** further out on portrait phones.
+- **Leaving it:** riding a dragon (F) leaves board view first.
