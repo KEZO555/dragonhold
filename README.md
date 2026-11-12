@@ -41,7 +41,7 @@ Everything works with the mouse (and touch):
 | Action | How |
 |---|---|
 | Look around | Drag |
-| Walk somewhere | Click the ground, or click the map |
+| Walk somewhere | WASD / arrow keys, the on-screen D-pad, or click the map |
 | Build | Click a **gold** sign (white = you need more resources) |
 | Menus | Bottom buttons: Build · Trade · Scrolls · Dragon · Map · Home |
 | Fly a dragon | Dragon → Ride, click where to fly, 🔥 Fire, Land |

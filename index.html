@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dragonhold: Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=UnifrakturCook:wght@700&family=Alegreya:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;900&family=Cinzel+Decorative:wght@700;900&family=Alegreya+Sans:wght@400;500;700;800&family=Alegreya:ital,wght@0,500;0,700;1,500&display=swap" rel="stylesheet">
 <style>
   :root { --gold:#e9c46a; --ink:#1b1410; --panel:rgba(22,16,12,.78); --line:rgba(233,196,106,.45); }
   * { box-sizing:border-box; }
@@ -227,65 +227,140 @@
   #tollBtn { position:absolute; bottom:290px; left:50%; transform:translateX(-50%); pointer-events:auto; font-size:20px; padding:8px 18px; background:#ffd84a; }
   #tollBtn .muted { font-family:'Nunito',sans-serif; font-size:12px; color:var(--ink); }
 
-  /* ===================== DARK MEDIEVAL ===================== */
-  :root { --bg:#1b1511; --edge:#6e5a3a; --gold:#c9a75a; --gold2:#e3c98a; --bone:#e8dcc0; --blood:#7a1f1a; }
-  html,body { font-family:'Alegreya',Georgia,serif !important; font-weight:500 !important; color:var(--bone) !important; background:#000; }
+  /* ===================== MIDNIGHT & GOLD ===================== */
+  :root { --ink:#e9e1cc; --bg0:#090d16; --bg1:#121a2a; --bg2:#1a2438; --gold:#d9b45f; --gold2:#f3d996; --goldDim:rgba(217,180,95,.45);
+    --text:#ece5d3; --muted:#98a2b6; --red:#c8443a; --green:#5fae6e; --hair:rgba(217,180,95,.28); }
+  html,body { font-family:'Alegreya Sans','Trebuchet MS',sans-serif !important; font-weight:500 !important; color:var(--text) !important; background:#05070c; }
+  b { font-weight:800; color:#fff6dc; }
   .icw { display:inline-block; line-height:0; vertical-align:-0.22em; margin:0 .06em; }
-  .icw svg.ic { width:1.25em; height:1.25em; filter:drop-shadow(0 1px 0 rgba(0,0,0,.6)); }
-  .act i .icw svg.ic { width:30px; height:30px; } #buildMenu .slot i .icw svg.ic { width:30px; height:30px; } .scard .si .icw svg.ic, .hcard .sig .icw svg.ic { width:44px; height:44px; }
-  .panel { background:linear-gradient(180deg, rgba(44,34,26,.95), rgba(22,17,13,.95)) !important; border:2px solid var(--edge) !important; border-radius:4px !important;
-    box-shadow:0 0 0 1px #0b0806, inset 0 0 0 1px rgba(201,167,90,.28), inset 0 0 22px rgba(0,0,0,.55), 0 8px 22px rgba(0,0,0,.7) !important; color:var(--bone) !important; }
-  .title { font-family:'UnifrakturCook','Cinzel',serif !important; font-weight:700 !important; color:var(--gold) !important; -webkit-text-stroke:0 !important;
-    text-shadow:0 3px 0 #000, 0 0 26px rgba(201,120,40,.35) !important; letter-spacing:3px !important; }
-  h1.title { font-size:92px !important; }
-  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; color:var(--gold) !important; letter-spacing:1.5px !important; }
-  #house .name, #house .renown, .res .n, .slot .t, #buildMenu .slot b, .scard .sn, .hcard .hn, #duelScore, .code { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; }
-  #house .name { color:var(--gold) !important; font-size:20px !important; letter-spacing:2px !important; }
-  #house .renown { font-size:24px !important; color:var(--bone) !important; }
-  button { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; background:linear-gradient(#3e3024,#1f1812) !important; color:var(--gold2) !important;
-    border:2px solid var(--edge) !important; border-radius:4px !important; box-shadow:0 3px 0 #000, inset 0 0 0 1px rgba(227,201,138,.18) !important; letter-spacing:1.5px !important; text-shadow:0 1px 0 #000; }
-  button:hover { filter:brightness(1.3) !important; } button:active { transform:translateY(2px) !important; box-shadow:0 1px 0 #000 !important; }
-  .act { color:var(--bone) !important; font-size:12px !important; width:72px !important; height:66px !important; }
-  .act.ready, .tb.on, .slot.active, #buildMenu .slot.active, .pick.sel, .rivals span.sel, .res.flash { background:linear-gradient(#5e4822,#33270f) !important; border-color:var(--gold) !important; }
-  .act.fire { background:linear-gradient(#702818,#3a120a) !important; }
-  .act.poor, .slot.poor { opacity:.5 !important; }
-  .res { background:rgba(0,0,0,.3) !important; border:1px solid rgba(110,90,58,.4) !important; } .res.loss { background:rgba(122,31,26,.65) !important; }
-  .res .n { color:var(--bone) !important; font-size:24px !important; }
-  #announce .big { font-family:'Cinzel',Georgia,serif !important; font-weight:900 !important; font-size:64px !important; color:var(--gold2) !important; -webkit-text-stroke:0 !important;
-    text-shadow:0 3px 0 #000, 0 0 30px rgba(0,0,0,.95), 0 0 60px rgba(120,40,10,.5) !important; transform:none !important; letter-spacing:5px !important; }
-  #announce.show .big { animation:rise .5s ease-out !important; }
-  @keyframes rise { 0% { opacity:0; transform:translateY(12px) scale(.96); } 100% { opacity:1; transform:none; } }
-  #announce .small { background:rgba(18,13,10,.94) !important; color:var(--bone) !important; border:1px solid var(--edge) !important; border-radius:3px !important; box-shadow:0 6px 18px #000 !important; }
-  .overlay { background:radial-gradient(ellipse at center, rgba(24,14,8,.72), rgba(0,0,0,.95)) !important; }
-  .tag { color:#b8a888 !important; font-style:italic; }
-  .muted { color:#a8987a !important; opacity:1 !important; }
-  #objective { background:linear-gradient(180deg, rgba(44,34,26,.96), rgba(22,17,13,.96)) !important; color:var(--bone) !important; }
-  #log div { background:rgba(14,10,8,.82) !important; color:var(--bone) !important; border:1px solid #3a2e20 !important; border-radius:2px !important; }
-  #tip { color:var(--bone) !important; } #tip.ok { background:#1d2617 !important; border-color:#6a8a4a !important; } #tip.bad { background:#291513 !important; border-color:#8a3a2a !important; }
-  #minimap { border:3px solid var(--edge) !important; box-shadow:0 0 0 2px #0b0806, inset 0 0 20px #000, 0 8px 20px #000 !important; }
-  .hcard, .seat, .scard, .cheatgrid section, .pick, #buildMenu .slot { background:rgba(10,8,6,.6) !important; border:1px solid var(--edge) !important; box-shadow:none !important; color:var(--bone) !important; }
-  .hcard.sel { box-shadow:0 0 0 2px var(--hc), 0 0 18px var(--hc) !important; }
-  .seat { border-left:8px solid var(--hc, #555) !important; }
-  #buildMenu .slot:not(.poor) { background:rgba(90,70,32,.5) !important; }
-  .slot .k { background:#120e0b !important; color:var(--gold) !important; border-color:var(--edge) !important; }
-  #harvest .bar { background:#0f0b08 !important; border:1px solid var(--edge) !important; }
-  #harvest .fill { background:linear-gradient(90deg,#6a2a10,#c9a75a) !important; }
-  .code { background:#0f0b08 !important; color:var(--gold2) !important; border:2px solid var(--edge) !important; box-shadow:none !important; }
-  #challengeBtn { background:linear-gradient(#702818,#3a120a) !important; animation:none !important; } #raidBtn { background:linear-gradient(#2c2444,#151024) !important; } #tollBtn { background:linear-gradient(#4a3a1a,#2a200e) !important; }
-  #challengeBtn .muted, #raidBtn .muted, #tollBtn .muted { color:#c8b898 !important; }
-  #scores .row.me { color:var(--gold2) !important; } #scores .row .sw { border:1px solid #000 !important; }
-  #scores { border-top:1px solid rgba(201,167,90,.3) !important; }
-  .online { border-top:1px solid rgba(201,167,90,.3) !important; }
-  .online input { background:#0f0b08 !important; color:var(--bone) !important; border:2px solid var(--edge) !important; border-radius:3px !important; }
-  #duel { background:radial-gradient(ellipse at center, rgba(50,8,6,.4), rgba(10,2,2,.85)) !important; }
-  #duelLog .result.win { color:#9ac07a !important; } #duelLog .result.lose { color:#e07a6a !important; }
+  .icw svg.ic { width:1.25em; height:1.25em; filter:drop-shadow(0 1px 1px rgba(0,0,0,.7)); }
+  .act i .icw svg.ic, #buildMenu .slot i .icw svg.ic { width:28px; height:28px; } .scard .si .icw svg.ic { width:44px; height:44px; }
+
+  /* panels: deep midnight glass with a fine gold rule */
+  .panel { background:linear-gradient(180deg, rgba(26,36,56,.94), rgba(12,17,28,.95)) !important; border:1px solid var(--goldDim) !important; border-radius:12px !important;
+    box-shadow:0 0 0 1px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,236,190,.10), 0 10px 30px rgba(0,0,0,.55) !important; color:var(--text) !important;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .title { font-family:'Cinzel Decorative','Cinzel',serif !important; font-weight:900 !important; -webkit-text-stroke:0 !important; letter-spacing:3px !important;
+    background:linear-gradient(180deg,#fff2c6 0%,#f0cf7c 45%,#b98a35 100%); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    text-shadow:none !important; filter:drop-shadow(0 3px 0 rgba(0,0,0,.65)) drop-shadow(0 0 22px rgba(240,190,90,.25)); transform:none !important; }
+  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag, #buildMenu .bm-title { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; color:var(--gold) !important; letter-spacing:2px !important; text-transform:uppercase; }
+  #house .name, #house .renown, .res .n, .slot .t, #buildMenu .slot b, .scard .sn, .hcard .hn, #duelScore, .code, .act, #duelLog .result { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; }
+  #house .name { color:var(--gold2) !important; font-size:17px !important; letter-spacing:3px !important; }
+  #house .renown { font-size:24px !important; color:#fff !important; letter-spacing:1px !important; }
+  #house .sub, #houseToggle { color:var(--muted) !important; }
+
+  /* buttons */
+  button { font-family:'Cinzel',Georgia,serif !important; font-weight:700 !important; font-size:15px !important; letter-spacing:1.5px !important; text-transform:none;
+    color:var(--gold2) !important; background:linear-gradient(180deg,#24314b,#151d2e) !important; border:1px solid var(--goldDim) !important; border-radius:9px !important;
+    box-shadow:0 2px 0 rgba(0,0,0,.6), inset 0 1px 0 rgba(255,236,190,.12) !important; text-shadow:0 1px 1px #000; transition:filter .15s, transform .1s; padding:9px 20px; }
+  button.small { font-size:13px !important; padding:6px 14px !important; }
+  button:hover { filter:brightness(1.25) !important; border-color:var(--gold) !important; }
+  button:active { transform:translateY(1px) !important; box-shadow:0 1px 0 #000 !important; }
+  button.primary, #lobbyStart, #helpClose, #winBtn, #tradeBtn { color:#1d1408 !important; text-shadow:0 1px 0 rgba(255,240,200,.5) !important;
+    background:linear-gradient(180deg,#f7dc93 0%,#e2b65a 50%,#b8862f 100%) !important; border:1px solid #f9e7b4 !important;
+    box-shadow:0 3px 0 #6e4f18, 0 6px 18px rgba(230,170,60,.25) !important; }
+  button.ghost { background:transparent !important; box-shadow:none !important; border-color:transparent !important; color:var(--muted) !important; }
+  button.ghost:hover { color:var(--gold2) !important; }
+
+  /* bottom action bar + side build bar */
+  .act { color:var(--text) !important; font-size:11px !important; letter-spacing:1px !important; width:70px !important; height:64px !important; border-radius:12px !important; text-transform:uppercase; }
+  .act.ready, .tb.on, .slot.active, #buildMenu .slot.active, .pick.sel, .rivals span.sel, .res.flash {
+    background:linear-gradient(180deg,#4a3b1c,#2a2010) !important; border-color:var(--gold) !important; box-shadow:0 0 0 1px var(--gold), 0 0 14px rgba(217,180,95,.35) !important; color:var(--gold2) !important; }
+  .act.fire { background:linear-gradient(180deg,#7a2a1a,#3e140c) !important; border-color:#e0754a !important; }
+  .act.poor, .slot.poor { opacity:.42 !important; filter:saturate(.4); }
+  #buildMenu { padding:8px !important; }
+  #buildMenu .slot { background:rgba(255,255,255,.035) !important; border:1px solid rgba(217,180,95,.18) !important; border-radius:9px !important; box-shadow:none !important; color:var(--text) !important; }
+  #buildMenu .slot:not(.poor) { background:linear-gradient(90deg, rgba(217,180,95,.16), rgba(217,180,95,.04)) !important; border-color:var(--goldDim) !important; }
+  #buildMenu .slot:hover { filter:brightness(1.2); }
+  #buildMenu .slot b { color:#fff3d4 !important; font-size:14px !important; letter-spacing:1.5px !important; }
+  .slot .k { background:#0b1018 !important; color:var(--gold) !important; border:1px solid var(--goldDim) !important; }
+
+  /* resources */
+  #resources { padding:6px 8px !important; gap:6px !important; }
+  .res { background:rgba(255,255,255,.04) !important; border:1px solid rgba(255,255,255,.06) !important; border-radius:9px !important; }
+  .res .n { color:#fff !important; font-size:22px !important; }
+  .res.loss { background:rgba(200,68,58,.55) !important; border-color:var(--red) !important; }
+
+  /* announcements & text */
+  #announce .big { font-family:'Cinzel',Georgia,serif !important; font-weight:900 !important; font-size:58px !important; letter-spacing:6px !important; -webkit-text-stroke:0 !important;
+    background:linear-gradient(180deg,#fff4cf,#e9c46a 60%,#b98a35); -webkit-background-clip:text; background-clip:text; color:transparent !important;
+    text-shadow:none !important; filter:drop-shadow(0 3px 0 rgba(0,0,0,.8)) drop-shadow(0 0 30px rgba(0,0,0,.9)); transform:none !important; }
+  #announce.show .big { animation:rise .55s cubic-bezier(.2,.9,.3,1) !important; }
+  @keyframes rise { 0% { opacity:0; transform:translateY(14px) scale(.97); } 100% { opacity:1; transform:none; } }
+  #announce .small { background:rgba(12,17,28,.92) !important; color:var(--text) !important; border:1px solid var(--goldDim) !important; border-radius:10px !important;
+    box-shadow:0 8px 24px rgba(0,0,0,.6) !important; font-size:17px !important; padding:6px 18px !important; }
+  .tag { color:#c9c1ad !important; font-family:'Alegreya',Georgia,serif !important; font-style:italic; }
+  .muted { color:var(--muted) !important; opacity:1 !important; }
+  #objective { background:linear-gradient(180deg, rgba(26,36,56,.95), rgba(12,17,28,.95)) !important; color:var(--text) !important; border-color:var(--goldDim) !important; }
+  #log div { background:rgba(9,13,22,.82) !important; color:var(--text) !important; border:1px solid rgba(217,180,95,.15) !important; border-left:3px solid var(--gold) !important; border-radius:6px !important; }
+  #tip { color:var(--text) !important; } #tip.ok { background:rgba(22,44,30,.95) !important; border-color:var(--green) !important; } #tip.bad { background:rgba(52,20,20,.95) !important; border-color:var(--red) !important; }
+  #minimap { border:2px solid var(--gold) !important; background:rgba(10,24,40,.85) !important; box-shadow:0 0 0 4px rgba(9,13,22,.85), 0 0 0 5px var(--goldDim), 0 10px 26px rgba(0,0,0,.6) !important; }
+  #harvest .bar { background:#0a0f19 !important; border:1px solid var(--goldDim) !important; height:8px !important; border-radius:5px !important; }
+  #harvest .fill { background:linear-gradient(90deg,#b8862f,#f3d996) !important; box-shadow:0 0 10px rgba(243,217,150,.5); }
+  #scores { border-top:1px solid var(--hair) !important; }
+  #scores .row.me { color:var(--gold2) !important; } #scores .row .sw { border:1px solid rgba(0,0,0,.6) !important; border-radius:50% !important; }
+  .tb { color:var(--gold2) !important; font-family:'Cinzel',Georgia,serif !important; font-size:11px !important; letter-spacing:1.5px !important; padding:6px 12px !important; }
+  #modeChip { background:linear-gradient(180deg,#4a3b1c,#2a2010) !important; color:var(--gold2) !important; border:1px solid var(--gold) !important; box-shadow:0 0 16px rgba(217,180,95,.3) !important; }
+  #raven { background:linear-gradient(180deg, rgba(26,36,56,.96), rgba(12,17,28,.96)) !important; }
+  #challengeBtn, #raidBtn, #tollBtn { animation:none !important; }
+  #challengeBtn { background:linear-gradient(180deg,#8a2e22,#4a140e) !important; border-color:#e0754a !important; }
+  #raidBtn { background:linear-gradient(180deg,#38306a,#1a1638) !important; border-color:#9d8ff0 !important; }
+  #tollBtn { background:linear-gradient(180deg,#4a3b1c,#2a2010) !important; }
+  #challengeBtn .muted, #raidBtn .muted, #tollBtn .muted { color:#d8d0bc !important; font-family:'Alegreya Sans',sans-serif !important; }
+  .dp { background:rgba(18,26,42,.88) !important; color:var(--gold2) !important; border-radius:50% !important; } .dp.held { background:#4a3b1c !important; border-color:var(--gold) !important; }
+
+  /* overlays & cards */
+  .overlay { background:radial-gradient(ellipse at center, rgba(12,18,32,.72), rgba(4,6,12,.95)) !important; }
+  .hcard, .seat, .scard, .cheatgrid section, .pick { background:rgba(255,255,255,.035) !important; border:1px solid rgba(217,180,95,.2) !important; box-shadow:none !important; color:var(--text) !important; border-radius:10px !important; }
+  .seat { border-left:6px solid var(--hc, #556) !important; }
+  .code { background:#0b1018 !important; color:var(--gold2) !important; border:1px solid var(--gold) !important; box-shadow:none !important; letter-spacing:4px !important; }
+  .online input, #netName, #joinCode { font-family:'Alegreya Sans',sans-serif !important; font-weight:700; background:#0b1018 !important; color:var(--text) !important;
+    border:1px solid var(--goldDim) !important; border-radius:9px !important; padding:8px 12px !important; outline:none; }
+  .online input:focus { border-color:var(--gold) !important; box-shadow:0 0 0 3px rgba(217,180,95,.18); }
+  #duel { background:radial-gradient(ellipse at center, rgba(60,12,10,.45), rgba(6,4,8,.9)) !important; }
+  #duelLog .result.win { color:#8fd49c !important; } #duelLog .result.lose { color:#f0897c !important; }
   #duelScore .pips { color:var(--gold) !important; }
-  .dp { background:rgba(28,22,17,.88) !important; color:var(--gold) !important; } .dp.held { background:#5e4822 !important; }
   .st { box-shadow:none !important; padding:0 8px !important; }
   #tradeTable b.on { color:var(--gold2) !important; }
-  #raven { background:linear-gradient(180deg, rgba(44,34,26,.96), rgba(22,17,13,.96)) !important; }
-  #modeChip { background:linear-gradient(#5e4822,#33270f) !important; color:var(--gold2) !important; border:2px solid var(--gold) !important; box-shadow:0 3px 0 #000 !important; }
-  .tb { color:var(--gold2) !important; font-family:'Cinzel',Georgia,serif !important; font-size:12px !important; }
+  #tradeTable tr + tr td { border-top:1px solid rgba(255,255,255,.05); }
+
+  /* ---------- start screen ---------- */
+  #start { justify-content:flex-start !important; align-items:center;
+    background:linear-gradient(90deg, rgba(5,8,14,.94) 0%, rgba(5,8,14,.82) 38%, rgba(5,8,14,.25) 75%, rgba(5,8,14,.05) 100%),
+               radial-gradient(ellipse at 70% 110%, rgba(220,120,40,.18), transparent 60%) !important; }
+  .startWrap { width:min(560px,92vw); margin-left:max(4vw, 20px); max-height:96vh; overflow:auto; padding:12px 4px; scrollbar-width:none; }
+  .brand { text-align:center; margin-bottom:14px; }
+  .brandMark { font-size:40px; line-height:1; } .brandMark .icw svg.ic { width:58px; height:58px; filter:drop-shadow(0 0 14px rgba(240,180,80,.45)); }
+  #start h1.title { font-size:clamp(38px,5vw,60px) !important; margin:0; letter-spacing:2px !important; white-space:nowrap; }
+  .rule { display:flex; align-items:center; gap:10px; color:var(--gold); font-size:10px; margin:2px auto 8px; width:70%; }
+  .rule span { flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  #start .tag { margin:0; font-size:17px; line-height:1.4; }
+  .startCard { max-width:none !important; padding:18px 20px 12px !important; text-align:center; }
+  .step { font-family:'Cinzel',Georgia,serif; font-weight:700; color:var(--gold); letter-spacing:3px; font-size:13px; text-transform:uppercase; margin:0 0 10px; }
+  .houses { grid-template-columns:1fr 1fr !important; gap:8px !important; margin:0 0 12px !important; }
+  .hcard { display:grid; grid-template-columns:52px 1fr; grid-template-rows:auto auto; align-items:center; text-align:left; padding:8px 10px !important; cursor:pointer; transition:transform .15s, box-shadow .15s, background .15s !important; }
+  .hcard .sig { grid-row:1 / span 2; text-align:center; } .hcard .sig .icw svg.ic { width:40px; height:40px; }
+  .hcard .hn { color:var(--hc) !important; font-size:15px !important; letter-spacing:1px; margin:0 !important; filter:brightness(1.35); }
+  .hcard .hd { font-size:12px !important; line-height:1.3; color:#b9b3a3; opacity:1 !important; }
+  .hcard:hover { background:rgba(255,255,255,.07) !important; transform:translateY(-1px); }
+  .hcard.sel { background:linear-gradient(90deg, color-mix(in srgb, var(--hc) 30%, transparent), rgba(255,255,255,.03)) !important; border-color:var(--hc) !important;
+    box-shadow:0 0 0 1px var(--hc), 0 0 18px color-mix(in srgb, var(--hc) 45%, transparent) !important; transform:none !important; }
+  .rivals { margin:0 0 14px !important; font-size:14px !important; color:var(--muted); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .rivals em { font-style:normal; margin-right:6px; letter-spacing:1px; }
+  .rivals span { width:36px !important; height:32px; line-height:30px; padding:0 !important; margin:0 !important; border:1px solid var(--goldDim) !important; border-radius:8px !important;
+    background:rgba(255,255,255,.04) !important; box-shadow:none !important; color:var(--text) !important; font-family:'Cinzel',serif !important; font-size:15px !important; cursor:pointer; }
+  #startBtn { width:100%; font-size:20px !important; padding:13px 0 !important; letter-spacing:3px !important; border-radius:11px !important; }
+  .online { margin-top:16px !important; padding-top:14px !important; border-top:1px solid var(--hair) !important; }
+  .online #netName { width:100%; margin-bottom:8px; }
+  .onlineRow { display:flex; gap:6px; align-items:center; }
+  .onlineRow #joinCode { flex:1; min-width:0; width:auto !important; }
+  .onlineRow .or { color:var(--muted); font-size:13px; }
+  #netStatus { margin-top:6px; min-height:16px; font-size:13px; }
+  #startHelp { margin-top:8px; }
+  @media (max-width:760px) { #start { justify-content:center !important; background:rgba(5,8,14,.86) !important; } .startWrap { margin:0 auto; } .hcard .hd { display:none; } }
+  .dp { font-size:24px !important; padding:0 !important; } #duelMoves button { font-size:19px !important; } .st { font-size:16px !important; }
+  #challengeBtn, #raidBtn, #tollBtn { font-size:16px !important; padding:8px 18px !important; } #hurryBtn { font-size:13px !important; padding:4px 14px !important; }
+  #objective .go { font-size:13px !important; padding:3px 10px !important; }
 </style>
 </head>
 <body>
@@ -343,43 +418,30 @@
 </div>
 
 <div id="start" class="overlay">
-  <div class="card panel">
-    <h1 class="title">DRAGONHOLD</h1>
-    <div class="tag">The volcano sleeps. The houses gather. Claim the Isles of Embervale.</div>
-    <div class="cols">
-      <div>
-        <h3>HOW TO PLAY</h3>
-        From the <b>war table</b> pick where to found <b>2 Hamlets</b> with a wall each, for free. This is your only look at the whole isle: once you land, <b>mist</b> hides everything you haven't explored.<br>
-        Every <b>30–60 seconds</b> (never quite the same) the Harvest Horn sounds and the <b>Rune Stones</b> are cast <b>twice</b>. Regions whose banner shows that number produce for every Hamlet (1) or Keep (2) on their corners.<br>
-        A <b>7</b> brings a <b>Reaver Raid</b>: hold more than 7 and you lose half.<br>
-        Race up to 3 AI houses (they walk the isles too) to <b>12 Renown</b>.
-      </div>
-      <div>
-        <h3>BUILD</h3>
-        <b>Wall</b>: 🌲 🪨<br>
-        <b>Hamlet</b> (1★): 🌲 🪨 🌾 🐄<br>
-        <b>Keep</b> (2★, upgrade): 🌾🌾 🔥🔥🔥<br>
-        <b>Great Wall</b> (+2★): 5+ connected walls<br>
-        <b>Dragons</b>: Roost 🪨🪨🔥🔥🌲 on a Keep → fetch an egg from the volcano → feed it → ride, Dragonfire, Dragon's Eye<br>
-        <b>Merchant Guild</b>: trade 4 → 1 · <b>Ravens</b>: 1:1 with houses<br>
-        <b>Lore Scroll</b>: 🌾 🐄 🔥 (Sellswords, secret Renown, free walls…)<br>
-        <span class="muted">Hamlets go on corners where regions meet, never next to another Hamlet. Walls go on edges.</span>
-      </div>
+  <div class="startWrap">
+    <div class="brand">
+      <h1 class="title">Dragonhold</h1>
+      <div class="rule"><span></span>◆<span></span></div>
+      <div class="tag">The volcano sleeps. The houses gather.<br>Claim the Isles of Embervale.</div>
     </div>
-    <h3 style="color:var(--gold);letter-spacing:1px;margin:4px 0 8px;font-size:15px">CHOOSE YOUR HOUSE</h3>
-    <div id="housePick" class="houses"></div>
-    <div id="rivalPick" class="rivals">AI rival houses: <span data-n="1">1</span><span data-n="2">2</span><span data-n="3" class="sel">3</span></div>
-    <button id="startBtn">PLAY VS AI</button>
-    <div class="online">
-      <h3>PLAY ONLINE WITH FRIENDS</h3>
-      <input id="netName" placeholder="Your name" maxlength="16">
-      <button id="createBtn" class="small">CREATE GAME</button>
-      <span class="muted" style="margin:0 6px">or</span>
-      <input id="joinCode" placeholder="CODE (e.g. WOLF-42)" maxlength="9" style="width:150px;text-transform:uppercase">
-      <button id="joinBtn" class="small">JOIN</button>
-      <div id="netStatus" class="muted" style="margin-top:6px;min-height:18px"></div>
+    <div class="card panel startCard">
+      <div class="step">Choose your house</div>
+      <div id="housePick" class="houses"></div>
+      <div id="rivalPick" class="rivals"><em>AI rivals</em><span data-n="1">1</span><span data-n="2">2</span><span data-n="3" class="sel">3</span></div>
+      <button id="startBtn" class="primary">⚔️ Play vs AI</button>
+      <div class="online">
+        <div class="step">Play online with friends</div>
+        <input id="netName" placeholder="Your name" maxlength="16">
+        <div class="onlineRow">
+          <button id="createBtn" class="small">Create game</button>
+          <span class="or">or</span>
+          <input id="joinCode" placeholder="CODE (WOLF-42)" maxlength="9" style="text-transform:uppercase">
+          <button id="joinBtn" class="small">Join</button>
+        </div>
+        <div id="netStatus" class="muted"></div>
+      </div>
+      <button id="startHelp" class="small ghost">❓ How to play</button>
     </div>
-    <p class="muted">Prototype · Milestone 1: “Walk the Isles”. AI rivals and dragons come in the next milestones.</p>
   </div>
 </div>
 
@@ -446,7 +508,7 @@
       <section><h3>TIME OF DAY</h3>
         🌅 <b>Dawn</b>: next harvest +1 per building<br>🌇 <b>Dusk</b>: Guild 3:1, fair deals accepted<br>🌙 <b>Night</b>: raid rival buildings (steal 1). Owner near → duel · tower → fails</section>
       <section class="wide"><h3>CONTROLS</h3>
-        <b>Drag</b> to look · <b>click</b> the ground or map to walk · <b>click a gold sign</b> to build · build bar on the left · buttons at the bottom · WASD / arrows · 🎮 D-pad on touch · 👁️ View changes the camera</section>
+        <b>Drag</b> to look · <b>WASD / arrows / D-pad</b> to walk · <b>click the map</b> to travel · <b>click a gold sign</b> to build · build bar on the left · buttons at the bottom · 🎮 D-pad on touch · 👁️ View changes the camera</section>
     </div>
     <div style="text-align:center;margin-top:10px"><button id="helpClose">GOT IT</button></div>
   </div>

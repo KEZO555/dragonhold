@@ -166,12 +166,12 @@ const RES = {
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Pinewild',   color: 0x2f5a2c, mini: '#34552e' },
-  stone:  { name: 'Greyquarry', color: 0x6f6a62, mini: '#77716a' },
-  wheat:  { name: 'Goldfield',  color: 0xa8893a, mini: '#a8893f' },
-  cattle: { name: 'Highmoor',   color: 0x5f7f3e, mini: '#5f7b42' },
-  ember:  { name: 'Ashvent',    color: 0x2e2624, mini: '#3a2c28' },
-  cradle: { name: 'The Cradle', color: 0x3e3430, mini: '#4a3a34' },
+  timber: { name: 'Pinewild',   color: 0x2e6b35, mini: '#2f6a38' },
+  stone:  { name: 'Greyquarry', color: 0x8a8782, mini: '#8c8a86' },
+  wheat:  { name: 'Goldfield',  color: 0xd2a945, mini: '#d0a848' },
+  cattle: { name: 'Highmoor',   color: 0x74a44a, mini: '#76a24c' },
+  ember:  { name: 'Ashvent',    color: 0x4a2c26, mini: '#5a3028' },
+  cradle: { name: 'The Cradle', color: 0x4e3a34, mini: '#5a4038' },
 };
 const HOUSES = {
   varn:   { key: 'varn',   name: 'House Varn',   sigil: '🐺', color: 0x8e2420, css: '#b0362c', style: 'nordic', desc: 'Wolves of the north. Turf-roofed longhouses, timber halls behind palisades.' },
@@ -336,11 +336,13 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       edge *= 1.0 - smoothstep(fadeNear, fadeFar, d0);          // lines fade into the mist
       // comic colour: a little extra saturation + halftone dots in the deep shadows
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
-      col = mix(vec3(lum), col, 0.86);                                   // muted, earthy
-      col = mix(col, col * vec3(1.04, 0.98, 0.9), 0.5);                 // a touch of sepia
-      col = mix(col, vec3(0.05, 0.035, 0.03), edge * 0.85);             // woodcut ink lines
-      float vig = smoothstep(0.35, 0.95, length((vUv - 0.5) * vec2(1.15, 1.0)));
-      col *= 1.0 - 0.5 * vig;                                           // dark vignette
+      col = mix(vec3(lum), col, 1.14);                                   // rich, painterly colour
+      col = clamp(col, 0.0, 1.0);
+      col = col * col * (3.0 - 2.0 * col) * 0.35 + col * 0.65;           // gentle filmic contrast
+      col = mix(col, col * vec3(1.03, 1.0, 0.97), smoothstep(0.4, 0.9, lum));   // warm highlights
+      col = mix(col, vec3(0.04, 0.05, 0.08), edge * 0.75);              // ink lines
+      float vig = smoothstep(0.45, 1.05, length((vUv - 0.5) * vec2(1.15, 1.0)));
+      col *= 1.0 - 0.32 * vig;                                          // soft vignette
       gl_FragColor = vec4(col, 1.0);
       #include <colorspace_fragment>
     }`,
@@ -544,14 +546,14 @@ const lavaLight = new THREE.PointLight(0xff6a20, 400, 70, 2);
 function bannerTexture(num, icon) {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d');
-  g.fillStyle = '#2a2016'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.fillStyle = '#1a2438'; g.beginPath(); g.roundRect(28, 2, 72, 52, 10); g.fill(); g.lineWidth = 6; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(33, 7, 62, 42, 7); g.stroke();
   g.font = '34px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(icon || '', 64, 29);
-  g.fillStyle = '#d6c49a'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
-  g.lineWidth = 10; g.strokeStyle = '#0d0a08'; g.stroke();
-  g.lineWidth = 3; g.strokeStyle = '#8a6a2a'; g.beginPath(); g.arc(64, 114, 47, 0, Math.PI * 2); g.stroke();
+  g.fillStyle = '#f1e7cc'; g.beginPath(); g.arc(64, 114, 56, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 10; g.strokeStyle = '#070a12'; g.stroke();
+  g.lineWidth = 3; g.strokeStyle = '#c9a24e'; g.beginPath(); g.arc(64, 114, 47, 0, Math.PI * 2); g.stroke();
   const red = num === 6 || num === 8;
-  g.fillStyle = red ? '#8e1f18' : '#1e140c'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
+  g.fillStyle = red ? '#a3221a' : '#141c2c'; g.font = "bold 56px Cinzel, 'Cinzel Decorative', Georgia, serif";
   g.fillText(String(num), 64, 108);
   const pips = 6 - Math.abs(7 - num);
   for (let i = 0; i < pips; i++) { g.beginPath(); g.arc(64 + (i - (pips - 1) / 2) * 11, 150, 4, 0, Math.PI * 2); g.fill(); }
@@ -567,9 +569,9 @@ for (const t of tiles) {
 }
 
 // comic caption textures for labels in the world
-function labelTexture(text, bg = '#1e1712', fg = '#e3c98a') {
+function labelTexture(text, bg = '#141c2c', fg = '#e3c98a') {
   const cv = document.createElement('canvas'); cv.width = 512; cv.height = 100; const g = cv.getContext('2d');
-  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 10); g.fill(); g.lineWidth = 7; g.strokeStyle = '#0d0a08'; g.stroke();
+  g.fillStyle = bg; g.beginPath(); g.roundRect(6, 6, 500, 88, 10); g.fill(); g.lineWidth = 7; g.strokeStyle = '#070a12'; g.stroke();
   g.lineWidth = 2; g.strokeStyle = '#c9a75a'; g.beginPath(); g.roundRect(13, 13, 486, 74, 6); g.stroke();
   g.fillStyle = fg; g.font = "bold 38px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 54);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
@@ -579,7 +581,7 @@ const floats = [];
 function floatText(text, x, y, z, color = '#e8dcc0') {
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96; const g = cv.getContext('2d');
   g.font = "bold 52px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineWidth = 10; g.strokeStyle = '#0d0a08'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
+  g.lineWidth = 10; g.strokeStyle = '#070a12'; g.strokeText(text, 128, 50); g.fillStyle = color; g.fillText(text, 128, 50);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, depthTest: false, transparent: true }));
   s.scale.set(7, 2.6, 1); s.position.set(x, y, z); s.renderOrder = 10; scene.add(s);
@@ -1681,7 +1683,7 @@ function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   const egg = makeEgg(); egg.scale.set(0.45, 0.62, 0.45); egg.position.set(0, 1.8, 0); egg.visible = false; rider.add(egg);
   // name plaque
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 72; const x = cv.getContext('2d');
-  x.fillStyle = '#1e1712'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#0d0a08'; x.stroke();
+  x.fillStyle = '#141c2c'; x.beginPath(); x.roundRect(4, 4, 312, 64, 8); x.fill(); x.lineWidth = 5; x.strokeStyle = '#070a12'; x.stroke();
   x.lineWidth = 2; x.strokeStyle = h.css; x.beginPath(); x.roundRect(10, 10, 300, 52, 5); x.stroke();
   x.fillStyle = '#e3c98a'; x.font = "bold 28px Cinzel, Georgia, serif"; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(label, 160, 38);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
@@ -1889,19 +1891,17 @@ function tapAt(sx, sy) {
   if (state.paused || state.phase !== 'play') return;
   closeMenus();
   const hit = groundAt(sx, sy);
-  if (state.riding) { if (hit) flyTo(hit); return; }
-  if (!hit) return;
+  if (!hit || state.riding) return;   // tapping the ground never moves you: walk with WASD / arrows / D-pad
   // an egg in the Cradle?
   const egg = cradleEggs.find(e => !e.taken && Math.hypot(e.x - hit.x, e.z - hit.z) < 4);
-  if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else walkTo({ x: egg.x * 0.8, z: egg.z * 0.8 }); return; }
+  if (egg) { if (Math.hypot(egg.x - player.pos.x, egg.z - player.pos.z) < 6) tryEgg(); else log('🥚 Get closer to the egg first'); return; }
   const rb = isNight() && corners.find(c => c.building && c.building.owner !== P && Math.hypot(c.x - hit.x, c.z - hit.z) < 5);
-  if (rb) { if (Math.hypot(rb.x - player.pos.x, rb.z - player.pos.z) < RAID_RANGE) tryRaid(rb); else walkTo(at(rb)); return; }
+  if (rb) { if (Math.hypot(rb.x - player.pos.x, rb.z - player.pos.z) < RAID_RANGE) tryRaid(rb); else log('🌙 Get closer to raid it'); return; }
   const foe = players.find(p => p.id !== P && p.avatar && p.avatar.visible && Math.hypot(p.pos.x - hit.x, p.pos.z - hit.z) < 3.5);
-  if (foe) { if (Math.hypot(foe.pos.x - player.pos.x, foe.pos.z - player.pos.z) < DUEL_RANGE) challenge(foe.id); else walkTo({ x: foe.pos.x, z: foe.pos.z }); return; }
+  if (foe) { if (Math.hypot(foe.pos.x - player.pos.x, foe.pos.z - player.pos.z) < DUEL_RANGE) challenge(foe.id); else log('⚔️ Ride closer to challenge them'); return; }
   const tgt = hit.d < 120 ? targetNear(hit) : null;
   if (tgt && !tgt.problem) { currentTarget = tgt; tryBuild(tgt); return; }   // gold sign: build it
   if (tgt && state.mode) { log('⚠️ ' + tgt.problem); sfx('bad'); return; }   // placing something: explain why not
-  walkTo(hit);   // anything else: walk there
 }
 // click-to-move (and click-to-fly)
 const destMarker = (() => {
@@ -2116,17 +2116,17 @@ function showTarget(best, tip) {
 // WHITE  = allowed here, but you need more resources
 // FAINT  = a future Hamlet plot: lay one more road to reach it
 const signGold = new THREE.MeshBasicMaterial({ color: 0xd8b060, transparent: true, opacity: 0.95 });
-const signWhite = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
+const signWhite = new THREE.MeshBasicMaterial({ color: 0xd4dcea, transparent: true, opacity: 0.38 });
 const signFaint = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false });
 const signCloth = { gold: mat(0xe0a020), white: mat(0xd8d2c4) };
 function signTexture(icon, title, cost, ok) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = ok ? '#2e2214' : 'rgba(22,17,13,.82)';
+  g.fillStyle = ok ? '#22304a' : 'rgba(14,20,32,.82)';
   g.beginPath(); g.roundRect(8, 8, 304, 112, 10); g.fill();
-  g.lineWidth = 7; g.strokeStyle = '#0d0a08'; g.stroke();
-  g.lineWidth = 3; g.strokeStyle = ok ? '#c9a75a' : '#5a4a32'; g.beginPath(); g.roundRect(15, 15, 290, 98, 6); g.stroke();
+  g.lineWidth = 7; g.strokeStyle = '#070a12'; g.stroke();
+  g.lineWidth = 3; g.strokeStyle = ok ? '#c9a75a' : '#4a5468'; g.beginPath(); g.roundRect(15, 15, 290, 98, 6); g.stroke();
   g.font = '64px serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(icon, 66, 66);
-  g.textAlign = 'left'; g.fillStyle = ok ? '#e3c98a' : '#9a8a6a'; g.font = "bold 34px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.fillText(title, 118, 46);
+  g.textAlign = 'left'; g.fillStyle = ok ? '#e3c98a' : '#9aa2b2'; g.font = "bold 34px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.fillText(title, 118, 46);
   g.font = '28px serif'; g.fillText(cost, 118, 92);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
@@ -2234,6 +2234,7 @@ function setGuide(on) {
 }
 $('btnGuide').addEventListener('click', () => setGuide(!guideOn));
 $('btnHelp').addEventListener('click', () => $('helpOverlay').classList.remove('hidden'));
+$('startHelp').addEventListener('click', () => $('helpOverlay').classList.remove('hidden'));
 $('helpClose').addEventListener('click', () => $('helpOverlay').classList.add('hidden'));
 setGuide(guideOn);
 $('goal').textContent = GOAL;
@@ -3088,15 +3089,15 @@ function dragonStatus() {
 const C = h => new THREE.Color(h);
 // t, sky top, horizon, sun colour, sun intensity, hemi sky, hemi ground, hemi intensity, water
 const DAYKEYS = [
-  [0.00, 0x3a4058, 0xa8765a, 0xd8955a, 1.1, 0x8a92a8, 0x3a3026, 0.8, 0x22404c],   // dawn
-  [0.10, 0x4a6280, 0xb4ae9e, 0xe8d6b0, 2.0, 0x9aa8b8, 0x3a3026, 1.0, 0x2b4a58],    // morning
-  [0.36, 0x4e6a88, 0xbcb8ac, 0xf0e2c4, 2.3, 0xa8b4c0, 0x3e3428, 1.1, 0x2e5262],    // noon
-  [0.64, 0x465a78, 0xb8a48a, 0xe8c890, 2.0, 0x9aa4b4, 0x3a3026, 1.0, 0x2b4a58],   // afternoon
-  [0.76, 0x2a2840, 0xa04a2a, 0xd86a36, 1.1, 0x7a6e90, 0x2e241c, 0.8, 0x1e3646],   // sunset
-  [0.81, 0x141626, 0x443044, 0x7480a8, 0.6, 0x55608a, 0x221e1c, 0.75, 0x122634],   // twilight
-  [0.90, 0x05070e, 0x121826, 0x8a9ac8, 0.65, 0x4a5480, 0x1e1c22, 0.75, 0x0a1824],    // midnight
-  [0.97, 0x141626, 0x3e3048, 0x7480a8, 0.6, 0x55608a, 0x221e1c, 0.75, 0x122634],   // before dawn
-  [1.00, 0x3a4058, 0xa8765a, 0xd8955a, 1.1, 0x8a92a8, 0x3a3026, 0.8, 0x22404c],
+  [0.00, 0x3a5080, 0xf0a878, 0xffb070, 1.3, 0xb0b8d0, 0x4a3a2c, 0.9, 0x2a5a78],   // dawn
+  [0.10, 0x3a72b8, 0xcfe0ec, 0xfff0d0, 2.4, 0xc4d6ea, 0x564630, 1.1, 0x2a6c8c],   // morning
+  [0.36, 0x2f6cbc, 0xd6e6f2, 0xfff6e0, 2.7, 0xcadcee, 0x5a4a34, 1.2, 0x2a7294],   // noon
+  [0.64, 0x3a6aae, 0xe6dcc6, 0xffe2b0, 2.4, 0xc4d0e0, 0x564630, 1.1, 0x2a6a8a],   // afternoon
+  [0.76, 0x2e3a78, 0xf08a50, 0xff9a50, 1.5, 0xb09ab8, 0x4a3426, 0.95, 0x24506e],  // sunset
+  [0.81, 0x161c3c, 0x6a4a78, 0x8a98d0, 0.75, 0x6a74a8, 0x2a2630, 0.85, 0x16304a],  // twilight
+  [0.90, 0x070c1e, 0x1a2644, 0x9aaee0, 0.8, 0x5a68a0, 0x22242e, 0.85, 0x0e2236],   // midnight
+  [0.97, 0x161c3c, 0x5a4470, 0x8a98d0, 0.75, 0x6a74a8, 0x2a2630, 0.85, 0x16304a],  // before dawn
+  [1.00, 0x3a5080, 0xf0a878, 0xffb070, 1.3, 0xb0b8d0, 0x4a3a2c, 0.9, 0x2a5a78],
 ];
 const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();

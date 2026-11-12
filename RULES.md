@@ -68,6 +68,6 @@
   - Owner's Scorpion Tower there → **raid fails**.
 
 ## Controls
-- **Drag** to look · **click the ground or the map** to walk · **click a gold sign** to build
+- **Drag** to look · **WASD / arrows / D-pad** to walk · **click the map** to travel · **click a gold sign** to build
 - **Build bar** on the left · **bottom buttons**: Trade, Scrolls, Dragon, Map, Home
 - **Keys:** WASD / arrows to walk · 🎮 **D-pad** on touch screens · 👁️ **View** switches the camera
