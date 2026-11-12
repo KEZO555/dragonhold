@@ -316,3 +316,48 @@ The files are in `docs/design/batch1/`: the notes, the contact sheet, 58 icons, 
 - **Houses:** new descriptions, and House Ashby's sigil is now the eclipse.
 - **Text:** flavour lines for every resource (tooltips on the resource pills) and terrain.
 - **Naming decisions accepted:** Hamlet / Keep stay, the goal stays 12 Renown, the dice are the Rune Stones, and the hurry button reads "Cast the stones".
+
+## The game is now called **Kingdom of Dragons**
+The repository and server keep the old `dragonhold` name. The cathedral on the horizon is still "the Hold".
+
+## Design hand-off v2 (batch 2, in the game)
+The files are in `docs/design/batch2/`, and `docs/design/DRAGONHOLD_DESIGN.md` is the v2 spec ("sharper and more medieval").
+- **Rendering:**
+  - The ink edge is each shape's own colour darkened by half, not a black outline.
+  - Granulation is 85–100%, wobble is slight and nothing is blurred.
+  - The atmospheric fade toward the fog colour is capped at 40%; only the far horizon dissolves.
+  - Only ember gold glows.
+- **Time of day:** six keyframes from `look/time-of-day.json` (dawn, day, afternoon, dusk, night, deep night).
+  - The scene tint drives the light, so tokens, plaques and banners (sprites) stay full bone-white at night.
+  - The fog colour, ember glow, mist opacity and stars follow the keyframes.
+- **UI kit:**
+  - Square plaques with double ink rules, with dried-rose diamonds on the big panels.
+  - Grenze Gotisch for titles and house names; announcements in title case.
+  - Round wax-seal icon buttons for the top buttons and actions.
+  - An ink bar on the wall with the resource chips (icon, name, count).
+  - A gothic arch frame with dried-rose quatrefoils, and a crenellated wall at the bottom.
+  - The new start screen and wordmark.
+- **Lore Scroll cards:** the card art and the card back in the scrolls panel.
+- **Sprites:** ravens and moths (two frames each), smoke puffs, mist, the build marker (ember = can build now, bone = can't afford yet, faint = a future spot) and the destination marker. The build plaque uses the `.tag` style.
+- **Models** (MODELS.md):
+  - The Hamlet (tower with spire, chapel with bell-cote, headstones) and the Keep (nave, central and side spires, flying buttresses, rose window), built at 0.8 scale to sit between the walls.
+  - Walls with iron-spiked merlons, buttresses and end towers; gates with a rising portcullis; round corner towers with cone caps.
+  - The Roost as a bone ribcage, the Scorpion Tower, and the egg.
+  - Per-house details: Varn crossed beams, Calder antlers, Morrow twisted spires and a chapel on stilts, Ashby domes. Knights get a matching helm crest, ink horses and violet armour.
+  - Terrain props:
+    - three dead-tree variants and stumps
+    - barrows with doorways, plus a stone circle
+    - wheat ears, a mill and a scarecrow
+    - bushes hung with cocoons
+    - crag clusters
+    - the volcano's broken crown
+    - shore rocks
+- **Walls:** `WALL_TRIM` is now 6.5 m, so the bigger buildings fit between the walls.
+- **Not done yet:**
+  - the awake, flying Wyrm animation
+  - Dragonfire scorch decals
+  - the Rune Stones' arc and tumble
+  - the building ink splash
+  - night rim light on riders
+  - wrecks on the shore
+  - the fixed wall-view camera

@@ -1,4 +1,4 @@
-# Dragonhold: Rules Cheat Sheet
+# Kingdom of Dragons: Rules Cheat Sheet
 
 **Goal:** be the first house to reach **12 Renown ★**.
 

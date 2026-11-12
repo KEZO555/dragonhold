@@ -304,7 +304,7 @@ renderer.shadowMap.enabled = false;   // flat washes: no realistic shadows
 renderer.shadowMap.type = THREE.PCFShadowMap;   // crisp, cel-style shadows
 const scene = new THREE.Scene();
 const FOG = PAL.mist;
-scene.fog = new THREE.Fog(FOG, 140, 760);
+scene.fog = new THREE.Fog(FOG, 1e5, 2e5);   // atmospheric fade is done in the post-process (capped at 40%)
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.3, 2500);
 camera.rotation.order = 'YXZ';
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); resizeInk(); });
@@ -327,14 +327,14 @@ inkRT.depthTexture = new THREE.DepthTexture(1, 1); inkRT.depthTexture.type = THR
 const inkU = {
   tColor: { value: inkRT.texture }, tDepth: { value: inkRT.depthTexture }, res: { value: new THREE.Vector2(1, 1) },
   near: { value: 0.3 }, far: { value: 2500 }, fadeNear: { value: 200 }, fadeFar: { value: 600 }, px: { value: 1 }, dpr: { value: 1 },
-  invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() }, paper: { value: new THREE.Color(PAL.bone) },
+  invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() }, paper: { value: new THREE.Color(PAL.bone) }, fogCol: { value: new THREE.Color(PAL.mist) }, emberK: { value: 0.3 },
 };
 const inkScene = new THREE.Scene(), inkCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: inkU, depthTest: false, depthWrite: false,
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `#include <packing>
-    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px, dpr; uniform mat4 invProj, camWorld; uniform vec3 paper; varying vec2 vUv;
+    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px, dpr; uniform mat4 invProj, camWorld; uniform vec3 paper, fogCol; uniform float emberK; varying vec2 vUv;
     float D(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, near, far); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -362,19 +362,21 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       float inkLine = max(smoothstep(0.03, 0.07, jump), smoothstep(0.012, 0.03, crease) * 0.6) * (1.0 - smoothstep(fadeNear * 0.8, fadeFar, d0));
       // 3. granulation, anchored in the world so it does not swim; paper shows through the wash
       float z = texture2D(tDepth, uv).x, g;
-      if (z < 0.99999) { vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.32 + w.y * 0.18); }
-      else g = fbm(sc * 0.003 + 5.0);
-      float a = clamp(1.1 * g + 0.55, 0.86, 1.0);
+      if (z < 0.99999) {
+        vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.32 + w.y * 0.18);
+        col = mix(col, fogCol, max(0.4 * smoothstep(60.0, 460.0, d0), smoothstep(700.0, 1350.0, d0)));   // fade capped at 40%; the far horizon dissolves
+      } else g = fbm(sc * 0.003 + 5.0);
+      float a = clamp(0.8 * g + 0.6, 0.85, 1.0);
       col = pow(mix(pow(paper, vec3(0.4545)), pow(max(col, 0.0), vec3(0.4545)), a), vec3(2.2));   // mixed like pigment on paper, not in linear light
       // 4. light is rare: only ember-gold things glow
       vec3 glow = vec3(0.0); vec2 gr = px1 * 4.0 * px;
       for (int i = 0; i < 8; i++) { float an = float(i) * 0.785398 + 0.3; vec2 dv = vec2(cos(an), sin(an)) * gr;
         for (int k = 1; k <= 2; k++) { vec3 sm = texture2D(tColor, uv + dv * float(k) * 2.0).rgb; glow += vec3(0.75, 0.37, 0.07) * max(sm.r - sm.b * 2.4 - 0.1, 0.0) / float(k); } }
-      col += glow * 0.075;
+      col += glow * 0.075 * (0.6 + emberK * 1.4);
       // 5. visible paper grain over the whole frame
       float n = vnoise(sc * 0.85) * 0.6 + vnoise(sc * 1.9) * 0.4;
-      col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.9 * n - 0.28, 0.0, 1.0) * 0.16);
-      col = mix(col, vec3(0.0130, 0.0103, 0.0185), inkLine * 0.85);
+      col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.7 * n - 0.25, 0.0, 1.0) * 0.18);
+      col = mix(col, col * 0.5, inkLine);
       // never pure black, never pure white
       col = clamp(col, vec3(0.0130, 0.0103, 0.0185), vec3(0.846, 0.791, 0.701));
       gl_FragColor = vec4(col, 1.0);
@@ -425,6 +427,18 @@ const stars = (() => {
   scene.add(m); return m;
 })();
 
+// ---------------------------------------------------------------- batch 2 art (docs/design/batch2): Lore Scroll cards, sprites, mist
+const CARD_SVG = {"sellsword": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#EDE6DA\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#8E8AA3\" stroke-width=\"1\"/><path d=\"M52 250V130Q52 44 150 26Q248 44 248 130V250Z\" fill=\"#D5D0DB\" stroke=\"#1E1A26\" stroke-width=\"2\"/><path d=\"M64 250V132Q64 58 150 40Q236 58 236 132V250\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><g transform=\"translate(90 96) scale(5)\"><path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10.8 3l1.2-2 1.2 2v12h-2.4z\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"8\" y=\"15\" width=\"8\" height=\"1.9\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"11\" y=\"16.9\" width=\"2\" height=\"4\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#3A3350\" cx=\"12\" cy=\"21.8\" r=\"1.4\" transform=\"rotate(-40 12 13)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/></g><path d=\"M52 250h196v6H52z\" fill=\"#1E1A26\"/><text x=\"150\" y=\"300.0\" text-anchor=\"middle\" font-family=\"'Grenze Gotisch','Cormorant Garamond',Georgia,serif\" font-size=\"31\" font-weight=\"700\"  fill=\"#1E1A26\">Sellsword</text><path d=\"M110 312h80\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M150 308l4 4-4 4-4-4z\" fill=\"#8C3B4A\"/><text x=\"150\" y=\"342.0\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">Move the Wyrm and rob</text><text x=\"150\" y=\"365.1\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">a rival there. Counts toward</text><text x=\"150\" y=\"388.2\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">the Mightiest Host.</text></svg>", "renown": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#EDE6DA\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#8E8AA3\" stroke-width=\"1\"/><path d=\"M52 250V130Q52 44 150 26Q248 44 248 130V250Z\" fill=\"#D5D0DB\" stroke=\"#1E1A26\" stroke-width=\"2\"/><path d=\"M64 250V132Q64 58 150 40Q236 58 236 132V250\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><g transform=\"translate(90 96) scale(5)\"><path fill=\"#EDE6DA\" d=\"M3.5 18L2 6.5l5.5 5L12 3.5l4.5 8 5.5-5L20.5 18z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M3.5 17.5h17V21h-17z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/></g><path d=\"M52 250h196v6H52z\" fill=\"#1E1A26\"/><text x=\"150\" y=\"300.0\" text-anchor=\"middle\" font-family=\"'Grenze Gotisch','Cormorant Garamond',Georgia,serif\" font-size=\"31\" font-weight=\"700\"  fill=\"#1E1A26\">Renown Scroll</text><path d=\"M110 312h80\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M150 308l4 4-4 4-4-4z\" fill=\"#8C3B4A\"/><text x=\"150\" y=\"342.0\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">+1 Renown.</text><text x=\"150\" y=\"365.1\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">Keep it secret.</text></svg>", "roads": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#EDE6DA\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#8E8AA3\" stroke-width=\"1\"/><path d=\"M52 250V130Q52 44 150 26Q248 44 248 130V250Z\" fill=\"#D5D0DB\" stroke=\"#1E1A26\" stroke-width=\"2\"/><path d=\"M64 250V132Q64 58 150 40Q236 58 236 132V250\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><g transform=\"translate(90 96) scale(5)\"><path fill=\"#6E6880\" d=\"M2 21V10h3v2h3v-2h3v2h2v-2h3v2h3v-2h3v11z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"2\" y=\"15.4\" width=\"20\" height=\"1.3\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/></g><path d=\"M52 250h196v6H52z\" fill=\"#1E1A26\"/><text x=\"150\" y=\"300.0\" text-anchor=\"middle\" font-family=\"'Grenze Gotisch','Cormorant Garamond',Georgia,serif\" font-size=\"31\" font-weight=\"700\"  fill=\"#1E1A26\">Wall Builders</text><path d=\"M110 312h80\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M150 308l4 4-4 4-4-4z\" fill=\"#8C3B4A\"/><text x=\"150\" y=\"342.0\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">Build your next</text><text x=\"150\" y=\"365.1\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">two walls for free.</text></svg>", "harvest": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#EDE6DA\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#8E8AA3\" stroke-width=\"1\"/><path d=\"M52 250V130Q52 44 150 26Q248 44 248 130V250Z\" fill=\"#D5D0DB\" stroke=\"#1E1A26\" stroke-width=\"2\"/><path d=\"M64 250V132Q64 58 150 40Q236 58 236 132V250\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><g transform=\"translate(90 96) scale(5)\"><path fill=\"#1E1A26\" d=\"M9.5 22l1.5-9h2l1.5 9z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"12\" cy=\"7\" rx=\"2\" ry=\"5.2\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"7.3\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(-32 7.3 9)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"16.7\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(32 16.7 9)\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#A89A86\" x=\"9.4\" y=\"15\" width=\"5.2\" height=\"2.3\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/></g><path d=\"M52 250h196v6H52z\" fill=\"#1E1A26\"/><text x=\"150\" y=\"300.0\" text-anchor=\"middle\" font-family=\"'Grenze Gotisch','Cormorant Garamond',Georgia,serif\" font-size=\"31\" font-weight=\"700\"  fill=\"#1E1A26\">Bountiful Harvest</text><path d=\"M110 312h80\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M150 308l4 4-4 4-4-4z\" fill=\"#8C3B4A\"/><text x=\"150\" y=\"342.0\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">Take any two resources.</text></svg>", "decree": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#EDE6DA\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#8E8AA3\" stroke-width=\"1\"/><path d=\"M52 250V130Q52 44 150 26Q248 44 248 130V250Z\" fill=\"#D5D0DB\" stroke=\"#1E1A26\" stroke-width=\"2\"/><path d=\"M64 250V132Q64 58 150 40Q236 58 236 132V250\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><g transform=\"translate(90 96) scale(5)\"><path fill=\"#EDE6DA\" d=\"M3 5.5l3.5-1C8 10 11.5 12.5 18 12l3 4-3 4C9 20.5 4 15 3 5.5z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M2.3 4l4.2-1.3.7 2.2L3 6.2z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M18 11.6l3.4 4.4-3.4 4.4z\" stroke=\"#1E1A26\" stroke-width=\".5\" stroke-linejoin=\"round\" paint-order=\"stroke\"/></g><path d=\"M52 250h196v6H52z\" fill=\"#1E1A26\"/><text x=\"150\" y=\"300.0\" text-anchor=\"middle\" font-family=\"'Grenze Gotisch','Cormorant Garamond',Georgia,serif\" font-size=\"31\" font-weight=\"700\"  fill=\"#1E1A26\">Royal Decree</text><path d=\"M110 312h80\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M150 308l4 4-4 4-4-4z\" fill=\"#8C3B4A\"/><text x=\"150\" y=\"342.0\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">Name a resource. Every other</text><text x=\"150\" y=\"365.1\" text-anchor=\"middle\" font-family=\"'Cormorant Garamond',Georgia,serif\" font-size=\"18.5\" font-weight=\"500\"  fill=\"#3A3350\">house gives you all of theirs.</text></svg>", "back": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 300 420\" width=\"300\" height=\"420\"><rect x=\"1\" y=\"1\" width=\"298\" height=\"418\" rx=\"12\" fill=\"#1E1A26\" stroke=\"#1E1A26\" stroke-width=\"2\"/><rect x=\"11\" y=\"11\" width=\"278\" height=\"398\" rx=\"6\" fill=\"none\" stroke=\"#6E6880\" stroke-width=\"1\"/><path d=\"M116 392Q90 150 142 70\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"6.0\" stroke-linecap=\"round\"/><path d=\"M184 392Q210 150 158 70\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"6.0\" stroke-linecap=\"round\"/><path d=\"M98 392Q70 172 136 100\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"5.5\" stroke-linecap=\"round\"/><path d=\"M202 392Q230 172 164 100\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"5.5\" stroke-linecap=\"round\"/><path d=\"M80 392Q50 194 130 130\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"5.0\" stroke-linecap=\"round\"/><path d=\"M220 392Q250 194 170 130\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"5.0\" stroke-linecap=\"round\"/><path d=\"M62 392Q30 216 124 160\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><path d=\"M238 392Q270 216 176 160\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"4.5\" stroke-linecap=\"round\"/><path d=\"M44 392Q10 238 118 190\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"4.0\" stroke-linecap=\"round\"/><path d=\"M256 392Q290 238 182 190\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"4.0\" stroke-linecap=\"round\"/><path d=\"M26 392Q-10 260 112 220\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"3.5\" stroke-linecap=\"round\"/><path d=\"M274 392Q310 260 188 220\" fill=\"none\" stroke=\"#3A3350\" stroke-width=\"3.5\" stroke-linecap=\"round\"/><g transform=\"translate(96 156) scale(4.5)\"><path fill=\"#EDE6DA\" d=\"M12.00 1.00L13.71 5.62L17.50 2.47L16.67 7.33L21.53 6.50L18.38 10.29L23.00 12.00L18.38 13.71L21.53 17.50L16.67 16.67L17.50 21.53L13.71 18.38L12.00 23.00L10.29 18.38L6.50 21.53L7.33 16.67L2.47 17.50L5.62 13.71L1.00 12.00L5.62 10.29L2.47 6.50L7.33 7.33L6.50 2.47L10.29 5.62zM8.80 12.00a3.2 3.2 0 1 0 6.40 0a3.2 3.2 0 1 0 -6.40 0z\" fill-rule=\"evenodd\"/></g><circle cx=\"150\" cy=\"210\" r=\"9\" fill=\"#E0A24A\"/></svg>"};
+const SPRITE_SVG = {"raven-1": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 48\" width=\"64\" height=\"48\"><path d=\"M31 20C22 12 12 12 2 18c9 0 16 3 22 9z\" fill=\"#1E1A26\"/><path d=\"M31 20C22 12 12 12 2 18c9 0 16 3 22 9z\" fill=\"#1E1A26\" transform=\"matrix(-1 0 0 1 64 0)\"/><path d=\"M32 14c3 0 4 4 4 8l-1 10 3 8h-12l3-8-1-10c0-4 1-8 4-8z\" fill=\"#1E1A26\"/><path d=\"M32 8l2.4 6h-4.8z\" fill=\"#1E1A26\"/></svg>", "raven-2": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 48\" width=\"64\" height=\"48\"><path d=\"M31 20C24 22 16 28 10 40c8-5 14-8 20-9z\" fill=\"#1E1A26\"/><path d=\"M31 20C24 22 16 28 10 40c8-5 14-8 20-9z\" fill=\"#1E1A26\" transform=\"matrix(-1 0 0 1 64 0)\"/><path d=\"M32 14c3 0 4 4 4 8l-1 10 3 8h-12l3-8-1-10c0-4 1-8 4-8z\" fill=\"#1E1A26\"/><path d=\"M32 8l2.4 6h-4.8z\" fill=\"#1E1A26\"/></svg>", "moth-1": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" width=\"32\" height=\"32\"><g transform=\"translate(16 0) scale(1 1) translate(-16 0)\"><path d=\"M16 12C10 4 2 6 3 13c1 5 7 6 13 3z\" fill=\"#EDE6DA\"/><path d=\"M16 12c6-8 14-6 13 1-1 5-7 6-13 3z\" fill=\"#EDE6DA\"/><path d=\"M16 16c-5 0-8 4-6 8 2 3 5 0 6-4z\" fill=\"#8E8AA3\"/><path d=\"M16 16c5 0 8 4 6 8-2 3-5 0-6-4z\" fill=\"#8E8AA3\"/></g><ellipse cx=\"16\" cy=\"16\" rx=\"1.6\" ry=\"6\" fill=\"#3A3350\"/></svg>", "moth-2": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" width=\"32\" height=\"32\"><g transform=\"translate(16 0) scale(0.55 1) translate(-16 0)\"><path d=\"M16 12C10 4 2 6 3 13c1 5 7 6 13 3z\" fill=\"#EDE6DA\"/><path d=\"M16 12c6-8 14-6 13 1-1 5-7 6-13 3z\" fill=\"#EDE6DA\"/><path d=\"M16 16c-5 0-8 4-6 8 2 3 5 0 6-4z\" fill=\"#8E8AA3\"/><path d=\"M16 16c5 0 8 4 6 8-2 3-5 0-6-4z\" fill=\"#8E8AA3\"/></g><ellipse cx=\"16\" cy=\"16\" rx=\"1.6\" ry=\"6\" fill=\"#3A3350\"/></svg>", "smoke-puff": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\" width=\"64\" height=\"64\"><path d=\"M20 50c-10 0-14-10-8-16-4-8 4-16 12-13 3-9 17-9 20 0 9-2 15 8 10 15 5 7-1 15-10 14-5 6-17 6-24 0z\" fill=\"#8E8AA3\" opacity=\".7\"/><path d=\"M24 44c-6 0-8-6-4-10 0-6 7-8 11-5 4-5 12-2 12 4 5 1 5 8 0 10-5 4-13 4-19 1z\" fill=\"#EDE6DA\" opacity=\".6\"/></svg>", "marker-build": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"96\" height=\"96\"><path fill=\"#E0A24A\" fill-rule=\"evenodd\" d=\"M4.00 48.00a44 44 0 1 0 88.00 0a44 44 0 1 0 -88.00 0zM10.00 48.00a38 38 0 1 0 76.00 0a38 38 0 1 0 -76.00 0z\"/><path fill=\"#E0A24A\" d=\"M48 20l6 22 22 6-22 6-6 22-6-22-22-6 22-6z\"/></svg>", "marker-destination": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 96 96\" width=\"96\" height=\"96\"><path fill=\"#EDE6DA\" fill-rule=\"evenodd\" d=\"M4.00 48.00a44 44 0 1 0 88.00 0a44 44 0 1 0 -88.00 0zM9.00 48.00a39 39 0 1 0 78.00 0a39 39 0 1 0 -78.00 0z\"/><path fill=\"#EDE6DA\" fill-rule=\"evenodd\" d=\"M14.00 48.00a34 34 0 1 0 68.00 0a34 34 0 1 0 -68.00 0zM16.00 48.00a32 32 0 1 0 64.00 0a32 32 0 1 0 -64.00 0z\"/><path d=\"M48 0l5 12h-10z\" fill=\"#EDE6DA\" transform=\"rotate(0 48 48)\"/><path d=\"M48 0l5 12h-10z\" fill=\"#EDE6DA\" transform=\"rotate(90 48 48)\"/><path d=\"M48 0l5 12h-10z\" fill=\"#EDE6DA\" transform=\"rotate(180 48 48)\"/><path d=\"M48 0l5 12h-10z\" fill=\"#EDE6DA\" transform=\"rotate(270 48 48)\"/></svg>"};
+const MIST_PNG = 'data:image/png;base64,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';
+const svgTex = (svg, px = 128) => { const t = new THREE.TextureLoader().load('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace(/width="\d+" height="\d+"/, `width="${px}" height="${px}"`))); t.colorSpace = THREE.SRGBColorSpace; return t; };
+const TEX = {
+  raven: [svgTex(SPRITE_SVG['raven-1'], 256), svgTex(SPRITE_SVG['raven-2'], 256)],
+  moth: [svgTex(SPRITE_SVG['moth-1'], 64), svgTex(SPRITE_SVG['moth-2'], 64)],
+  smoke: svgTex(SPRITE_SVG['smoke-puff'], 128),
+  build: svgTex(SPRITE_SVG['marker-build'], 256), buildBone: svgTex(SPRITE_SVG['marker-build'].replaceAll('#E0A24A', '#EDE6DA'), 256),
+  dest: svgTex(SPRITE_SVG['marker-destination'], 256),
+};
 // drifting glow motes: soft pastel specks by day, fireflies by night
 const motes = (() => {
   const N = 260, pos = new Float32Array(N * 3), col = new Float32Array(N * 3), ph = new Float32Array(N);
@@ -437,20 +451,20 @@ const motes = (() => {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('phase', new THREE.BufferAttribute(ph, 1));
   const m = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uScale: { value: 1 } }, transparent: true, depthWrite: false, vertexColors: true,
+    uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uScale: { value: 1 }, tMoth: { value: TEX.moth[0] } }, transparent: true, depthWrite: false, vertexColors: true,
     vertexShader: `attribute float phase; uniform float uTime, uNight, uScale; varying vec3 vC; varying float vA;
       void main(){ vec3 p = position; float t = uTime * 0.25 + phase;
         p += vec3(sin(t * 1.3) * 3.0 + sin(uTime * 9.0 + phase) * 0.25, sin(t * 0.9 + phase) * 1.6 + abs(sin(uTime * 7.0 + phase)) * 0.4, cos(t * 1.1) * 3.0);
         vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
         float tw = 0.55 + 0.45 * sin(uTime * 2.2 + phase * 3.0);
         vA = (0.5 + 0.3 * tw) * (1.0 - smoothstep(90.0, 200.0, -mv.z)); vC = color * mix(1.0, 0.5, uNight);
-        gl_PointSize = 4.5 * uScale * 60.0 / max(-mv.z, 6.0); }`,
+        gl_PointSize = 9.0 * uScale * 60.0 / max(-mv.z, 6.0); }`,
     fragmentShader: `varying vec3 vC; varying float vA;
-      void main(){ vec2 pc = gl_PointCoord - 0.5; float d = length(pc * vec2(0.7, 1.3)); float a = smoothstep(0.5, 0.2, d); gl_FragColor = vec4(vC, a * vA); }`,
+      uniform sampler2D tMoth; void main(){ vec4 m = texture2D(tMoth, gl_PointCoord); if (m.a < 0.3) discard; gl_FragColor = vec4(m.rgb * (0.55 + 0.45 * vC), m.a * min(1.0, vA * 1.6)); }`,
   });
   const pts = new THREE.Points(g, m); pts.frustumCulled = false; scene.add(pts); return pts;
 })();
-function updateMotes(time) { motes.material.uniforms.uTime.value = time; motes.material.uniforms.uNight.value = night; motes.material.uniforms.uScale.value = renderer.getPixelRatio(); }
+function updateMotes(time) { motes.material.uniforms.tMoth.value = TEX.moth[Math.floor(time / 0.12) % 2]; motes.material.uniforms.uTime.value = time; motes.material.uniforms.uNight.value = night; motes.material.uniforms.uScale.value = renderer.getPixelRatio(); }
 
 // The Hold: a gothic cathedral-fortress inside the skeleton of a colossal dragon, always on the horizon, veiled by mist
 const holdObj = (() => {
@@ -487,10 +501,7 @@ const holdObj = (() => {
 })();
 // mist banks drifting low over the isle and around the Hold
 const mists = (() => {
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64; const x = cv.getContext('2d');
-  const gr = x.createRadialGradient(128, 32, 4, 128, 32, 120); gr.addColorStop(0, 'rgba(237,230,218,.9)'); gr.addColorStop(0.55, 'rgba(237,230,218,.4)'); gr.addColorStop(1, 'rgba(237,230,218,0)');
-  x.setTransform(1, 0, 0, 0.27, 0, 23); x.fillStyle = gr; x.fillRect(0, -120, 256, 400);
-  const tx = new THREE.CanvasTexture(cv), out = [];
+  const tx = new THREE.TextureLoader().load(MIST_PNG), out = [];
   for (let i = 0; i < 16; i++) {
     const far = i < 5, a = far ? -1.9 + i * 0.25 : Math.random() * Math.PI * 2, r = far ? rr(480, 620) : rr(110, 220);
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, opacity: far ? 0.6 : 0.22, fog: false }));
@@ -501,20 +512,19 @@ const mists = (() => {
 })();
 // ravens circling the Hold's spires
 const ravens = (() => {
-  const out = [], m = new THREE.MeshBasicMaterial({ color: PAL.ink, fog: false, side: THREE.DoubleSide });
+  const out = [];
   for (let i = 0; i < 6; i++) {
-    const b = new THREE.Group();
-    for (const sz of [-1, 1]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.6), m); w.position.x = sz * 3; w.rotation.x = -Math.PI / 2; const piv = new THREE.Group(); piv.add(w); b.add(piv); }
+    const b = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.raven[0], transparent: true, depthWrite: false, fog: false })); b.scale.set(16, 12, 1);
     b.userData = { ph: Math.random() * 6, r: rr(60, 130), h: rr(150, 230), sp: rr(0.15, 0.3) }; scene.add(b); out.push(b);
   }
   return out;
 })();
 function updateAtmosphere(time) {
-  for (const s of mists) { const u = s.userData; u.a += u.sp * 0.016; if (!u.far) s.position.set(Math.cos(u.a) * u.r, s.position.y, Math.sin(u.a) * u.r); s.material.opacity = (u.far ? 0.6 : 0.22) * (1 - night * 0.55); }
+  for (const s of mists) { const u = s.userData; u.a += u.sp * 0.016; if (!u.far) s.position.set(Math.cos(u.a) * u.r, s.position.y, Math.sin(u.a) * u.r); s.material.opacity = (todNow ? todNow.mist : 0.6) * (u.far ? 0.9 : 0.35); }
   const hp = holdObj.position;
   for (const b of ravens) { const u = b.userData, a = time * u.sp + u.ph;
-    b.position.set(hp.x + Math.cos(a) * u.r, u.h + Math.sin(time * 0.7 + u.ph) * 8, hp.z + Math.sin(a) * u.r); b.rotation.y = -a;
-    const f = Math.sin(time * 6 + u.ph) * 0.5; b.children[0].rotation.z = f; b.children[1].rotation.z = -f; }
+    b.position.set(hp.x + Math.cos(a) * u.r, u.h + Math.sin(time * 0.7 + u.ph) * 8, hp.z + Math.sin(a) * u.r);
+    b.material.map = TEX.raven[Math.floor(time / 0.25 + u.ph) % 2]; }
   reavers.children[0].scale.setScalar(1 + Math.sin(time * 0.9) * 0.02);   // the Wyrm breathes in its sleep
 }
 
@@ -619,7 +629,7 @@ function swayMat(color, amount) {
 function instanced(geo, material, list, colorFn) {
   const m = new THREE.InstancedMesh(geo, material, list.length), o = new THREE.Object3D(), c = new THREE.Color();
   list.forEach((it, i) => {
-    o.position.set(it.x, it.y, it.z); o.rotation.set(it.rx || 0, it.ry || 0, it.rz || 0); o.scale.setScalar(it.s || 1); o.updateMatrix();
+    o.position.set(it.x, it.y, it.z); o.rotation.set(it.rx || 0, it.ry || 0, it.rz || 0); o.scale.set(it.s || 1, (it.s || 1) * (it.sy || 1), it.s || 1); o.updateMatrix();
     m.setMatrixAt(i, o.matrix);
     if (colorFn) { c.setHex(colorFn(it)); m.setColorAt(i, c); }
   });
@@ -628,40 +638,102 @@ function instanced(geo, material, list, colorFn) {
 const trees = [], rocks = [], tufts = [], vents = [], blackRocks = [];
 const windmills = [], cows = [], smoke = [];
 const mounds = [], standing = [], cocoons = [], peaks = [], ribs = [];
+const stumps = [], doorUp = [], doorLintel = [], ears = [], bushes = [], shoreRocks = [], crownSpikes = [];
 for (const t of tiles) {
-  if (t.type === 'timber') for (let i = 0; i < 30; i++) { const p = placeIn(t, 5, HEX_R * 0.72); trees.push({ ...p, s: rr(0.8, 1.5), ry: rr(0, 6), g: rand() }); }
-  if (t.type === 'stone') for (let i = 0; i < 7; i++) {
-    const p = placeIn(t, 5, HEX_R * 0.66), s = rr(2.2, 3.6); mounds.push({ ...p, s, ry: rr(0, 6) });
-    if (rand() < 0.8) standing.push({ x: p.x + rr(-0.5, 0.5), z: p.z + rr(-0.5, 0.5), y: p.y + s * 0.45, s: rr(0.8, 1.2), ry: rr(0, 6), rz: rr(-0.12, 0.12) });
+  if (t.type === 'timber') {
+    for (let i = 0; i < 22; i++) { const p = placeIn(t, 5, HEX_R * 0.72); trees.push({ ...p, s: rr(1.5, 2.3), ry: rr(0, 6), v: i % 3 }); }
+    for (let i = 0; i < 5; i++) { const p = placeIn(t, 5, HEX_R * 0.7); stumps.push({ ...p, s: rr(0.8, 1.2), ry: rr(0, 6) }); }
   }
-  if (t.type === 'wheat') for (let i = 0; i < 160; i++) { const p = placeIn(t, 4, HEX_R * 0.74); tufts.push({ ...p, s: rr(0.8, 1.4), ry: rr(0, 6), rz: rr(-0.18, 0.18) }); }
-  if (t.type === 'cattle') for (let i = 0; i < 18; i++) { const p = placeIn(t, 5, HEX_R * 0.7); cocoons.push({ ...p, y: p.y + 0.5, s: rr(0.7, 1.1), ry: rr(0, 6), rx: rr(-0.3, 0.3) }); }
-  if (t.type === 'ember') for (let i = 0; i < 9; i++) { const p = placeIn(t, 4, HEX_R * 0.62); peaks.push({ ...p, y: p.y - 0.5, s: rr(0.6, 1.15), ry: rr(0, 6) }); }
-  if (t.type === 'cradle') for (let k = 0; k < 2; k++) for (let i = 0; i < 4; i++) {   // two half-buried ribcages
-    const a0 = k ? 2.2 : -0.9, x = Math.cos(a0) * 15 + Math.cos(a0 + Math.PI / 2) * (i - 1.5) * 3.2, z = Math.sin(a0) * 15 + Math.sin(a0 + Math.PI / 2) * (i - 1.5) * 3.2;
-    ribs.push({ x, z, y: heightAt(x, z) - 0.6, s: 1.2 - Math.abs(i - 1.5) * 0.15, ry: -a0 });
+  if (t.type === 'stone') {
+    for (let i = 0; i < 4; i++) {   // barrows with a stone doorway, each with a leaning standing stone
+      const p = placeIn(t, 6, HEX_R * 0.62), s = rr(5, 7), ry = rr(0, 6); mounds.push({ ...p, s, sy: 0.62, ry });
+      const fx = Math.sin(ry), fz = Math.cos(ry), dx = p.x + fx * s * 0.92, dz = p.z + fz * s * 0.92, dy = heightAt(dx, dz);
+      for (const side of [-1, 1]) doorUp.push({ x: dx + fz * side * 1.2, z: dz - fx * side * 1.2, y: dy - 0.2, ry });
+      doorLintel.push({ x: dx, z: dz, y: dy + 2.2, ry });
+    }
+    for (let i = 0; i < 5; i++) { const p = placeIn(t, 5, HEX_R * 0.7); standing.push({ ...p, y: p.y - 0.2, s: rr(0.9, 1.15), ry: rr(0, 6), rz: rr(-0.2, 0.2) }); }
+    if (t.id % 3 === 0) for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2, x = t.x + 9 + Math.cos(a) * 4.5, z = t.z - 6 + Math.sin(a) * 4.5; standing.push({ x, z, y: heightAt(x, z) - 0.2, s: 0.85, ry: -a }); }   // a stone circle
+  }
+  if (t.type === 'wheat') {
+    for (let r = -5; r <= 5; r++) for (let i = -8; i <= 8; i++) {   // stalks in rows, each with a heavier ear
+      const x = t.x + i * 1.9 + rr(-0.4, 0.4), z = t.z + r * 3 + rr(-0.5, 0.5);
+      if (Math.hypot(x - t.x, z - t.z) > HEX_R * 0.74 || rand() < 0.25) continue;
+      const y = heightAt(x, z), s = rr(0.85, 1.15), rz = rr(-0.12, 0.12); tufts.push({ x, y, z, s, ry: rr(0, 6), rz }); ears.push({ x, y, z, s, ry: rr(0, 6), rz });
+    }
+    const m = placeIn(t, 8, 12), g = new THREE.Group();   // the mill: a tapered tower, cone cap, four lattice sails
+    g.add(cyl(1.7, 2.5, 11, 8, mat(PAL.violet), 0, 0, 0)); g.add(cone(2.3, 4, 8, mat(PAL.ink), 0, 11, 0));
+    const blades = new THREE.Group(); blades.position.set(0, 9.6, 2.6);
+    for (let k = 0; k < 4; k++) { const piv = new THREE.Group(); piv.rotation.z = k * Math.PI / 2; blades.add(piv);
+      piv.add(B(0.2, 7, 0.2, mat(PAL.ink), 0, 0, 0)); for (const y of [2.5, 4, 5.5]) piv.add(B(1.6, 0.12, 0.12, mat(PAL.ink), 0.8, y, 0)); piv.add(B(0.1, 4.5, 0.1, mat(PAL.ink), 1.6, 2.4, 0)); }
+    g.add(blades); g.position.set(m.x, m.y, m.z); g.rotation.y = rr(0, 6); scene.add(g); windmills.push(blades);
+    const sc = placeIn(t, 6, 14), sg = new THREE.Group();   // a scarecrow
+    sg.add(B(0.2, 3.5, 0.2, mat(PAL.ink), 0, 0, 0)); sg.add(B(2.2, 0.2, 0.2, mat(PAL.ink), 0, 2.6, 0)); sg.add(B(1.6, 1.4, 0.1, mat(PAL.violet), 0, 1.4, 0.1)); sg.add(cone(0.6, 1.1, 5, mat(PAL.ink), 0, 3.4, 0));
+    sg.position.set(sc.x, sc.y, sc.z); sg.rotation.y = rr(0, 6); scene.add(sg);
+  }
+  if (t.type === 'cattle') for (let i = 0; i < 12; i++) {   // dry bushes hung with cocoons
+    const p = placeIn(t, 5, HEX_R * 0.7); bushes.push({ ...p, s: rr(0.9, 1.3), ry: rr(0, 6) });
+    for (let k = 0; k < 1 + (i % 3); k++) { const a = rr(0, 6); cocoons.push({ x: p.x + Math.cos(a) * 0.7, z: p.z + Math.sin(a) * 0.7, y: p.y + rr(0.6, 1.2), s: rr(0.55, 0.75), ry: a }); }
+  }
+  if (t.type === 'ember') for (let c = 0; c < 3; c++) {   // crags: clusters of tilted, faceted spikes 8-20 m tall
+    const p = placeIn(t, 4, HEX_R * 0.55);
+    for (let i = 0; i < 3 + (c % 3); i++) { const a = rr(0, 6), r = i ? rr(1.5, 3.5) : 0, x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      peaks.push({ x, z, y: heightAt(x, z) - 0.6, s: rr(0.8, 1.2), sy: rr(1.15, 2.6) * (i ? 0.8 : 1), ry: rr(0, 6), rx: rr(-0.2, 0.2), rz: rr(-0.2, 0.2) }); }
+  }
+  if (t.type === 'cradle') for (let k = 0; k < 2; k++) for (let i = 0; i < 6; i++) {   // two half-buried ribcages along their spines
+    const a0 = k ? 2.2 : -0.9, x = Math.cos(a0) * 17 + Math.cos(a0 + Math.PI / 2) * (i - 2.5) * 2.6, z = Math.sin(a0) * 17 + Math.sin(a0 + Math.PI / 2) * (i - 2.5) * 2.6;
+    ribs.push({ x, z, y: heightAt(x, z) - 0.8, s: 1.35 - Math.abs(i - 2.5) * 0.12, ry: -a0 });
   }
 }
-// a bare dead tree: trunk and two or three crooked branches
-const deadTree = (() => {
-  const parts = [], add = (geo, m4) => parts.push({ geo, m: m4 }), M4 = () => new THREE.Matrix4();
-  add(new THREE.CylinderGeometry(0.12, 0.28, 6, 5).translate(0, 3, 0), M4());
-  for (const [y, rz, ry, l] of [[3.2, 0.75, 0, 2.6], [4.2, -0.7, 0.6, 2.2], [5.0, 0.55, 2.4, 1.6], [2.5, -0.9, 3.6, 1.8]])
-    add(new THREE.CylinderGeometry(0.05, 0.11, l, 4).translate(0, l / 2, 0), M4().makeTranslation(0, y, 0).multiply(M4().makeRotationY(ry)).multiply(M4().makeRotationZ(rz)));
+{   // the volcano's rim: eight to ten leaning spikes so it reads as a broken crown
+  const top = heightAt(0, 0);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 + rr(-0.15, 0.15), r = 6.2, x = Math.cos(a) * r, z = Math.sin(a) * r;
+    crownSpikes.push({ x, z, y: heightAt(x, z) - 1, s: rr(0.8, 1.2), sy: rr(0.8, 1.5), ry: rr(0, 6), rx: Math.sin(a) * 0.28, rz: -Math.cos(a) * 0.28 }); }
+  for (let i = 0; i < 46; i++) {   // dark rocks near the shore
+    const a = rand() * Math.PI * 2, r = rr(118, 140), x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (heightAt(x, z) > 1.2) continue; shoreRocks.push({ x, z, y: -0.5, s: rr(0.6, 1.4), sy: rr(1, 2), ry: rr(0, 6), rz: rr(-0.2, 0.2) });
+  }
+}
+// bare dead trees in three variants (twisted, split, leaning), 9-14 m tall, with three or four bare branches
+const M4 = () => new THREE.Matrix4();
+function treeGeo(v) {
+  const parts = [], add = (geo, m4) => parts.push({ geo, m: m4 });
+  const br = (y, rz, ry, l, x = 0) => add(new THREE.CylinderGeometry(0.04, 0.1, l, 4).translate(0, l / 2, 0), M4().makeTranslation(x, y, 0).multiply(M4().makeRotationY(ry)).multiply(M4().makeRotationZ(rz)));
+  if (v === 0) {   // twisted: three offset segments
+    add(new THREE.CylinderGeometry(0.2, 0.28, 2.2, 5).translate(0, 1.1, 0), M4());
+    add(new THREE.CylinderGeometry(0.15, 0.2, 2.2, 5).translate(0, 1.1, 0), M4().makeTranslation(0.25, 2.1, 0).multiply(M4().makeRotationZ(-0.25)));
+    add(new THREE.CylinderGeometry(0.08, 0.15, 2.2, 5).translate(0, 1.1, 0), M4().makeTranslation(-0.1, 4.1, 0).multiply(M4().makeRotationZ(0.3)));
+    br(3.2, 0.8, 0, 2.2, 0.3); br(4.6, -0.7, 1.4, 1.8); br(5.6, 0.6, 3.3, 1.4, -0.3); br(2.6, -0.9, 4.4, 1.5);
+  } else if (v === 1) {   // split: the trunk forks
+    add(new THREE.CylinderGeometry(0.2, 0.3, 3.2, 5).translate(0, 1.6, 0), M4());
+    for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.07, 0.17, 3.4, 5).translate(0, 1.7, 0), M4().makeTranslation(0, 3.1, 0).multiply(M4().makeRotationZ(sd * 0.32)));
+    br(4.6, 0.9, 0, 1.5, 0.8); br(4.4, -0.9, 0.2, 1.5, -0.8); br(2.4, 0.8, 2.2, 1.3);
+  } else {   // leaning 15 degrees
+    add(new THREE.CylinderGeometry(0.1, 0.28, 6, 5).translate(0, 3, 0), M4().makeRotationZ(0.26));
+    br(3.0, 1.0, 0, 2.0, -0.8); br(4.3, -0.4, 1.5, 1.8, -1.1); br(5.2, 0.9, 3.4, 1.3, -1.4); br(2.2, -0.9, 4.2, 1.4, -0.5);
+  }
   return mergeGeosEarly(parts);
-})();
+}
+const deadTree = treeGeo(2);
 function mergeGeosEarly(parts) {
   const pos = [], nor = [];
   for (const { geo, m } of parts) { const g = (geo.index ? geo.toNonIndexed() : geo).applyMatrix4(m); pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array); }
   const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return out;
 }
-instanced(deadTree, swayMat(PAL.ink, 0.12), trees);
-instanced(new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.45, 1), mat(PAL.violet), mounds);
-instanced(new THREE.BoxGeometry(0.7, 2.2, 0.35).translate(0, 1.1, 0), mat(PAL.ink), standing);
-instanced(new THREE.BoxGeometry(0.07, 1.7, 0.07).translate(0, 0.85, 0), swayMat(PAL.ink, 1.4), tufts);
-instanced(new THREE.SphereGeometry(0.45, 8, 6).scale(1, 1.6, 1), mat(PAL.bone), cocoons);
-instanced(new THREE.ConeGeometry(2.3, 7, 4).translate(0, 3.5, 0), mat(PAL.ink), peaks);
-instanced(new THREE.TorusGeometry(3.4, 0.32, 5, 14, Math.PI * 0.85), mat(PAL.bone), ribs);
+const treeMat = swayMat(PAL.ink, 0.1);
+for (let v = 0; v < 3; v++) instanced(treeGeo(v), treeMat, trees.filter(t => t.v === v));
+instanced(new THREE.CylinderGeometry(0.5, 0.6, 1, 6).translate(0, 0.5, 0), mat(PAL.ink), stumps);
+instanced(new THREE.BoxGeometry(0.6, 2.4, 0.6).translate(0, 1.2, 0), mat(PAL.ink), doorUp);
+instanced(new THREE.BoxGeometry(3, 0.5, 0.7), mat(PAL.ink), doorLintel);
+instanced(new THREE.OctahedronGeometry(0.16, 0).scale(1, 2.2, 1).translate(0, 1.75, 0), swayMat(PAL.ink, 1.4), ears);
+instanced((() => { const parts = []; for (let i = 0; i < 4; i++) parts.push({ geo: new THREE.CylinderGeometry(0.03, 0.07, 2, 4).translate(0, 1, 0), m: M4().makeRotationY(i * 1.6).multiply(M4().makeRotationZ(0.35 + (i % 2) * 0.2)) }); return mergeGeosEarly(parts); })(), mat(PAL.ink), bushes);
+instanced(new THREE.ConeGeometry(2.2, 9, 4).translate(0, 4.5, 0), mat(PAL.violet), crownSpikes);
+instanced(new THREE.ConeGeometry(1.2, 2.5, 4).translate(0, 1.2, 0), mat(PAL.ink), shoreRocks);
+instanced(new THREE.SphereGeometry(1, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), mat(PAL.violet), mounds);
+instanced(new THREE.BoxGeometry(0.8, 3, 0.5).translate(0, 1.5, 0), mat(PAL.ink), standing);
+instanced(new THREE.BoxGeometry(0.06, 1.6, 0.06).translate(0, 0.8, 0), swayMat(PAL.ink, 1.4), tufts);
+instanced(new THREE.SphereGeometry(0.25, 8, 6).scale(1, 2, 1), mat(PAL.bone), cocoons);
+instanced(new THREE.ConeGeometry(2.4, 8, 5).translate(0, 4, 0), mat(PAL.ink), peaks);
+instanced(new THREE.TorusGeometry(3.2, 0.3, 5, 14, Math.PI * 0.85).scale(1, 1.6, 1), mat(PAL.bone), ribs);
 function makeCow(t) {
   const g = new THREE.Group(), body = mat(pick([0x6b3f22, 0x8a5a33, 0xe9e2d4, 0x3b2a20]));
   const b = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 1.1), body); b.position.y = 1.2; g.add(b);
@@ -681,10 +753,9 @@ const lavaLight = new THREE.PointLight(PAL.ember, 120, 40, 2);
   const lava = new THREE.Mesh(new THREE.CircleGeometry(5.5, 10), new THREE.MeshBasicMaterial({ color: PAL.ember, transparent: true, opacity: 0.55 }));
   lava.rotation.x = -Math.PI / 2; lava.position.set(0, heightAt(0, 0) + 1.0, 0); scene.add(lava);
   const glow = lavaLight; glow.intensity = 120; glow.position.set(0, heightAt(0, 0) + 4, 0); scene.add(glow);
-  const sm = mat(PAL.lavender, { transparent: true, opacity: 0.35 });
-  for (let i = 0; i < 26; i++) {
-    const s = new THREE.Mesh(new THREE.IcosahedronGeometry(rr(1.5, 3), 0), sm);
-    s.userData.age = rr(0, 1); smoke.push(s); scene.add(s);
+  for (let i = 0; i < 30; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.smoke, color: new THREE.Color(PAL.bone).lerp(new THREE.Color(PAL.violet), 0.35), transparent: true, depthWrite: false }));
+    s.userData.age = rr(0, 1); s.userData.base = rr(4, 7); smoke.push(s); scene.add(s);
   }
 }
 
@@ -989,51 +1060,83 @@ const STYLES = {
   },
 };
 function withHouse(h, fn) { const prev = houseMat, pc = houseCrest; houseMat = h.mat; houseCrest = h.bannerMat; try { return fn(); } finally { houseMat = prev; houseCrest = pc; } }
-const GOTH = { body: mat(PAL.ink), roof: mat(PAL.violet), trim: mat(PAL.barrow) };
-function spire(r, hgt, m, x = 0, y = 0, z = 0) { const o = cone(r, hgt, 4, m, x, y, z); o.rotation.y = Math.PI / 4; return o; }
-function lancet(h, w, ht, x, y, z, ry = 0) {   // a pointed window
+const GOTH = { body: mat(PAL.violet), roof: mat(PAL.ink), trim: mat(PAL.barrow), iron: mat(PAL.ink), bone: mat(PAL.bone), door: mat(PAL.ink) };
+// a square pyramid spire of the given base width and height; Morrow's spires twist 45 degrees
+function spire(base, hgt, m, x = 0, y = 0, z = 0, h) {
+  const geo = new THREE.ConeGeometry(base / Math.SQRT2, hgt, 4, 6).rotateY(Math.PI / 4);
+  if (h && h.key === 'morrow') { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const a = (p.getY(i) / hgt + 0.5) * Math.PI / 4, X = p.getX(i), Z = p.getZ(i); p.setX(i, X * Math.cos(a) - Z * Math.sin(a)); p.setZ(i, X * Math.sin(a) + Z * Math.cos(a)); } geo.computeVertexNormals(); }
+  const o = new THREE.Mesh(geo, m); o.position.set(x, y + hgt / 2, z); return o;
+}
+function cross(g, x, y, z, s = 1) { g.add(B(0.18 * s, 1.6 * s, 0.18 * s, GOTH.iron, x, y, z)); g.add(B(0.9 * s, 0.16 * s, 0.16 * s, GOTH.iron, x, y + 1.0 * s, z)); }
+function antlers(g, x, y, z) {   // Calder: antler finials on the spire tips
+  for (const sd of [-1, 1]) { const a = new THREE.Group(); a.position.set(x, y, z); a.rotation.z = sd * 0.5; g.add(a);
+    a.add(B(0.12, 1.5, 0.12, GOTH.bone, 0, 0, 0)); const t1 = B(0.1, 0.6, 0.1, GOTH.bone, 0, 0.6, 0); t1.rotation.z = -sd * 0.7; a.add(t1); }
+}
+// a spire with its house detail, and a cross or finial at the tip
+function houseSpire(g, h, base, hgt, x, y, z, finial = true) {
+  if (h.key === 'ashby') { const d = new THREE.Mesh(new THREE.SphereGeometry(base * 0.42, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), GOTH.roof); d.position.set(x, y, z); g.add(d); y += base * 0.3; hgt = Math.max(2, hgt - 2); }
+  g.add(spire(base, hgt, GOTH.roof, x, y, z, h));
+  if (h.key === 'calder') antlers(g, x, y + hgt - 0.2, z); else if (finial) cross(g, x, y + hgt - 0.1, z, base > 4 ? 1.2 : 0.9);
+  return y + hgt;
+}
+function gable(g, h, w, ht, len, x, y, z) {   // a steep gable roof; Varn's beam ends cross past the peak
+  g.add(roof(w + 0.3, ht, len, GOTH.roof, x, y, z, 0));
+  if (h.key === 'varn') for (const ez of [-len / 2 - 0.05, len / 2 + 0.05]) for (const sd of [-1, 1]) {
+    const bm = B(0.18, ht * 0.75, 0.18, GOTH.iron, x + sd * 0.35, y + ht * 0.55, z + ez); bm.rotation.z = sd * 0.6; g.add(bm); }
+}
+function lancet(h, w, ht, x, y, z, ry = 0) {   // a pointed window; it burns ember gold on your own buildings
   const g = new THREE.Group(); g.add(B(w, ht, 0.12, h.winMat, 0, 0, 0));
   const tip = new THREE.Mesh(new THREE.ConeGeometry(w * 0.72, w * 0.9, 4), h.winMat); tip.position.y = ht + w * 0.35; tip.rotation.y = Math.PI / 4; tip.scale.z = 0.15; g.add(tip);
   g.position.set(x, y, z); g.rotation.y = ry; return g;
 }
+function archDoor(w, ht, x, y, z, ry = 0) { const g = lancet({ winMat: GOTH.door }, w, ht, 0, 0, 0); g.position.set(x, y, z); g.rotation.y = ry; return g; }
 function banner(h, hgt, x, y, z) {
   const g = new THREE.Group();
-  g.add(cyl(0.07, 0.07, hgt, 4, GOTH.body, 0, 0, 0));
-  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.4), h.bannerMat); f.position.set(1.05, hgt - 0.7, 0); g.add(f);
+  g.add(cyl(0.07, 0.07, hgt, 4, GOTH.iron, 0, 0, 0));
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.6), h.bannerMat); f.position.set(1.25, hgt - 0.8, 0); g.add(f);
   g.position.set(x, y, z); return g;
 }
-// Outpost (Hamlet): a narrow tower with a pointed roof and a little chapel beside it
+// Hamlet (14 x 7, 16 m, banner to 19): tower 4 x 4 x 10 with a 6 m spire; chapel 5 x 7 x 4 with a gable to 7 and a bell-cote; three headstones
 function gothHamlet(h) {
-  const g = new THREE.Group();
-  g.add(B(2.5, 8.5, 2.5, GOTH.body)); g.add(B(2.9, 0.45, 2.9, GOTH.trim, 0, 8.5, 0)); g.add(spire(2.05, 6.5, GOTH.roof, 0, 8.95, 0));
-  g.add(lancet(h, 0.55, 1.5, 0, 5.2, 1.27)); g.add(lancet(h, 0.45, 1.1, 1.27, 2.4, 0, Math.PI / 2));
-  g.add(B(2.4, 3.8, 3.6, GOTH.body, 2.6, 0, -0.5)); g.add(roof(2.7, 3.4, 3.8, GOTH.roof, 2.6, 3.8, -0.5, 0));
-  g.add(lancet(h, 0.4, 0.9, 2.6, 1.4, 1.32));
-  for (const [x, z] of [[-2.2, 1.6], [-2.9, 0.4], [-2.4, -1.0]]) g.add(B(0.45, 0.8 + Math.random() * 0.3, 0.18, GOTH.trim, x, 0, z, Math.random()));   // little graveyard
-  g.add(banner(h, 3.2, 0, 15.2, 0));
+  const g = new THREE.Group(), tx = -3.2;
+  g.add(B(4, 10, 4, GOTH.body, tx, 0, 0)); g.add(B(4.5, 0.4, 4.5, GOTH.trim, tx, 10, 0));
+  const top = houseSpire(g, h, 5.2, 6, tx, 10.4, 0, false);
+  g.add(archDoor(1.4, 2.4, tx, 0, 2.03)); g.add(lancet(h, 0.7, 1.6, tx, 6.4, 2.03));
+  const cy = h.key === 'morrow' ? 1.5 : 0;   // Morrow raises the chapel on stilts
+  if (cy) for (const [sx, sz] of [[-2, -3], [2, -3], [-2, 3], [2, 3]]) g.add(B(0.4, 1.5, 0.4, GOTH.iron, 2.5 + sx, 0, sz));
+  g.add(B(5, 4, 7, GOTH.body, 2.5, cy, 0)); gable(g, h, 5, 3, 7, 2.5, 4 + cy, 0);
+  g.add(B(0.6, 1.2, 0.6, GOTH.roof, 2.5, 7 + cy - 0.2, 0)); g.add(spire(0.9, 0.9, GOTH.roof, 2.5, 8 + cy - 0.2, 0));   // bell-cote
+  g.add(lancet(h, 0.5, 1.2, 2.5, 1.2 + cy, 3.53)); cross(g, 2.5, 7 + cy, 3.6, 0.8);
+  for (const k of [0, 1, 2]) g.add(B(0.7, 1.1, 0.2, GOTH.trim, 5.9, 0, -2 + k * 1.6));   // headstones
+  g.add(banner(h, 3, tx, top - 0.3, 0));
   return g;
 }
-// Hold (Keep): a gothic cluster of spires around a nave with a rose window
+// Keep (21 x 18, 32 m, banner to 34.5), built at 0.8 so it sits between the walls: nave 12 x 18 x 9 with a gable to 13,
+// central tower 5 x 5 x 20 with a 12 m spire, two front side towers 3 x 3 x 14, flying buttresses, a rose window
 function gothKeep(h) {
-  const g = new THREE.Group();
-  g.add(B(3.8, 14, 3.8, GOTH.body)); g.add(B(4.3, 0.5, 4.3, GOTH.trim, 0, 14, 0)); g.add(spire(3.1, 10, GOTH.roof, 0, 14.5, 0));
+  const g = new THREE.Group(), k = new THREE.Group(); k.scale.setScalar(0.8); g.add(k);
+  k.add(B(12, 9, 18, GOTH.body, 0, 0, -4)); gable(k, h, 12, 4, 18, 0, 9, -4);
+  k.add(B(5, 20, 5, GOTH.body, 0, 0, 5)); k.add(B(5.6, 0.5, 5.6, GOTH.trim, 0, 20, 5));
+  const top = houseSpire(k, h, 6, 12, 0, 20.5, 5, false);
   for (const sx of [-1, 1]) {
-    g.add(B(2.4, 10, 2.4, GOTH.body, sx * 3.6, 0, 0.6)); g.add(B(2.8, 0.4, 2.8, GOTH.trim, sx * 3.6, 10, 0.6)); g.add(spire(1.9, 6.5, GOTH.roof, sx * 3.6, 10.4, 0.6));
-    g.add(lancet(h, 0.45, 1.4, sx * 3.6, 6.2, 1.82));
-    const bt = B(0.6, 6, 1.6, GOTH.body, sx * 1.9, 0, 2.2); bt.rotation.x = -0.12; g.add(bt);   // buttresses
+    k.add(B(3, 14, 3, GOTH.body, sx * 5, 0, 6)); k.add(B(3.4, 0.4, 3.4, GOTH.trim, sx * 5, 14, 6)); houseSpire(k, h, 3.8, 8, sx * 5, 14.4, 6);
+    k.add(lancet(h, 0.6, 1.8, sx * 5, 9, 7.53));
+    for (let i = 0; i < 4; i++) {   // flying buttresses on the long sides
+      const bt = B(1.4, 8, 0.8, GOTH.body, sx * 7.4, 0, -11 + i * 4.4); bt.rotation.z = sx * 0.28; k.add(bt);
+      k.add(lancet(h, 0.6, 2.2, sx * 6.03, 3.4, -11 + i * 4.4 + 2.2, sx * Math.PI / 2));
+    }
   }
-  g.add(B(5.4, 7, 6.5, GOTH.body, 0, 0, -4.6)); g.add(roof(5.8, 4.2, 6.8, GOTH.roof, 0, 7, -4.6, 0));
-  const rose = new THREE.Mesh(new THREE.CircleGeometry(1.0, 12), h.winMat); rose.position.set(0, 10.2, 1.92); g.add(rose);
-  g.add(lancet(h, 0.7, 2.6, 0, 3.0, 1.92));
-  for (const x of [-1.4, 1.4]) g.add(lancet(h, 0.4, 1.4, x, 3.2, -1.3 + 0.03));
-  g.add(banner(h, 3.6, 0, 24.3, 0));
+  const rose = new THREE.Mesh(new THREE.CircleGeometry(1.5, 16), h.winMat); rose.position.set(0, 12.5, 7.53); k.add(rose);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.6, 0.18, 4, 18), GOTH.iron); ring.position.set(0, 12.5, 7.55); k.add(ring);
+  k.add(archDoor(2.4, 4, 0, 0, 7.53));
+  k.add(banner(h, 2.5, 0, top - 0.4, 5));
   return g;
 }
 const makeHamlet = (h = HOUSE) => withHouse(h, () => gothHamlet(h));
 const makeKeep = (h = HOUSE) => withHouse(h, () => gothKeep(h));
 // Walls in the style of the Great Wall: a stone wall with battlements on both edges, a walkway
 // on top in the house colour, and a small watchtower at each end. (Internally they are still "roads".)
-const WALL_H = 2.6, WALL_TRIM = 4.5, GATE_HALF = 2.2;   // a gate in the middle of every wall
+const WALL_H = 2.6, WALL_TRIM = 6.5, GATE_HALF = 2.2;   // a gate in the middle of every wall
 const wallGates = [];   // { e, pivots: [left, right], open }
 const boxAt = (...args) => B(...args);   // (inside makeRoad, B is a corner)
 const wallStone = mat(PAL.barrow), _wm = new THREE.Matrix4(), _wt = new THREE.Matrix4(), _wo = new THREE.Object3D();
@@ -1047,11 +1150,13 @@ function mergeGeos(parts) {
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   return out;
 }
-const WG = { body: new THREE.BoxGeometry(2.4, 1, 1), merlon: new THREE.BoxGeometry(0.42, 0.6, 0.7), walk: new THREE.BoxGeometry(0.7, 0.08, 1),
-  tower: new THREE.BoxGeometry(3.4, 1, 3.4), roof: new THREE.ConeGeometry(2.7, 2.2, 4).rotateY(Math.PI / 4) };
+const WG = { body: new THREE.BoxGeometry(1.6, 1, 1), merlon: new THREE.BoxGeometry(0.5, 0.8, 1), walk: new THREE.BoxGeometry(0.8, 0.08, 1),
+  spike: new THREE.ConeGeometry(0.2, 0.7, 4), buttress: new THREE.BoxGeometry(1.6, 1, 1.2),
+  tower: new THREE.BoxGeometry(3, 1, 3), roof: new THREE.ConeGeometry(2.3, 2.4, 4).rotateY(Math.PI / 4) };
+const wallIron = mat(PAL.ink);
 function makeRoad(e, h = HOUSE) {
   const A = corners[e.a], B = corners[e.b], dx = B.x - A.x, dz = B.z - A.z, L = Math.hypot(dx, dz), N = 6;
-  const stone = [], colour = [];
+  const stone = [], colour = [], iron = [];
   const at = (t) => { const x = A.x + dx * t, z = A.z + dz * t; return { x, y: heightAt(x, z), z }; };
   // two runs of wall with the gate between them
   const runs = [[WALL_TRIM, L / 2 - GATE_HALF - 0.6], [L / 2 + GATE_HALF + 0.6, L - WALL_TRIM]], segs = [];
@@ -1062,30 +1167,32 @@ function makeRoad(e, h = HOUSE) {
     _wo.position.set((p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + WALL_H / 2 - 0.4, (p0.z + p1.z) / 2);
     _wo.lookAt(p1.x, p1.y + WALL_H / 2 - 0.4, p1.z); _wo.scale.set(1, 1, 1); _wo.updateMatrix(); _wm.copy(_wo.matrix);
     stone.push({ geo: WG.body, m: _wm.clone().multiply(_wt.makeScale(1, WALL_H + 0.8, len)) });
-    for (const side of [-1.0, 1.0]) for (const k of [-0.33, 0, 0.33])   // battlements
-      stone.push({ geo: WG.merlon, m: _wm.clone().multiply(_wt.makeTranslation(side, WALL_H / 2 + 0.7, k * len)) });
+    for (const side of [-0.55, 0.55]) for (const k of [-0.33, 0, 0.33]) {   // merlons, each with an iron spike
+      stone.push({ geo: WG.merlon, m: _wm.clone().multiply(_wt.makeTranslation(side, WALL_H / 2 + 0.8, k * len)) });
+      iron.push({ geo: WG.spike, m: _wm.clone().multiply(_wt.makeTranslation(side, WALL_H / 2 + 1.55, k * len)) });
+    }
+    for (const side of [-1, 1]) stone.push({ geo: WG.buttress, m: _wm.clone().multiply(_wt.makeTranslation(side * 0.9, -0.2, 0)).multiply(new THREE.Matrix4().makeScale(0.5, WALL_H * 0.8, 1)) });
     colour.push({ geo: WG.walk, m: _wm.clone().multiply(_wt.makeTranslation(0, WALL_H / 2 + 0.44, 0)).multiply(new THREE.Matrix4().makeScale(1, 1, len * 0.85)) });
   }
   for (const t of [WALL_TRIM / L, 1 - WALL_TRIM / L]) {   // watchtowers at both ends
-    const p = at(t), th = WALL_H + 2.4;
+    const p = at(t), th = 5;
     stone.push({ geo: WG.tower, m: new THREE.Matrix4().makeTranslation(p.x, p.y + th / 2 - 0.4, p.z).multiply(new THREE.Matrix4().makeScale(1, th, 1)) });
-    colour.push({ geo: WG.roof, m: new THREE.Matrix4().makeTranslation(p.x, p.y + th - 0.4 + 1.1, p.z) });
+    iron.push({ geo: WG.roof, m: new THREE.Matrix4().makeTranslation(p.x, p.y + th - 0.4 + 1.2, p.z) });
   }
   const g = new THREE.Group();
   g.add(new THREE.Mesh(mergeGeos(stone), wallStone));
   g.add(new THREE.Mesh(mergeGeos(colour), h.mat));
-  // the gate: two pillars, a lintel with a banner, and wooden doors in the house colour that swing open for their owner
+  g.add(new THREE.Mesh(mergeGeos(iron), wallIron));
+  // the gate: two pillars, a pointed lintel with a strip of the owner's colour, and an iron portcullis that rises for its owner
   const G = at(0.5), gate = new THREE.Group(); gate.position.set(G.x, G.y - 0.3, G.z); gate.rotation.y = Math.atan2(dx, dz);
-  for (const sd of [-1, 1]) gate.add(boxAt(2.8, WALL_H + 1.5, 1.2, wallStone, 0, 0, sd * (GATE_HALF + 0.6)));
-  gate.add(boxAt(2.8, 0.8, GATE_HALF * 2 + 2.4, wallStone, 0, WALL_H + 0.7, 0));
-  gate.add(boxAt(0.12, 0.9, 2.4, h.mat, 1.45, WALL_H + 0.65, 0)); gate.add(boxAt(0.12, 0.9, 2.4, h.mat, -1.45, WALL_H + 0.65, 0));
-  const pivots = [-1, 1].map(sd => {
-    const pv = new THREE.Group(); pv.position.set(0, 0, sd * GATE_HALF); gate.add(pv);
-    const leaf = boxAt(0.28, WALL_H + 0.3, GATE_HALF, h.mat, 0, 0, -sd * GATE_HALF / 2); pv.add(leaf);
-    pv.add(boxAt(0.32, 0.18, GATE_HALF * 0.9, M.iron, 0, 0.8, -sd * GATE_HALF / 2)); pv.add(boxAt(0.32, 0.18, GATE_HALF * 0.9, M.iron, 0, WALL_H - 0.6, -sd * GATE_HALF / 2));
-    return pv;
-  });
-  g.add(gate); g.userData.gate = { pivots, pos: { x: G.x, z: G.z } };
+  for (const sd of [-1, 1]) gate.add(boxAt(1.8, 5, 1.6, wallStone, 0, 0, sd * (GATE_HALF + 0.8)));
+  const lin = new THREE.Shape(); lin.moveTo(-GATE_HALF - 1.6, 0); lin.lineTo(GATE_HALF + 1.6, 0); lin.lineTo(0, 2); lin.closePath();
+  const lintel = new THREE.Mesh(new THREE.ExtrudeGeometry(lin, { depth: 1.8, bevelEnabled: false }).translate(0, 0, -0.9), wallStone); lintel.rotation.y = Math.PI / 2; lintel.position.y = 5; gate.add(lintel);
+  gate.add(boxAt(1.9, 0.4, GATE_HALF * 2 + 3.2, h.mat, 0, 4.6, 0));
+  const grid = new THREE.Group(); gate.add(grid);   // the portcullis: 5 vertical and 4 horizontal iron bars
+  for (let i = 0; i < 5; i++) grid.add(boxAt(0.12, 3.6, 0.12, M.iron, 0, 0, -GATE_HALF + 0.3 + i * (GATE_HALF * 2 - 0.6) / 4));
+  for (let i = 0; i < 4; i++) grid.add(boxAt(0.12, 0.12, GATE_HALF * 2, M.iron, 0, 0.4 + i * 1.0, 0));
+  g.add(gate); g.userData.gate = { pivots: [], grid, pos: { x: G.x, z: G.z } };
   g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
   return g;
 }
@@ -1128,9 +1235,11 @@ function refreshJoint(c) {
     if (!colours.has(e.road)) colours.set(e.road, []);
     colours.get(e.road).push({ geo: WG.walk, m: _wm.clone().multiply(_wt.makeTranslation(0, WALL_H / 2 + 0.44, 0)).multiply(new THREE.Matrix4().makeScale(1, 1, len * 0.85)) });
   }
-  const y = heightAt(c.x, c.z), th = WALL_H + 3.2;   // a round corner tower
-  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.3, th, 10), wallStone); tower.position.set(c.x, y + th / 2 - 0.4, c.z); g.add(tower);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const m = new THREE.Mesh(WG.merlon, wallStone); m.position.set(c.x + Math.cos(a) * 1.8, y + th - 0.1, c.z + Math.sin(a) * 1.8); m.rotation.y = -a; g.add(m); }
+  const y = heightAt(c.x, c.z) - 0.4, th = 6;   // a round corner tower
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, th, 8), wallStone); tower.position.set(c.x, y + th / 2, c.z); g.add(tower);
+  const corbel = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.1, 0.5, 8), wallStone); corbel.position.set(c.x, y + th + 0.25, c.z); g.add(corbel);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const m = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 0.5), wallStone); m.position.set(c.x + Math.cos(a) * 2.05, y + th + 0.9, c.z + Math.sin(a) * 2.05); m.rotation.y = -a + Math.PI / 2; g.add(m); }
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.1, 8), wallIron); cap.position.set(c.x, y + th + 0.5 + 1.55, c.z); g.add(cap);
   g.add(new THREE.Mesh(mergeGeos(stone), wallStone));
   for (const [pid, parts] of colours) g.add(new THREE.Mesh(mergeGeos(parts), (players[pid]?.house || HOUSE).mat));
   g.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
@@ -1209,7 +1318,7 @@ function updateGates(dt) {
     const payer = players.find(q => hasPass(q.id, g.e) && lordAt(q.id) && Math.hypot(lordAt(q.id).x - g.pos.x, lordAt(q.id).z - g.pos.z) < 9);
     const want = (op && Math.hypot(op.x - g.pos.x, op.z - g.pos.z) < 9) || payer ? 1 : 0;
     g.open += (want - g.open) * Math.min(1, dt * 4);
-    g.pivots[0].rotation.y = g.open * 1.35; g.pivots[1].rotation.y = -g.open * 1.35;
+    if (g.grid) g.grid.position.y = g.open * 3.2; else { g.pivots[0].rotation.y = g.open * 1.35; g.pivots[1].rotation.y = -g.open * 1.35; }
   }
 }
 let wallMsgT = 0;
@@ -1809,14 +1918,14 @@ function reportBuild(pid, t) {
 // A lord on horseback: a horse in a caparison of the house colour, an armoured rider with a plumed helm,
 // a crest shield and a lance with the house banner.
 // A lord on horseback, in some detail: a barded warhorse and an armoured knight with crest shield, lance and cloak.
-const COATS = { varn: { coat: PAL.ink, socks: false }, calder: { coat: PAL.ashen, socks: false }, morrow: { coat: PAL.violet, socks: true }, ashby: { coat: PAL.straw, socks: true } };
+const COATS = { varn: { coat: PAL.ink, socks: false }, calder: { coat: PAL.ink, socks: false }, morrow: { coat: PAL.ink, socks: false }, ashby: { coat: PAL.ink, socks: false } };
 const KM = {};   // shared materials per house (built once)
 function knightMats(h) {
   if (KM[h.key]) return KM[h.key];
   const c = COATS[h.key] || COATS.morrow;
   return (KM[h.key] = {
     coat: mat(c.coat), sock: mat(c.socks ? PAL.bone : c.coat), mane: mat(PAL.ink), hoof: mat(PAL.ink),
-    steel: mat(PAL.lavender), darkSteel: mat(PAL.barrow), leather: mat(PAL.ink), gold: mat(PAL.straw), skin: mat(PAL.ashen),
+    steel: mat(PAL.violet), darkSteel: mat(PAL.ink), leather: mat(PAL.ink), gold: mat(PAL.straw), skin: mat(PAL.ashen),
     cloth: h.mat, clothDS: Object.assign(h.mat.clone(), { side: THREE.DoubleSide }),
     crestDS: new THREE.MeshToonMaterial({ map: h.crestMat.map, gradientMap: toonRamp, side: THREE.DoubleSide }),
     eye: new THREE.MeshBasicMaterial({ color: PAL.ink }),
@@ -1913,7 +2022,13 @@ function makeAvatar(h, label = `${h.sigil} ${h.name}`) {
   rider.add(mesh(new THREE.BoxGeometry(0.34, 0.035, 0.06), m.eye, 0, 1.1, 0.19));
   rider.add(mesh(new THREE.BoxGeometry(0.04, 0.3, 0.03), m.gold, 0, 1.0, 0.21));
   rider.add(mesh(new THREE.BoxGeometry(0.2, 0.035, 0.03), m.gold, 0, 0.98, 0.21));
-  for (const [ry, l] of [[0, 0.7], [0.3, 0.55], [-0.3, 0.55]]) { const pl = new THREE.Mesh(new THREE.ConeGeometry(0.07, l, 5), m.cloth); pl.position.set(0, 1.42, -0.06); pl.rotation.set(-0.55, ry, 0); pl.translateY(l / 2); rider.add(pl); }
+  rider.add(mesh(new THREE.ConeGeometry(0.2, 0.3, 8), m.steel, 0, 1.42, 0));   // the great helm's pointed top
+  const crestBone = mat(PAL.bone);
+  if (h.key === 'varn') for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 4), m.steel); e.position.set(sx * 0.12, 1.5, -0.02); e.rotation.z = -sx * 0.25; rider.add(e); }   // wolf ears
+  else if (h.key === 'calder') for (const sx of [-1, 1]) { const a = new THREE.Group(); a.position.set(sx * 0.1, 1.42, 0); a.rotation.z = -sx * 0.55; rider.add(a);
+    a.add(mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.6, 4), crestBone, 0, 0.3, 0)); const t1 = mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.28, 4), crestBone, sx * 0.08, 0.36, 0); t1.rotation.z = -sx * 0.8; a.add(t1); }   // antlers
+  else if (h.key === 'morrow') { const s = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.04, 5, 12, Math.PI * 1.6), m.cloth); s.position.set(0, 1.6, 0); s.rotation.x = Math.PI / 2; rider.add(s); rider.add(mesh(KG.sphere, m.cloth, 0.12, 1.66, 0.06, 0.06, 0.05, 0.08)); }   // a coiled serpent
+  else { const d = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), crestBone); d.position.set(0, 1.7, 0); rider.add(d); const d2 = d.clone(); d2.rotation.y = Math.PI; rider.add(d2); }   // a sun disc
   // arms: right holds the lance, left holds the shield
   const armR = new THREE.Group(); armR.position.set(-0.4, 0.68, 0); armR.rotation.set(0.35, 0, 0.15); rider.add(armR);
   const uR = tube(0.075, 0.065, 0.4, m.steel, 6); uR.position.y = -0.2; armR.add(uR);
@@ -2163,8 +2278,8 @@ function tapAt(sx, sy) {
 }
 // click-to-move (and click-to-fly)
 const destMarker = (() => {
-  const m = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.22, 5, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
-  m.rotation.x = Math.PI / 2; m.visible = false; scene.add(m); return m;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ map: TEX.dest, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.visible = false; scene.add(m); return m;
 })();
 function walkTo(p) {
   player.via = null; player.pendingToll = null;
@@ -2373,19 +2488,18 @@ function showTarget(best, tip) {
 // GOLD   = you can build here right now (click it)
 // WHITE  = allowed here, but you need more resources
 // FAINT  = a future Hamlet plot: lay one more road to reach it
-const signGold = new THREE.MeshBasicMaterial({ color: 0xd8b060, transparent: true, opacity: 0.95 });
-const signWhite = new THREE.MeshBasicMaterial({ color: 0xd4dcea, transparent: true, opacity: 0.38 });
+const signGold = new THREE.MeshBasicMaterial({ color: PAL.ember, transparent: true, opacity: 0.95 });
+const signWhite = new THREE.MeshBasicMaterial({ color: PAL.bone, transparent: true, opacity: 0.7 });
 const signFaint = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false });
-const signCloth = { gold: mat(0xe0a020), white: mat(0xd8d2c4) };
+const signCloth = { gold: new THREE.MeshBasicMaterial({ color: PAL.ember }), white: mat(PAL.bone) };
 function signTexture(icon, title, cost, ok) {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 128; const g = cv.getContext('2d');
-  g.fillStyle = ok ? '#34284e' : 'rgba(22,22,30,.82)';
-  g.beginPath(); g.roundRect(8, 8, 304, 112, 10); g.fill();
-  g.lineWidth = 7; g.strokeStyle = '#0e0818'; g.stroke();
-  g.lineWidth = 3; g.strokeStyle = ok ? '#c4b2ee' : '#4a5468'; g.beginPath(); g.roundRect(15, 15, 290, 98, 6); g.stroke();
-  g.font = '64px serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText(icon, 66, 66);
-  g.textAlign = 'left'; g.fillStyle = ok ? '#f4dcec' : '#9aa2b2'; g.font = "bold 34px Cinzel, 'Cinzel Decorative', Georgia, serif"; g.fillText(title, 118, 46);
-  g.font = '28px serif'; g.fillText(cost, 118, 92);
+  if (ok) { g.fillStyle = '#E0A24A'; g.fillRect(4, 8, 312, 112); }
+  g.globalAlpha = ok ? 1 : 0.8; g.fillStyle = '#EDE6DA'; g.fillRect(ok ? 12 : 8, ok ? 16 : 12, ok ? 296 : 304, ok ? 96 : 104); g.globalAlpha = 1;
+  g.strokeStyle = '#1E1A26'; g.lineWidth = 3; g.strokeRect(14, 18, 292, 92); g.lineWidth = 1.5; g.strokeRect(21, 25, 278, 78);
+  g.font = '56px serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillStyle = '#1E1A26'; g.fillText(icon, 66, 64);
+  g.textAlign = 'left'; g.fillStyle = ok ? '#1E1A26' : '#3A3350'; g.font = "700 36px 'Grenze Gotisch', 'Cormorant Garamond', Georgia, serif"; g.fillText(title, 112, 48);
+  g.font = '26px serif'; g.fillText(cost, 112, 86);
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
 }
 const costIcons = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join('');
@@ -2395,12 +2509,15 @@ for (const [kind, icon, title] of [['hamlet', '🏠', 'Hamlet'], ['keep', '🏰'
     signMats[kind + ok] = new THREE.SpriteMaterial({ map: signTexture(icon, title, costIcons(kind), ok), transparent: true, depthWrite: false });
 
 // corner signs: a staked-out plot (ring + 4 stakes with pennants) + floating label
-const ringGeo = new THREE.TorusGeometry(2.6, 0.18, 4, 28); ringGeo.rotateX(Math.PI / 2);
-const keepRingGeo = new THREE.TorusGeometry(6.2, 0.16, 4, 40); keepRingGeo.rotateX(Math.PI / 2);
+const ringGeo = new THREE.PlaneGeometry(6, 6); ringGeo.rotateX(-Math.PI / 2);
+const keepRingGeo = new THREE.PlaneGeometry(13, 13); keepRingGeo.rotateX(-Math.PI / 2);
+const markGold = new THREE.MeshBasicMaterial({ map: TEX.build, transparent: true, depthWrite: false, opacity: 1 });
+const markWhite = new THREE.MeshBasicMaterial({ map: TEX.buildBone, transparent: true, depthWrite: false, opacity: 0.7 });
+const markFaint = new THREE.MeshBasicMaterial({ map: TEX.buildBone, transparent: true, depthWrite: false, opacity: 0.25 });
 const stakeGeo = new THREE.CylinderGeometry(0.09, 0.12, 1.6, 4); stakeGeo.translate(0, 0.8, 0);
 const pennantGeo = new THREE.BoxGeometry(0.5, 0.32, 0.04); pennantGeo.translate(0.27, 1.4, 0);
 const cornerSigns = corners.map(c => {
-  const g = new THREE.Group(), ring = new THREE.Mesh(ringGeo, signGold); ring.position.y = 0.35; g.add(ring);
+  const g = new THREE.Group(), ring = new THREE.Mesh(ringGeo, markGold); ring.position.y = 0.35; g.add(ring);
   const stakes = [];
   for (let k = 0; k < 4; k++) {
     const a = k * Math.PI / 2 + Math.PI / 4, st = new THREE.Group();
@@ -2439,7 +2556,7 @@ function refreshMarkers() {
     s.g.visible = !!show; s.label.visible = !!(show && kind);
     if (!show) return;
     const ok = kind && canAfford(kind);
-    const m = !kind ? signFaint : ok ? signGold : signWhite;
+    const m = !kind ? markFaint : ok ? markGold : markWhite;
     s.ring.material = m; s.stakes.forEach(st => { st.visible = !!kind; st.children[1].material = ok ? signCloth.gold : signCloth.white; });
     s.ring.geometry = kind && kind !== 'hamlet' ? keepRingGeo : ringGeo; s.ring.position.y = 0.3;
     if (kind) { s.label.material = signMats[kind + !!ok]; s.label.position.set(c.x, c.y + (kind === 'hamlet' ? 5.5 : 12), c.z); }
@@ -2539,7 +2656,7 @@ function updateObjective() {
     html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Wyrm blocks it and robs a rival there';
   } else if (state.phase === 'play' && guideOn) {
     const g = nextGoal(); currentGoal = g;
-    html = `<span class="goal-tag">🎯 NEXT GOAL</span> ${g.text}`;
+    html = `<span class="goal-tag">🎯 Next goal</span> ${g.text}`;
     go = g.target;
   }
   o.classList.toggle('hidden', !html);
@@ -2600,7 +2717,9 @@ function log(msg) {
   while ($('log').children.length > 9) $('log').lastChild.remove();
 }
 let annTimer = 0;
-function announce(big, small) { $('annBig').textContent = big; $('annSmall').textContent = small || ''; $('announce').classList.add('show'); annTimer = 3.2; }
+const SMALLW = new Set(['of', 'the', 'a', 'an', 'in', 'at', 'to', 'and', 'is', 'on', 'for']);
+const titleCase = t => t === t.toUpperCase() ? t.toLowerCase().replace(/[\p{L}']+/gu, (w, i) => i > 0 && SMALLW.has(w) ? w : w[0].toUpperCase() + w.slice(1)) : t;
+function announce(big, small) { $('annBig').textContent = titleCase(big); $('annSmall').textContent = small || ''; $('announce').classList.add('show'); annTimer = 3.2; }
 
 // trade
 const tgive = {}, tget = {};
@@ -2662,13 +2781,14 @@ let lorePick = null;   // { idx, type, picks: [] } while choosing resources for 
 function renderLore() {
   const me = players[P];
   $('deckLeft').textContent = `${deckCount()} scrolls left in the library · cost ${costStr('scroll')}`;
+  if (!$('cardBack').innerHTML) $('cardBack').innerHTML = CARD_SVG.back;
   $('buyScroll').disabled = !deckCount() || !canAfford('scroll'); $('buyScroll').style.opacity = $('buyScroll').disabled ? 0.5 : 1;
   $('hand').innerHTML = me.scrolls.length ? me.scrolls.map((c, i) => {
     const S = SCROLLS[c.type];
     const btn = c.type === 'renown' ? '<div class="muted">kept secret · +1★</div>'
       : canPlay(me, c) ? `<button class="small" data-play="${i}">PLAY</button>`
       : `<div class="muted">${me.playedAt === state.harvests && state.harvests > c.boughtAt ? 'one scroll per harvest' : 'ready after the next harvest'}</div>`;
-    return `<div class="scard"><div class="si">${S.icon}</div><div class="sn">${S.name}</div><div class="sd">${S.desc}</div>${btn}</div>`;
+    return `<div class="scard art">${CARD_SVG[c.type]}${btn}</div>`;
   }).join('') : '<div class="muted">You hold no scrolls yet.</div>';
   if (lorePick) {
     const n = lorePick.type === 'harvest' ? 2 : 1;
@@ -2888,7 +3008,7 @@ function sfx(kind) {
 // ---------------------------------------------------------------- start / loop
 // house picker on the title screen
 let chosen = 'varn';
-$('housePick').innerHTML = Object.values(HOUSES).map(h => `<div class="hcard ${h.key === chosen ? 'sel' : ''}" data-k="${h.key}" style="--hc:${h.css}"><div class="sig">${h.sigil}</div><div class="hn">${h.name}</div><div class="hd">${h.desc}</div></div>`).join('');
+$('housePick').innerHTML = Object.values(HOUSES).map(h => `<div class="hcard ${h.key === chosen ? 'sel' : ''}" data-k="${h.key}" style="--hc:${h.css}"><div class="sig">${h.sigil}</div><div class="hn">${h.name}</div><div class="hd">${h.desc.split('. ')[0]}.</div></div>`).join('');
 $('housePick').addEventListener('click', e => {
   const c = e.target.closest('.hcard'); if (!c) return; chosen = c.dataset.k;
   document.querySelectorAll('.hcard').forEach(x => x.classList.toggle('sel', x.dataset.k === chosen));
@@ -2937,31 +3057,34 @@ const takeRes = (pid, need) => Object.entries(need).forEach(([k, n]) => { player
 const iconsOf = need => Object.entries(need).map(([k, n]) => RES[k].icon.repeat(n)).join('');
 
 // --- models
-const eggMat = mat(0x3b2a26, { emissive: 0xff5a1a, emissiveIntensity: 0.4 });
-const eggGeo = new THREE.IcosahedronGeometry(1, 1);
+const eggMat = mat(PAL.barrow, { emissive: PAL.ember, emissiveIntensity: 0.12 });
+const eggGeo = new THREE.SphereGeometry(1, 10, 8);
 function makeEgg() { const m = new THREE.Mesh(eggGeo, eggMat); m.scale.set(1, 1.4, 1); m.castShadow = true; return m; }
 function roostDir(c) { const L = Math.hypot(c.x, c.z) || 1; return { x: c.x / L, z: c.z / L }; }
 function nestPos(c) { const d = roostDir(c); return new THREE.Vector3(c.x + d.x * 9, c.y + 4.4, c.z + d.z * 9); }
 function makeRoost(h = HOUSE) {
   return withHouse(h, () => {
-    const g = new THREE.Group(), o = new THREE.Group(); o.position.set(0, 0, 9); g.add(o);
-    o.add(cyl(2.2, 3.2, 7.5, 7, M.stone, 0, -3.5, 0));
-    const nest = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.75, 5, 10), M.woodDark); nest.rotation.x = Math.PI / 2; nest.position.y = 4.1; o.add(nest);
-    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2, st = cyl(0.12, 0.2, 3.2, 4, M.woodLight, Math.cos(a) * 2.4, 3.8, Math.sin(a) * 2.4); st.rotation.z = Math.cos(a) * 0.5; st.rotation.x = -Math.sin(a) * 0.5; o.add(st); }
-    const f = flagPole(5); f.position.set(-2.8, 0, -1.5); o.add(f);
-    o.add(torch(2.8, -1.4, 3.2));
+    const g = new THREE.Group(), o = new THREE.Group(); o.position.set(0, 0, 13); g.add(o);
+    o.add(cyl(3, 4, 3, 10, M.stone, 0, -0.4, 0));
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+      for (const [r, ht, tb] of [[4.6, 9, 0.5], [3.6, 6.5, 0.35]]) {
+        const rib = new THREE.Mesh(new THREE.TorusGeometry(r, tb, 5, 14, Math.PI * 0.7), GOTH.bone);
+        rib.position.set(Math.cos(a) * 0.4, 2.6, Math.sin(a) * 0.4); rib.rotation.set(0, -a, Math.PI * 0.1); rib.scale.set(0.55, ht / r, 1); o.add(rib); } }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.2, 5, 20), M.iron); ring.rotation.x = Math.PI / 2; ring.position.y = 6; o.add(ring);
+    const nest = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.6, 5, 10), M.woodDark); nest.rotation.x = Math.PI / 2; nest.position.y = 3; o.add(nest);
     return g;
   });
 }
 function makeTower(h = HOUSE) {
   return withHouse(h, () => {
-    const g = new THREE.Group(), o = new THREE.Group(); o.position.set(6.5, 0, 0); g.add(o);
-    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) o.add(cyl(0.16, 0.2, 5, 4, M.woodDark, x, 0, z));
-    o.add(B(3, 0.35, 3, M.woodLight, 0, 5, 0));
-    const stock = B(0.45, 0.4, 3.4, M.woodDark, 0, 5.6, 0); stock.rotation.x = -0.45; o.add(stock);
-    o.add(B(3.6, 0.25, 0.25, M.iron, 0, 6.3, 0.9));
-    const bolt = B(0.12, 0.12, 2.6, houseMat, 0, 6.1, 0.4); bolt.rotation.x = -0.45; o.add(bolt);
-    const f = flagPole(3); f.position.set(-1.2, 5.3, -1.2); o.add(f);
+    const g = new THREE.Group(), o = new THREE.Group(); o.position.set(11, 0, 0); g.add(o);
+    o.add(cyl(1.5, 2.8, 12, 4, M.iron, 0, -0.4, 0)).rotation.y = Math.PI / 4;
+    o.add(B(5, 1, 5, GOTH.body, 0, 11.6, 0));
+    for (const [x, z] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]]) { o.add(B(0.6, 0.7, 0.6, GOTH.body, x, 12.6, z)); o.add(B(0.25, 4, 0.25, M.iron, x, 12.6, z)); }
+    o.add(spire(5.2, 2.5, GOTH.roof, 0, 16.6, 0));
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.12, 4, 14, Math.PI * 0.75), M.iron); bow.rotation.set(Math.PI / 2, 0, Math.PI * 0.125); bow.position.set(0, 13.4, 1.2); bow.scale.y = 0.7; o.add(bow);
+    o.add(B(0.4, 0.4, 3.2, M.iron, 0, 13.2, 0));
+    o.add(banner(h, 2.4, -2.2, 16.6, -2.2));
     return g;
   });
 }
@@ -3346,18 +3469,6 @@ function dragonStatus() {
 // ---------------------------------------------------------------- day / night
 const C = h => new THREE.Color(h);
 // t, sky top, horizon, sun colour, sun intensity, hemi sky, hemi ground, hemi intensity, water
-const DAYKEYS = [   // [t, sky top, horizon, sun, sun power, hemi sky, hemi ground, hemi power, sea]
-  [0.00, 0x6e6880, 0xc8b0ac, 0xe8d8cc, 1.6, 0xb0a8bc, 0x3a3350, 1.0, 0x6e6880],   // dawn
-  [0.10, 0x8e8aa3, 0xd6d0d0, 0xf0e8de, 2.1, 0xd0cad6, 0x5a5468, 1.15, 0x8e8aa3],  // morning
-  [0.36, 0x9692ac, 0xdcd6d2, 0xf2ece2, 2.2, 0xd6d0da, 0x5e586c, 1.2, 0x8e8aa3],   // noon
-  [0.64, 0x8e8aa3, 0xd8ccc8, 0xf0e2d6, 2.1, 0xd0c8d2, 0x5a5468, 1.15, 0x8a86a0],  // afternoon
-  [0.76, 0x5e5878, 0xb89a9e, 0xe0c4bc, 1.6, 0xa89cb4, 0x3a3350, 1.0, 0x6e6880],   // dusk
-  [0.81, 0x2e2a40, 0x5a5270, 0xa8a4c0, 0.9, 0x6a6488, 0x2a2638, 0.85, 0x3a3350],  // twilight
-  [0.90, 0x1e1a26, 0x3a3350, 0xa8a4c0, 0.8, 0x524c70, 0x1e1a26, 0.8, 0x2a2638],   // midnight
-  [0.97, 0x2e2a40, 0x544a68, 0xa8a4c0, 0.9, 0x6a6488, 0x2a2638, 0.85, 0x3a3350],  // before dawn
-  [1.00, 0x6e6880, 0xc8b0ac, 0xe8d8cc, 1.6, 0xb0a8bc, 0x3a3350, 1.0, 0x6e6880],
-];
-const dayCols = { top: C(0), hor: C(0), sun: C(0), hs: C(0), hg: C(0), water: C(0) };
 const _ca = new THREE.Color(), _cb = new THREE.Color();
 function lerpHex(a, b, k, out) { return out.copy(_ca.setHex(a)).lerp(_cb.setHex(b), k); }
 const sunAngle = t => t < 0.78 ? t / 0.78 * Math.PI : Math.PI + (t - 0.78) / 0.22 * Math.PI;   // long days, short nights
@@ -3370,31 +3481,40 @@ function todAnnounce(tod) {
   if (tod === 'night') announce('🌙 NIGHT FALLS', 'Raid rival Hamlets in the dark, but beware their towers and their lords');
   if (tod === 'dawn') announce('🌅 DAWN', 'The next harvest is bountiful: +1 for every Hamlet and Keep');
 }
+const TOD_KEYS = {"dawn": {"skyTop": "#8E8AA3", "skyHorizon": "#E6CFC8", "fog": "#D9CFD2", "sceneTint": "#F3E6E0", "emberGlow": 0.5, "mistOpacity": 0.9, "stars": 0}, "day": {"skyTop": "#A9A5BA", "skyHorizon": "#EDE6DA", "fog": "#B9B4C6", "sceneTint": "#FFFFFF", "emberGlow": 0.25, "mistOpacity": 0.6, "stars": 0}, "afternoon": {"skyTop": "#9C97AE", "skyHorizon": "#E9DFCF", "fog": "#BDB6C2", "sceneTint": "#F6EEE2", "emberGlow": 0.3, "mistOpacity": 0.5, "stars": 0}, "dusk": {"skyTop": "#5A5070", "skyHorizon": "#C79AA0", "fog": "#8E8AA3", "sceneTint": "#D9C3CC", "emberGlow": 0.8, "mistOpacity": 0.7, "stars": 0.15}, "night": {"skyTop": "#1E1A26", "skyHorizon": "#3A3350", "fog": "#4A4460", "sceneTint": "#8F8BB0", "emberGlow": 1, "mistOpacity": 0.8, "stars": 0.6}, "deep_night": {"skyTop": "#17141E", "skyHorizon": "#2C2740", "fog": "#3A3350", "sceneTint": "#7873A0", "emberGlow": 1, "mistOpacity": 0.9, "stars": 1}};
+// when each keyframe holds during the day (dayT 0..1); blends between neighbours are long and soft
+const TOD_TIMES = [[0.00, 'dawn'], [0.08, 'day'], [0.50, 'day'], [0.64, 'afternoon'], [0.75, 'dusk'], [0.82, 'night'], [0.91, 'deep_night'], [0.97, 'night'], [1.00, 'dawn']];
+const _todC = { top: new THREE.Color(), hor: new THREE.Color(), fog: new THREE.Color(), tint: new THREE.Color() };
+function todAt(t) {
+  let i = 0; while (TOD_TIMES[i + 1][0] < t) i++;
+  const [t0, a] = TOD_TIMES[i], [t1, b] = TOD_TIMES[i + 1], k = smooth(0, 1, (t - t0) / (t1 - t0)), A = TOD_KEYS[a], B = TOD_KEYS[b];
+  const mixC = (key, out) => out.set(A[key]).lerp(_cb.set(B[key]), k);
+  mixC('skyTop', _todC.top); mixC('skyHorizon', _todC.hor); mixC('fog', _todC.fog); mixC('sceneTint', _todC.tint);
+  const num = key => A[key] + (B[key] - A[key]) * k;
+  return { ..._todC, ember: num('emberGlow'), mist: num('mistOpacity'), stars: num('stars') };
+}
 const _sunDir = new THREE.Vector3();
+let todNow = null;
 function updateDayNight(dt) {
   if (state.phase === 'play' && (!state.paused || NET.online)) { dayT += dt / DAY_LENGTH; if (dayT >= 1) { dayT -= 1; dayCount++; log(`🌅 Dawn of day ${dayCount}`); if (!NET.guest) state.dawnBounty = true; } }
-  let i = 0; while (DAYKEYS[i + 1][0] < dayT) i++;
-  const A = DAYKEYS[i], Bk = DAYKEYS[i + 1], k = (dayT - A[0]) / (Bk[0] - A[0]);
-  lerpHex(A[1], Bk[1], k, dayCols.top); lerpHex(A[2], Bk[2], k, dayCols.hor); lerpHex(A[3], Bk[3], k, dayCols.sun);
-  lerpHex(A[5], Bk[5], k, dayCols.hs); lerpHex(A[6], Bk[6], k, dayCols.hg); lerpHex(A[8], Bk[8], k, dayCols.water);
-  const sunI = A[4] + (Bk[4] - A[4]) * k, hemiI = A[7] + (Bk[7] - A[7]) * k;
+  const T = todNow = todAt(dayT);
   const a = sunAngle(dayT); _sunDir.set(-Math.cos(a) * 0.9, Math.sin(a), 0.42).normalize();
   night = 1 - smooth(-0.12, 0.18, _sunDir.y);
-  skyU.top.value.copy(dayCols.top); skyU.horizon.value.copy(dayCols.hor); skyU.sunCol.value.copy(dayCols.sun).multiplyScalar(1 - night);
+  skyU.top.value.copy(T.top); skyU.horizon.value.copy(T.hor); skyU.sunCol.value.setHex(PAL.bone).multiplyScalar(1 - night);
   skyU.sunDir.value.copy(_sunDir); skyU.moonDir.value.copy(_sunDir).negate(); skyU.night.value = night;
-  skyU.bottom.value.copy(dayCols.water).multiplyScalar(0.8);
-  scene.fog.color.setHex(PAL.mist).lerp(_ca.setHex(0x2e2a40), night); skyU.uT.value = performance.now() / 1000;
+  skyU.bottom.value.setHex(PAL.lavender).multiply(T.tint); skyU.uT.value = performance.now() / 1000;
+  inkU.fogCol.value.copy(T.fog); inkU.emberK.value = T.ember;
   inkU.paper.value.setHex(PAL.bone).lerp(_cb.setHex(0x3a3350), night * 0.85);
-  // the sun by day, the moon by night (same light, so shadows always work)
+  // flat washes: the light is the scene tint (multiply); sprites (tokens, plaques) ignore it and stay bone-white
   const lightDir = _sunDir.y > -0.05 ? _sunDir : _sunDir.clone().negate();
-  sun.position.copy(lightDir).multiplyScalar(300); sun.color.copy(dayCols.sun); sun.intensity = sunI;
-  hemi.color.copy(dayCols.hs); hemi.groundColor.copy(dayCols.hg); hemi.intensity = hemiI;
-  water.material.color.copy(dayCols.water);
-  cloudMat.color.setRGB(1, 1, 1).lerp(dayCols.hor, 0.35).lerp(dayCols.top, night * 0.6);
-  stars.material.opacity = night * 0.9;
-  windowMat.emissiveIntensity = 0.15 + night * 1.6;
-  glowMat.opacity = 0.1 + night * 0.85;
-  lavaLight.intensity = 350 + night * 900;
+  sun.position.copy(lightDir).multiplyScalar(300); sun.color.copy(T.tint); sun.intensity = 1.9;
+  hemi.color.copy(T.tint); hemi.groundColor.copy(T.tint).multiplyScalar(0.72); hemi.intensity = 1.35;
+  water.material.color.setHex(PAL.lavender);
+  cloudMat.color.setRGB(1, 1, 1).lerp(T.hor, 0.35).lerp(T.top, night * 0.6);
+  stars.material.opacity = T.stars;
+  windowMat.emissiveIntensity = 0.15 + T.ember * 1.6;
+  glowMat.opacity = 0.1 + T.ember * 0.85;
+  lavaLight.intensity = 80 + T.ember * 160;
   if (state.phase === 'play') {
     const names = [[0.06, '🌅 Dawn'], [0.30, '☀️ Morning'], [0.44, '☀️ Midday'], [0.70, '🌤️ Afternoon'], [0.80, '🌇 Dusk'], [0.97, '🌙 Night'], [1.01, '🌌 Before dawn']];
     $('clock').textContent = `Day ${dayCount} · ${names.find(n => dayT < n[0])[1]}` + (isDusk() ? ' · Guild 3:1' : isNight() ? ' · raids possible' : state.dawnBounty ? ' · bountiful harvest next' : '');
@@ -3756,14 +3876,14 @@ function guestStep(dt, time) {
 // ---- lobby
 function lobbyStatus(t) { $('netStatus').textContent = t; $('lobbyStatus').textContent = t; }
 function netConnect(then) {
-  if (!/^https?:$/.test(location.protocol)) return lobbyStatus('Online play needs the Dragonhold server (see the README).');
+  if (!/^https?:$/.test(location.protocol)) return lobbyStatus('Online play needs the Kingdom of Dragons server (see the README).');
   lobbyStatus('Connecting…');
   let ws;
   try { ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host); }
-  catch (e) { return lobbyStatus('Could not reach the Dragonhold server.'); }
+  catch (e) { return lobbyStatus('Could not reach the Kingdom of Dragons server.'); }
   NET.ws = ws;
   ws.onopen = then;
-  ws.onerror = () => lobbyStatus('Could not reach the Dragonhold server. Online play works from the game\'s Render link.');
+  ws.onerror = () => lobbyStatus('Could not reach the Kingdom of Dragons server. Online play works from the game\'s Render link.');
   ws.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch { return; } netMsg(m); };
   ws.onclose = () => { if (NET.online && state.phase !== 'won' && state.phase !== 'title') { announce('CONNECTION LOST', 'The link to the other houses was cut'); log('⚠️ Connection to the server lost'); } };
 }
@@ -4145,21 +4265,21 @@ function loop() {
   const wp = water.geometry.attributes.position, base = water.userData.base;
   for (let i = 0; i < wp.count; i++) { const x = base[i * 3], z = base[i * 3 + 2]; wp.array[i * 3 + 1] = Math.sin(x * 0.05 + time) * 0.35 + Math.cos(z * 0.07 + time * 0.8) * 0.35; }
   wp.needsUpdate = true; water.geometry.computeVertexNormals();
-  windmills.forEach(b => b.rotation.z += dt * 0.8);
+  windmills.forEach(b => b.rotation.z += dt * Math.PI * 2 / 10);
   windU.value = time; updateMotes(time); updateAtmosphere(time);
   clouds.forEach(c => { c.position.x += dt * 3; if (c.position.x > 600) c.position.x = -600; });
   const top = heightAt(0, 0) + 2;
-  smoke.forEach(s => { s.userData.age += dt * 0.12; if (s.userData.age > 1) s.userData.age = 0; const a = s.userData.age; s.position.set(Math.sin(a * 9 + s.id) * 3 + a * 18, top + a * 45, Math.cos(a * 7 + s.id) * 3); s.scale.setScalar(0.6 + a * 2.4); });
+  smoke.forEach(s => { s.userData.age += dt * 0.12; if (s.userData.age > 1) s.userData.age = 0; const a = s.userData.age; s.position.set(Math.sin(a * 9 + s.id) * 3 + a * 18, top + a * 45, Math.cos(a * 7 + s.id) * 3); s.scale.setScalar(s.userData.base * (1 + a * 1.5)); s.material.opacity = Math.min(1, a * 6) * (1 - a); });
   cornerSigns.forEach((s, i) => { if (s.g.visible) { s.ring.rotation.y += dt * 0.6; if (s.label.visible) s.label.position.y += Math.sin(time * 2 + i) * 0.004; } });
-  const glow = 0.75 + Math.sin(time * 3) * 0.2; signGold.opacity = glow;
-  if (destMarker.visible) { destMarker.rotation.z += dt * 2; destMarker.scale.setScalar(1 + Math.sin(time * 5) * 0.12); }
+  const glow = 0.75 + Math.sin(time * 3) * 0.2; signGold.opacity = glow; markGold.opacity = 0.8 + Math.sin(time * 2) * 0.2;
+  if (destMarker.visible) destMarker.rotation.z += dt * Math.PI * 2 / 8;
   if (beacon.visible) beacon.material.opacity = 0.22 + Math.sin(time * 2.5) * 0.1;
   for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.t += dt * 3; const k = Math.min(1, p.t); p.o.scale.setScalar(0.2 + 0.8 * k + Math.sin(k * Math.PI) * 0.2); if (p.t >= 1) { p.o.scale.setScalar(1); pops.splice(i, 1); } }
   for (let i = pulse.length - 1; i >= 0; i--) { const p = pulse[i]; p.t += dt; const s = 5 + Math.sin(Math.min(1, p.t / 1.5) * Math.PI) * 4; p.s.scale.set(s, s * 1.38, 1); if (p.t > 1.5) { p.s.scale.set(5, 6.9, 1); pulse.splice(i, 1); } }
   updateFire(dt); updateFloats(dt); duelClock += dt; updateChallenge(); updateRaid(); updateGates(dt); updateToll();
   if (annTimer > 0) { annTimer -= dt; if (annTimer <= 0) $('announce').classList.remove('show'); }
 
-  inkU.fadeNear.value = scene.fog.near * 1.4; inkU.fadeFar.value = scene.fog.far * 1.1;
+  inkU.fadeNear.value = 180; inkU.fadeFar.value = 620;
   camera.updateMatrixWorld(); inkU.invProj.value.copy(camera.projectionMatrixInverse); inkU.camWorld.value.copy(camera.matrixWorld);
   renderer.setRenderTarget(inkRT); renderer.render(scene, camera);
   renderer.setRenderTarget(null); renderer.render(inkScene, inkCam);

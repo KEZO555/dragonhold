@@ -1,8 +1,8 @@
-# Dragonhold
+# Kingdom of Dragons
 
 A first-person, competitive fantasy **settle-and-trade** game in the browser.
 Rival noble houses land on the volcanic Isles of Embervale, claim the corners where
-resource regions meet, trade, send Reavers against each other, and raise dragons.
+resource regions meet, trade, wake the Wyrm against each other, and raise dragons.
 The first house to reach **12 Renown** is crowned.
 
 Comic-style low-poly art (cel shading, ink outlines), a full day/night cycle,
@@ -18,7 +18,7 @@ python3 -m http.server 8000
 
 Then visit http://localhost:8000 and press **PLAY VS AI**.
 
-**Online with friends:** run the Dragonhold server, which serves the game and relays messages between players:
+**Online with friends:** run the Kingdom of Dragons server, which serves the game and relays messages between players:
 
 ```bash
 npm install

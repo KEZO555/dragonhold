@@ -1,0 +1,67 @@
+/* Dragonhold UI kit. Tokens from DRAGONHOLD_DESIGN.md */
+:root{--ink:#1E1A26;--violet:#3A3350;--stone:#6E6880;--lav:#8E8AA3;--bone:#EDE6DA;--ashen:#CFC6BC;--moss:#5F6B5E;--straw:#A89A86;--rose:#8C3B4A;--ember:#E0A24A;--plate:rgba(237,230,218,.86)}
+.dh{font-family:'Cormorant Garamond',Georgia,serif;color:var(--ink);font-size:19px;line-height:1.25;font-weight:500}
+.dh *{box-sizing:border-box}
+.dh button,.dh input{font:inherit;color:inherit}
+.dh a{color:var(--violet);font-size:19px}
+.dh a:hover{color:var(--ink)}
+.dh .screen,.dh.screen{position:absolute;inset:0;overflow:hidden}
+.dh .row{display:flex;align-items:center;gap:10px}
+.dh .col{display:flex;flex-direction:column;align-items:center;gap:8px}
+.dh .h1,.dh .h2{font-family:'Grenze Gotisch','Cormorant Garamond',Georgia,serif}
+.dh .h1{font-size:40px;font-weight:700;letter-spacing:.02em;line-height:1.05}
+.dh .h2{font-size:28px;font-weight:700;line-height:1.1}
+.dh .h3{font-size:21px;font-weight:700}
+.dh .muted{color:var(--violet);font-style:italic}
+.dh .rule{height:1px;background:var(--stone);width:100%}
+/* surfaces */
+.dh .plate{background:rgba(237,230,218,.9);border:1px solid var(--ink);border-radius:0;padding:12px 18px;box-shadow:inset 0 0 0 3px rgba(237,230,218,.9),inset 0 0 0 4px var(--stone)}
+.dh .panel{position:relative;background:rgba(237,230,218,.96);border:2px solid var(--ink);outline:1px solid var(--ink);outline-offset:-9px;border-radius:0;padding:30px 34px}
+.dh .panel::before,.dh .panel::after{content:'';position:absolute;left:50%;width:16px;height:16px;background:var(--rose);border:2px solid var(--ink);transform:translateX(-50%) rotate(45deg)}
+.dh .panel::before{top:-10px}
+.dh .panel::after{bottom:-10px}
+.dh .bar{background:var(--ink);color:var(--bone);border-radius:0;padding:8px 10px;border-top:3px double var(--stone)}
+/* buttons */
+.dh .pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:2px;border:3px double var(--ink);background:transparent;font-weight:700;cursor:pointer;white-space:nowrap}
+.dh .pill.sel{background:var(--ink);color:var(--bone)}
+.dh .pill.plate-pill{background:var(--plate)}
+.dh .btn-ember{background:var(--ember);color:var(--ink);border:3px double var(--ink)}
+.dh .round{width:44px;height:44px;border-radius:50%;border:3px double var(--ink);background:var(--plate);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;font-weight:700;font-size:22px}
+.dh .round.sm{background:transparent}
+.dh .round.big{width:56px;height:56px}
+.dh .round.on-bar{background:transparent;border-color:rgba(237,230,218,.6)}
+.dh .pill:focus-visible,.dh .round:focus-visible,.dh .build:focus-visible,.dh .hcard:focus-visible,.dh .move:focus-visible{outline:3px solid var(--ember);outline-offset:2px}
+/* HUD pieces */
+.dh .chip{display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:3px double rgba(237,230,218,.5);border-radius:2px}
+.dh .score{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.dh .score li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.dh .dot{width:12px;height:12px;border-radius:50%;border:1px solid var(--ink)}
+.dh .build{display:grid;grid-template-columns:30px 1fr;column-gap:10px;align-items:center;text-align:left;min-height:52px;padding:4px 8px;border:1px solid transparent;border-radius:4px;background:transparent;cursor:pointer}
+.dh .build:hover{border-color:var(--ink)}
+.dh .build svg{grid-row:span 2}
+.dh .build .bn{font-weight:700}
+.dh .build .bc{display:flex;gap:8px;font-size:17px;color:var(--violet)}
+.dh .cost{display:inline-flex;align-items:center;gap:2px;font-size:17px;font-weight:600}
+.dh .tag{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:2px 14px;border-radius:2px;background:var(--bone);border:3px double var(--ink);font-weight:700}
+.dh .popup{font-size:24px;font-weight:700;-webkit-text-stroke:3px var(--bone);paint-order:stroke fill}
+.dh .announce{text-align:center;padding:18px 60px;background:rgba(237,230,218,.92);border-top:6px double var(--ink);border-bottom:6px double var(--ink)}
+/* start, lobby, war table */
+.dh .hcard{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:1px solid var(--stone);border-radius:0;background:transparent;cursor:pointer;text-align:center}
+.dh .hcard.sel{border:3px double var(--ink);background:rgba(142,138,163,.25)}
+.dh .field{display:flex;flex-direction:column;gap:2px;font-size:17px;color:var(--violet)}
+.dh .field input{height:44px;padding:0 12px;border:1px solid var(--ink);border-radius:4px;background:var(--bone);font-size:19px;color:var(--ink);width:180px}
+.dh .landing,.dh .seats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.dh .landing li{display:grid;grid-template-columns:20px 28px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:4px}
+.dh .landing li.cur{background:rgba(142,138,163,.3);outline:1px solid var(--ink)}
+.dh .seats li{display:grid;grid-template-columns:30px 1fr 1fr 30px;gap:10px;align-items:center;padding:10px;border-bottom:1px solid var(--stone)}
+/* trade, duel, cards, help */
+.dh .tbl{width:100%;border-collapse:collapse;margin:16px 0}
+.dh .tbl th,.dh .tbl td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--stone)}
+.dh .tbl thead th{font-style:italic;font-weight:500;color:var(--violet)}
+.dh .pip{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink)}
+.dh .move{display:flex;flex-direction:column;align-items:center;gap:6px;width:150px;padding:16px 8px;border:1px solid var(--ink);border-radius:4px;background:transparent;font-size:22px;font-weight:700;cursor:pointer}
+.dh .move:hover,.dh .hcard:hover{background:rgba(142,138,163,.25)}
+.dh .cardbtn{border:none;background:transparent;padding:0;cursor:pointer;border-radius:8px}
+.dh .cardbtn:hover{transform:translateY(-6px)}
+.dh .help{border:1px solid var(--stone);border-radius:4px;padding:14px 16px}
+.dh .help p{margin:8px 0 0;font-size:18px}

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dragonhold: Prototype</title>
+<title>Kingdom of Dragons</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Grenze+Gotisch:wght@600;700&family=Cinzel:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --gold:#e9c46a; --ink:#1b1410; --panel:rgba(22,16,12,.78); --line:rgba(233,196,106,.45); }
   * { box-sizing:border-box; }
@@ -579,6 +579,116 @@
   .st { min-height:32px !important; padding:0 10px !important; font-size:17px !important; }
   #duelMoves button { border-radius:16px !important; }
   #dpad .dp { min-height:0 !important; }
+  /* ===================== UI KIT v2 (batch 2): square medieval plaques, double ink rules, Grenze Gotisch ===================== */
+  :root { --plate:rgba(237,230,218,.9); --stone:#6E6880; }
+  html,body { font-size:18px; }
+  /* the frame: a pointed stone arch above, the crenellated wall below */
+  #frame { position:fixed; inset:0; pointer-events:none; z-index:1; }
+  #frame .arch { position:absolute; left:0; top:0; width:100%; height:100%; }
+  #frame .wall { position:absolute; left:0; bottom:0; width:100%; height:128px; }
+  #frame .qf { position:absolute; top:44%; width:30px; height:30px; } #frame .qf.l { left:10px; } #frame .qf.r { right:10px; }
+  #frame .dia { position:absolute; top:5%; width:9px; height:14px; } #frame .d1 { left:9%; } #frame .d2 { right:9%; }
+  #hud { z-index:2; }
+  #hud::before { content:''; position:absolute; left:0; right:0; bottom:0; height:74px; background:var(--ink); border-top:3px double var(--stone); }
+  /* plates */
+  .panel { background:var(--plate) !important; border:1px solid var(--ink) !important; border-radius:0 !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
+    box-shadow:inset 0 0 0 3px var(--plate), inset 0 0 0 4px var(--stone), 0 6px 18px rgba(30,26,38,.25) !important; }
+  /* big panels: a double ink frame with dried-rose diamonds top and bottom */
+  .overlay .card.panel { background:rgba(237,230,218,.97) !important; border:2px solid var(--ink) !important; outline:1px solid var(--ink); outline-offset:-9px; box-shadow:0 18px 50px rgba(30,26,38,.45) !important; padding:30px 34px !important; overflow:visible; max-height:94vh; }
+  .overlay .card.panel::before, .overlay .card.panel::after { content:'' !important; display:block !important; position:absolute; left:50% !important; width:16px !important; height:16px !important; background:var(--rose) !important; border:2px solid var(--ink) !important; transform:translateX(-50%) rotate(45deg); filter:none !important; right:auto; border-radius:0; box-shadow:none; z-index:2; }
+  .overlay .card.panel::before { top:-10px !important; bottom:auto !important; } .overlay .card.panel::after { bottom:-10px !important; top:auto !important; }
+  .overlay .card.panel > *:not(.wordmark) { position:relative; }
+  .overlay .card { overflow-y:auto; }
+  /* type */
+  .title, #announce .big, #house .name, .cols h3, .card h3, .cheatgrid h3, .step, .scard .sn, #duelScore { font-family:'Grenze Gotisch','Cormorant Garamond',Georgia,serif !important; font-weight:700 !important; letter-spacing:.02em !important; text-transform:none !important; }
+  .title { font-size:40px !important; line-height:1.05; color:var(--ink) !important; text-shadow:none !important; }
+  .cols h3, .card h3, .cheatgrid h3 { font-size:22px !important; color:var(--ink) !important; text-transform:lowercase !important; }
+  .cheatgrid h3::first-letter, .card h3::first-letter { text-transform:uppercase; }
+  .muted, .tag { color:var(--violet) !important; font-style:italic; }
+  /* buttons: square plaques with a double ink rule; ember gold is the one filled button */
+  button { border-radius:2px !important; border:3px double var(--ink) !important; background:transparent !important; color:var(--ink) !important; letter-spacing:0 !important; font-size:18px !important; box-shadow:none !important; }
+  button:hover { background:rgba(142,138,163,.25) !important; }
+  button.primary, #startBtn, #lobbyStart, #helpClose, #againBtn, #hurryBtn, #ravenYes { background:var(--ember) !important; border:3px double var(--ink) !important; color:var(--ink) !important; box-shadow:none !important; }
+  button.ghost, .linkish { border:none !important; background:none !important; color:var(--violet) !important; text-decoration:underline; text-underline-offset:3px; font-style:normal; }
+  /* round wax-seal icon buttons */
+  .tb { width:44px; height:44px; min-height:44px !important; padding:0 !important; border-radius:50% !important; background:var(--plate) !important; font-size:0 !important; display:inline-flex; align-items:center; justify-content:center; }
+  .tb .icw { margin:0; } .tb .icw svg.ic { width:22px !important; height:22px !important; }
+  .tb.on { background:var(--ink) !important; } .tb.on .icw svg.ic { filter:brightness(0) invert(.92) !important; }
+  #topBtns { flex-direction:row !important; gap:8px !important; top:210px !important; }
+  /* the bar on the wall: resource chips left, round action seals right */
+  #resources.panel { left:20px !important; right:auto !important; transform:none !important; bottom:13px !important; background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; gap:8px !important; }
+  .res { height:46px !important; border:3px double rgba(237,230,218,.5) !important; border-radius:2px !important; background:transparent !important; padding:0 14px !important; width:auto !important; display:flex !important; align-items:center; gap:8px !important; color:var(--bone) !important; }
+  .res .ic { order:0; } .res .nm { display:block !important; order:1; font-size:18px !important; opacity:1 !important; color:var(--bone) !important; } .res .n { order:2; font-size:20px !important; }
+  .res.flash { background:var(--bone) !important; } .res.flash .nm, .res.flash .n { color:var(--ink) !important; }
+  .res.loss { background:var(--rose) !important; border-color:var(--rose) !important; }
+  #actions { left:auto !important; right:20px !important; transform:none !important; bottom:12px !important; gap:10px !important; }
+  .act { width:48px !important; height:48px !important; border-radius:50% !important; border:3px double rgba(237,230,218,.6) !important; background:transparent !important; padding:0 !important; }
+  .act > span { display:none !important; }
+  .act.ready, .act.fire { background:var(--ember) !important; border-color:var(--ink) !important; }
+  .act:hover { background:rgba(237,230,218,.12) !important; }
+  #log { left:20px !important; bottom:92px !important; }
+  #log div { background:var(--plate) !important; border:1px solid var(--ink) !important; border-left:1px solid var(--ink) !important; border-radius:0 !important; box-shadow:inset 0 0 0 2px var(--plate), inset 0 0 0 3px var(--stone) !important; padding:4px 10px !important; }
+  #objective { bottom:96px !important; top:auto !important; }
+  #objective .goal-tag { text-transform:none !important; color:var(--violet) !important; font-family:'Cormorant Garamond',serif !important; font-style:italic; font-weight:500 !important; letter-spacing:0 !important; font-size:18px !important; }
+  #dpad { bottom:92px !important; } #hud.dpad-on #log { display:none; }
+  #buildMenu .slot { border-radius:0 !important; }
+  #buildMenu .slot.active { background:var(--ink) !important; } #buildMenu .slot.active b { color:var(--bone) !important; } #buildMenu .slot.active .icw svg.ic { filter:brightness(0) invert(.92) !important; }
+  #modeChip { border-radius:2px !important; border:3px double var(--bone) !important; }
+  /* house plate */
+  #house .name { font-size:28px !important; letter-spacing:.01em !important; color:var(--ink) !important; }
+  #house .renown { font-size:20px !important; font-family:'Cormorant Garamond',serif !important; }
+  #scores .row { font-size:18px !important; } #scores .row .sw { border-radius:50% !important; width:12px !important; height:12px !important; }
+  #harvest #harvestLabel { font-style:italic; }
+  #harvest .bar { background:rgba(110,104,128,.25) !important; height:5px !important; border-radius:0 !important; }
+  #harvest .fill { background:var(--ink) !important; }
+  #minimap { border:3px double var(--ink) !important; box-shadow:0 0 0 4px var(--plate), 0 0 0 5px var(--ink), 0 6px 18px rgba(30,26,38,.3) !important; }
+  /* the announcement banner: a plate between double rules */
+  #announce { padding:16px 56px 18px; background:rgba(237,230,218,.94); border-top:6px double var(--ink); border-bottom:6px double var(--ink); min-width:420px; }
+  #announce .big { font-size:46px !important; color:var(--ink) !important; text-shadow:none !important; filter:none !important; }
+  #announce .small { background:none !important; border:none !important; box-shadow:none !important; font-style:italic; font-size:21px !important; padding:0 !important; margin-top:4px !important; }
+  /* prompts and plaques */
+  #challengeBtn, #raidBtn, #tollBtn { background:var(--plate) !important; color:var(--ink) !important; border:3px double var(--ink) !important; }
+  #challengeBtn .muted, #raidBtn .muted, #tollBtn .muted { color:var(--violet) !important; }
+  #raven { border-radius:0 !important; }
+  .rivals span { border-radius:2px !important; border:3px double var(--ink) !important; width:44px !important; height:44px !important; line-height:38px !important; }
+  .rivals span.sel { background:var(--ink) !important; color:var(--bone) !important; }
+  .code, .online input, #netName, #joinCode { border-radius:4px !important; border:1px solid var(--ink) !important; background:var(--bone) !important; box-shadow:none !important; }
+  .st { width:40px; height:40px; min-height:40px !important; border-radius:50% !important; padding:0 !important; }
+  #tradeTable { width:100%; } #tradeTable th { font-family:'Cormorant Garamond',serif !important; font-style:italic; font-weight:500 !important; color:var(--violet) !important; text-transform:none !important; letter-spacing:0 !important; border-bottom:1px solid var(--stone); }
+  #tradeTable td { border-bottom:1px solid var(--stone) !important; padding:7px 10px !important; }
+  .cheatgrid section, .seat, .pick { border:1px solid var(--stone) !important; border-radius:4px !important; background:transparent !important; }
+  #duelMoves button { border-radius:4px !important; border:1px solid var(--ink) !important; }
+  /* start screen */
+  #start { justify-content:center !important; background:rgba(30,26,38,.25) !important; }
+  .startCard { width:min(860px,94vw); text-align:center; }
+  .startCard .wordmark { display:block; width:min(560px,80%); height:auto; margin:0 auto 2px; }
+  .startCard > .tag { font-size:21px !important; margin:0 0 16px !important; }
+  .houses { grid-template-columns:repeat(4,1fr) !important; gap:10px !important; margin:0 0 16px !important; }
+  .hcard { display:flex !important; flex-direction:column; align-items:center; gap:4px; padding:14px 8px !important; border:1px solid var(--stone) !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; text-align:center !important; }
+  .hcard.sel { border:3px double var(--ink) !important; background:rgba(142,138,163,.25) !important; box-shadow:none !important; }
+  .hcard .sig .icw svg.ic { width:40px !important; height:40px !important; }
+  .hcard .hn { font-family:'Grenze Gotisch',serif !important; font-size:21px !important; color:var(--ink) !important; }
+  .hcard .hd { font-style:italic; font-size:15px !important; color:var(--violet) !important; display:block !important; }
+  .startRow { display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:16px; }
+  .startRow .rivals { margin:0 !important; }
+  .startRow #startBtn { width:auto; font-size:19px !important; padding:6px 24px !important; min-height:46px; letter-spacing:0 !important; }
+  .startCard .online { display:flex; align-items:flex-end; justify-content:center; gap:10px; flex-wrap:wrap; border-top:1px solid var(--stone) !important; padding-top:14px !important; margin-top:6px !important; }
+  .field { display:flex; flex-direction:column; gap:2px; font-size:16px; color:var(--violet); text-align:left; }
+  .field input { width:180px !important; height:44px; margin:0 !important; }
+  #netStatus { margin-top:6px; min-height:18px; }
+  @media (max-width:760px) {
+    .houses { grid-template-columns:1fr 1fr !important; } .hcard .hd { display:none !important; }
+    .res .nm { display:none !important; } .res { padding:0 8px !important; } .act { width:40px !important; height:40px !important; }
+    #frame .wall { height:96px; } #hud::before { height:64px; } #topBtns { top:150px !important; }
+  }
+  /* Lore Scroll cards (batch 2 art) */
+  .hand { gap:14px !important; }
+  .scard.art { width:170px !important; padding:0 !important; border:none !important; background:none !important; display:flex; flex-direction:column; align-items:center; gap:6px; transition:transform .2s; }
+  .scard.art:hover { transform:translateY(-6px); }
+  .scard.art > svg { width:170px; height:auto; display:block; filter:drop-shadow(0 4px 8px rgba(30,26,38,.25)); }
+  .scard.art text { font-variant-numeric:lining-nums; }
+  .loreTop { display:flex; align-items:center; justify-content:center; gap:18px; margin:12px 0; }
+  .cardBack svg { width:84px; height:auto; display:block; }
 </style>
 </head>
 <body>
@@ -586,6 +696,13 @@
 
 <canvas id="view"></canvas>
 
+<div id="frame" aria-hidden="true">
+  <svg class="arch" viewBox="0 0 1600 900" preserveAspectRatio="none"><path d="M0 0H1600V430C1588 300 1470 150 1180 72C990 24 870 14 800 12C730 14 610 24 420 72C130 150 12 300 0 430Z" fill="#1E1A26"/><path d="M0 430C12 300 130 150 420 72C610 24 730 14 800 12C870 14 990 24 1180 72C1470 150 1588 300 1600 430" fill="none" stroke="#8E8AA3" stroke-width="3" vector-effect="non-scaling-stroke"/><path d="M0 446C12 314 132 166 422 88C612 40 732 30 800 28C868 30 988 40 1178 88C1468 166 1588 314 1600 446" fill="none" stroke="#3A3350" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+  <svg class="qf l" viewBox="0 0 40 40"><g fill="#8C3B4A" stroke="#1E1A26" stroke-width="1.6"><circle cx="20" cy="11" r="7.5"/><circle cx="20" cy="29" r="7.5"/><circle cx="11" cy="20" r="7.5"/><circle cx="29" cy="20" r="7.5"/></g><circle cx="20" cy="20" r="4" fill="#1E1A26"/></svg>
+  <svg class="qf r" viewBox="0 0 40 40"><g fill="#8C3B4A" stroke="#1E1A26" stroke-width="1.6"><circle cx="20" cy="11" r="7.5"/><circle cx="20" cy="29" r="7.5"/><circle cx="11" cy="20" r="7.5"/><circle cx="29" cy="20" r="7.5"/></g><circle cx="20" cy="20" r="4" fill="#1E1A26"/></svg>
+  <svg class="dia d1" viewBox="0 0 10 16"><path d="M5 0L10 8 5 16 0 8z" fill="#8E8AA3"/></svg><svg class="dia d2" viewBox="0 0 10 16"><path d="M5 0L10 8 5 16 0 8z" fill="#8E8AA3"/></svg>
+  <svg class="wall" viewBox="0 0 1600 120" preserveAspectRatio="none"><path d="M0 120V38H70V0H170V38H330V0H430V38H590V0H690V38H850V0H950V38H1110V0H1210V38H1370V0H1470V38H1600V120Z" fill="#1E1A26"/><path d="M0 38H70V0H170V38H330V0H430V38H590V0H690V38H850V0H950V38H1110V0H1210V38H1370V0H1470V38H1600" fill="none" stroke="#3A3350" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+</div>
 <div id="hud" class="hidden">
   <div id="house" class="panel">
     <div class="name">House Varn</div>
@@ -615,15 +732,15 @@
   <div id="modeChip" class="hidden"></div>
   <div id="buildMenu" class="panel hidden"></div>
   <div id="actions">
-    <button class="act" id="actBuild"><i>🔨</i><span>Build</span></button>
-    <button class="act" id="actTrade"><i>⚖️</i><span>Trade</span></button>
-    <button class="act" id="actLore"><i>📜</i><span>Scrolls</span></button>
-    <button class="act" id="actDragon"><i>🐉</i><span id="actDragonLabel">Dragon</span></button>
-    <button class="act fire hidden" id="actFire"><i>🔥</i><span>Fire</span></button>
-    <button class="act" id="actMap"><i>🗺️</i><span>Map</span></button>
-    <button class="act" id="actHome"><i>🏠</i><span>Home</span></button>
+    <button class="act" id="actBuild" title="Build"><i>🔨</i><span>Build</span></button>
+    <button class="act" id="actTrade" title="Trade (T)"><i>⚖️</i><span>Trade</span></button>
+    <button class="act" id="actLore" title="Lore Scrolls (L)"><i>📜</i><span>Scrolls</span></button>
+    <button class="act" id="actDragon" title="Dragon"><i>🐉</i><span id="actDragonLabel">Dragon</span></button>
+    <button class="act fire hidden" id="actFire" title="Dragonfire (G)"><i>🔥</i><span>Fire</span></button>
+    <button class="act" id="actMap" title="War map (M)"><i>🗺️</i><span>Map</span></button>
+    <button class="act" id="actHome" title="Recall to your Hamlet"><i>🏠</i><span>Home</span></button>
   </div>
-  <div id="topBtns"><button id="btnHelp" class="tb">❓ Help</button><button id="btnGuide" class="tb on">🎓 Guide: ON</button><button id="btnDpad" class="tb">🎮 D-pad</button><button id="btnView" class="tb">👁️ View: High</button></div>
+  <div id="topBtns"><button id="btnHelp" class="tb" title="Help (H)">❓ Help</button><button id="btnGuide" class="tb on" title="Guide on / off">🎓 Guide: ON</button><button id="btnDpad" class="tb" title="Touch D-pad">🎮 D-pad</button><button id="btnView" class="tb" title="Change the camera view">👁️ View: High</button></div>
   <button id="challengeBtn" class="hidden"></button>
   <button id="raidBtn" class="hidden"></button>
   <button id="tollBtn" class="hidden"></button>
@@ -638,36 +755,28 @@
 </div>
 
 <div id="start" class="overlay">
-  <div class="startWrap">
-    <div class="brand">
-      <h1 class="title">Dragonhold</h1>
-      <div class="rule"><span></span>◆<span></span></div>
-      <div class="tag">The Wyrm sleeps. The houses gather.<br>Claim the Isles of Embervale.</div>
-    </div>
-    <div class="card panel startCard">
-      <div class="step">Choose your house</div>
-      <div id="housePick" class="houses"></div>
+  <div class="card panel startCard">
+    <svg class="wordmark" aria-label="Kingdom of Dragons" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 200" width="1200" height="200"><path d="M110 168Q100 70 166 40" fill="none" stroke="#8E8AA3" stroke-width="7" stroke-linecap="round"/><path d="M1090 168Q1100 70 1034 40" fill="none" stroke="#8E8AA3" stroke-width="7" stroke-linecap="round"/><path d="M80 168Q70 86 136 62" fill="none" stroke="#8E8AA3" stroke-width="6" stroke-linecap="round"/><path d="M1120 168Q1130 86 1064 62" fill="none" stroke="#8E8AA3" stroke-width="6" stroke-linecap="round"/><path d="M50 168Q40 102 106 84" fill="none" stroke="#8E8AA3" stroke-width="5" stroke-linecap="round"/><path d="M1150 168Q1160 102 1094 84" fill="none" stroke="#8E8AA3" stroke-width="5" stroke-linecap="round"/><path d="M20 168Q10 118 76 106" fill="none" stroke="#8E8AA3" stroke-width="4" stroke-linecap="round"/><path d="M1180 168Q1190 118 1124 106" fill="none" stroke="#8E8AA3" stroke-width="4" stroke-linecap="round"/><path d="M600 8l9 30h-18z" fill="#1E1A26"/><circle cx="600" cy="54" r="8" fill="#E0A24A"/><text x="600" y="150" text-anchor="middle" font-family="'Grenze Gotisch','Cormorant Garamond',Georgia,serif" font-size="100" font-weight="700" letter-spacing="2" fill="#1E1A26">Kingdom of Dragons</text><path d="M250 178h700" stroke="#1E1A26" stroke-width="2"/><path d="M600 170l8 8-8 8-8-8z" fill="#8C3B4A"/></svg>
+    <div class="tag">Raise your house in the shadow of the Wyrm.</div>
+    <div id="housePick" class="houses"></div>
+    <div class="startRow">
       <div id="rivalPick" class="rivals"><em>AI rivals</em><span data-n="1">1</span><span data-n="2">2</span><span data-n="3" class="sel">3</span></div>
-      <button id="startBtn" class="primary">⚔️ Play vs AI</button>
-      <div class="online">
-        <div class="step">Play online with friends</div>
-        <input id="netName" placeholder="Your name" maxlength="16">
-        <div class="onlineRow">
-          <button id="createBtn" class="small">Create game</button>
-          <span class="or">or</span>
-          <input id="joinCode" placeholder="CODE (WOLF-42)" maxlength="9" style="text-transform:uppercase">
-          <button id="joinBtn" class="small">Join</button>
-        </div>
-        <div id="netStatus" class="muted"></div>
-      </div>
-      <button id="startHelp" class="small ghost">❓ How to play</button>
+      <button id="startBtn" class="primary">Play vs AI</button>
     </div>
+    <div class="online">
+      <label class="field">Your name<input id="netName" placeholder="Lord or Lady" maxlength="16"></label>
+      <button id="createBtn" class="small">Create game</button>
+      <label class="field">Invite code<input id="joinCode" placeholder="Code" maxlength="9" style="text-transform:uppercase"></label>
+      <button id="joinBtn" class="small">Join</button>
+    </div>
+    <div id="netStatus" class="muted"></div>
+    <button id="startHelp" class="small ghost linkish">How to play</button>
   </div>
 </div>
 
 <div id="pause" class="overlay hidden">
   <div class="card panel">
-    <h2 class="title" style="font-size:40px">PAUSED</h2>
+    <h2 class="title" >Paused</h2>
     <p>Click to resume.</p>
     <p class="muted">If the mouse can't be captured in this window, hold the left mouse button and drag to look around (or use the arrow keys).</p>
   </div>
@@ -675,7 +784,7 @@
 
 <div id="trade" class="overlay hidden">
   <div class="card panel" style="min-width:560px">
-    <h2 class="title" style="font-size:44px;letter-spacing:4px">TRADE</h2>
+    <h2 class="title" >⚖️ Trade</h2>
     <div class="muted" id="tradeInfo"></div>
     <table id="tradeTable"></table>
     <div id="tradeSummary"></div>
@@ -691,7 +800,7 @@
 
 <div id="duel" class="overlay hidden">
   <div class="card panel duelcard">
-    <h2 class="title" style="font-size:56px">⚔️ DUEL!</h2>
+    <h2 class="title" >⚔️ Duel</h2>
     <div id="duelWho" style="font-size:18px"></div>
     <div id="duelMight" style="margin:6px 0"></div>
     <div id="duelScore"></div>
@@ -704,7 +813,7 @@
 
 <div id="helpOverlay" class="overlay hidden">
   <div class="card panel cheat">
-    <h2 class="title" style="font-size:42px;text-align:center;margin-bottom:2px">RULES CHEAT SHEET</h2>
+    <h2 class="title" style="text-align:center;margin-bottom:2px">The Rules</h2>
     <div style="text-align:center;margin-bottom:10px"><b>Goal:</b> first house to <b>12 Renown ★</b></div>
     <div class="cheatgrid">
       <section><h3>RENOWN ★</h3>
@@ -736,7 +845,7 @@
 
 <div id="lobby" class="overlay hidden">
   <div class="card panel" style="min-width:560px">
-    <h2 class="title" style="font-size:48px;letter-spacing:4px">WAR COUNCIL</h2>
+    <h2 class="title" >War Council</h2>
     <div style="font-size:18px">Invite code: <span id="lobbyCode" class="code"></span></div>
     <div style="margin:6px 0 12px"><span id="lobbyLink" class="muted"></span> <button id="copyLink" class="small">COPY LINK</button></div>
     <div id="lobbySeats"></div>
@@ -751,9 +860,9 @@
 
 <div id="lore" class="overlay hidden">
   <div class="card panel" style="min-width:640px">
-    <h2 class="title" style="font-size:44px;letter-spacing:4px">LORE SCROLLS</h2>
+    <h2 class="title" >📜 Lore Scrolls</h2>
     <div class="muted">Study a scroll for 🌾🦋🔩. Each can be played from the next harvest on, one scroll per harvest. Play 3+ Sellswords (and the most) to command the <b>Mightiest Host</b> (+2★).</div>
-    <div style="margin:12px 0"><button id="buyScroll">📜 BUY A SCROLL</button> <span id="deckLeft" class="muted" style="margin-left:8px"></span></div>
+    <div class="loreTop"><div id="cardBack" class="cardBack"></div><div><button id="buyScroll" class="primary">📜 Study a scroll</button><div id="deckLeft" class="muted" style="margin-top:6px"></div></div></div>
     <div id="loreStatus" style="min-height:20px;margin-bottom:6px"></div>
     <div id="hand" class="hand"></div>
     <div id="lorePick"></div>
@@ -763,7 +872,7 @@
 
 <div id="win" class="overlay hidden">
   <div class="card panel">
-    <h1 class="title" id="winTitle">VICTORY</h1>
+    <h1 class="title" id="winTitle">Victory</h1>
     <div class="tag"><span id="winHouse">House Varn</span> is crowned Lord of Embervale.</div>
     <p id="winStats"></p>
     <button id="againBtn">PLAY AGAIN</button>

@@ -2,7 +2,7 @@
   "name": "dragonhold",
   "version": "0.4.0",
   "private": true,
-  "description": "Dragonhold: first-person fantasy settle-and-trade game (online server)",
+  "description": "Kingdom of Dragons: first-person fantasy settle-and-trade game (online server)",
   "main": "server/server.js",
   "scripts": { "start": "node server/server.js" },
   "engines": { "node": ">=18" },

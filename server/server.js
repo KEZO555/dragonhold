@@ -1,4 +1,4 @@
-// Dragonhold online server: serves the game page and relays messages between players.
+// Kingdom of Dragons online server: serves the game page and relays messages between players.
 // The host's browser runs the game; this server only forwards messages inside a room.
 const http = require('http');
 const fs = require('fs');
@@ -88,4 +88,4 @@ wss.on('connection', ws => {
 // drop dead connections (and keep Render's proxy from idling the socket)
 setInterval(() => wss.clients.forEach(ws => { if (!ws.isAlive) return ws.terminate(); ws.isAlive = false; ws.ping(); }), 25000);
 
-server.listen(PORT, () => console.log(`Dragonhold server on :${PORT}`));
+server.listen(PORT, () => console.log(`Kingdom of Dragons server on :${PORT}`));

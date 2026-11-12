@@ -1,0 +1,62 @@
+{
+ "dawn": {
+  "label": "Dawn",
+  "skyTop": "#8E8AA3",
+  "skyHorizon": "#E6CFC8",
+  "fog": "#D9CFD2",
+  "sceneTint": "#F3E6E0",
+  "emberGlow": 0.5,
+  "mistOpacity": 0.9,
+  "stars": 0
+ },
+ "day": {
+  "label": "Day",
+  "skyTop": "#A9A5BA",
+  "skyHorizon": "#EDE6DA",
+  "fog": "#B9B4C6",
+  "sceneTint": "#FFFFFF",
+  "emberGlow": 0.25,
+  "mistOpacity": 0.6,
+  "stars": 0
+ },
+ "afternoon": {
+  "label": "Afternoon",
+  "skyTop": "#9C97AE",
+  "skyHorizon": "#E9DFCF",
+  "fog": "#BDB6C2",
+  "sceneTint": "#F6EEE2",
+  "emberGlow": 0.3,
+  "mistOpacity": 0.5,
+  "stars": 0
+ },
+ "dusk": {
+  "label": "Dusk",
+  "skyTop": "#5A5070",
+  "skyHorizon": "#C79AA0",
+  "fog": "#8E8AA3",
+  "sceneTint": "#D9C3CC",
+  "emberGlow": 0.8,
+  "mistOpacity": 0.7,
+  "stars": 0.15
+ },
+ "night": {
+  "label": "Night",
+  "skyTop": "#1E1A26",
+  "skyHorizon": "#3A3350",
+  "fog": "#4A4460",
+  "sceneTint": "#8F8BB0",
+  "emberGlow": 1,
+  "mistOpacity": 0.8,
+  "stars": 0.6
+ },
+ "deep_night": {
+  "label": "Deep night",
+  "skyTop": "#17141E",
+  "skyHorizon": "#2C2740",
+  "fog": "#3A3350",
+  "sceneTint": "#7873A0",
+  "emberGlow": 1,
+  "mistOpacity": 0.9,
+  "stars": 1
+ }
+}
