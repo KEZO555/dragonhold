@@ -268,7 +268,26 @@ The coach is the best idea in the UI. It needs to be right every time:
 
 ## Pacing measurement
 
-PACE_PLACEHOLDER
+`PT/pace.js`: natural game time (the frame-rate cap was accounted for by summing the game's own `dt`), 3 AI houses, and a human seat that does nothing. Log in `PT/pace.log`.
+
+| Game time | Harvests | Renown (you / AI / AI / AI) |
+|---|---|---|
+| 0–6 min | 0–10 | 2 / 2 / 2 / 2 |
+| 7.4 min | 11 | 2 / 3 / 3 / 3 |
+| 11.5 min | 17 | 2 / 5 / 4 / 3 |
+| 14.6 min | 20 | 2 / 5 / 5 / 4 |
+
+**Pace.** For the first **~6 minutes and 10 harvests nobody builds anything**. The leaders then gain about +1 Renown every 2–3 minutes, which projects to roughly **35–45 minutes** for a 12-Renown game. That length is fine for Catan players. The dead opening is the problem: it is exactly when a newcomer decides whether the game is fun.
+
+**Pressure on an idle player.** In those 15 minutes the passive human was robbed **8 times**:
+- 4 night raids on their Hamlet;
+- 2 Sellsword thefts;
+- plus the Wyrm parked on their regions.
+
+A new player who is still reading tooltips gets hit hard and often. Suggestions:
+- Shorten the opening: the first Hamlet also pays starting resources, and the early harvest ramp is faster.
+- Protect players at or below 3 Renown from night raids during the first day.
+- Bring back the skip button (B3).
 
 ## What works well (keep it)
 

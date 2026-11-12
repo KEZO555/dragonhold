@@ -1598,7 +1598,7 @@ function advanceSetup(tgt, pid = P) {
   p.setupStep++;
   if (p.setupStep % 2 === 1) { p.setupCorner = tgt.c.id; if (pid === P) setMode('road'); }
   else {
-    if (p.setupStep === 4) { const got = grantStart(pid, corners[p.setupCorner]); if (pid === P) state.startGot = got; else tell(pid, { startGot: got }); }
+    if (p.setupStep === 2 || p.setupStep === 4) { const got = grantStart(pid, corners[p.setupCorner]); if (pid === P) state.startGot = [...(state.startGot || []), ...got]; else tell(pid, { startGot: got }); }
     p.setupCorner = null; if (pid === P) state.mode = null; state.setupTurn++; nextSetupTurn();
   }
   updateObjective();
@@ -2690,7 +2690,7 @@ function updateObjective() {
   if (state.phase === 'setup') {
     const msgs = ['Click a <b>gold dot</b> on the map to place your first Hamlet. More dots under the numbers = more harvests',
       'Click a <b>gold dot</b> next to your Hamlet to build a wall',
-      'Place your <b>second Hamlet</b>. Its lands give your starting supplies',
+      'Place your <b>second Hamlet</b>. Both Hamlets give you starting supplies from their lands',
       'Build a wall from your second Hamlet. Then the mist rolls in'];
     html = myLandingTurn() ? `🎯 <b>Your turn</b> · ${msgs[players[P]?.setupStep || 0]}` : `⏳ ${nameOf(setupPid())} is choosing where to land…`;
   } else if (state.reaverPick) {
@@ -3686,7 +3686,7 @@ function applyTell(m) {
   if (m.flash) m.flash.forEach(k => flashRes(k, m.loss));
   if (m.lore) $('loreStatus').textContent = m.lore;
   if (m.raven) $('ravenStatus').textContent = m.raven;
-  if (m.startGot) state.startGot = m.startGot;
+  if (m.startGot) state.startGot = [...(state.startGot || []), ...m.startGot];
   if (m.sfx) sfx(m.sfx);
   if (m.daze) knockDown(null, 2);
   if (m.duel != null && !duel && state.phase === 'play') startDuel(m.duel, true);   // an AI lord challenges a friend
@@ -4271,6 +4271,7 @@ function raidProblem(pid, c, at) {
   if (!isNight()) return 'Raids only work at night';
   if (!c || !c.building || c.building.owner === pid) return 'Pick a rival Hamlet or Keep';
   if (c.raided === dayCount) return 'Already raided tonight';
+  if (dayCount <= 1 && renown(c.building.owner) <= 3) return 'The young houses are under the Crown\'s peace tonight';
   if (!at || Math.hypot(at.x - c.x, at.z - c.z) > RAID_RANGE) return 'Get closer to the building';
   const wb = wallBlocks(pid, at.x, at.z, c.x, c.z, true); if (wb && wb.road === c.building.owner) return 'Their wall protects it';
   if ((pid === P && state.riding) || players[pid].riding) return 'Land your dragon first';
