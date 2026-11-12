@@ -309,7 +309,7 @@ renderer.shadowMap.enabled = false;   // flat washes: no realistic shadows
 renderer.shadowMap.type = THREE.PCFShadowMap;   // crisp, cel-style shadows
 const scene = new THREE.Scene();
 const FOG = PAL.mist;
-scene.fog = new THREE.Fog(FOG, 70, 520);
+scene.fog = new THREE.Fog(FOG, 140, 760);
 const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.3, 2500);
 camera.rotation.order = 'YXZ';
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); resizeInk(); });
@@ -323,7 +323,7 @@ sun.shadow.bias = -0.0008; scene.add(sun);
 
 // comic look: 3-tone cel shading
 const toonRamp = (() => {
-  const d = new Uint8Array([188, 188, 188, 255, 212, 212, 212, 255, 234, 234, 234, 255, 252, 252, 252, 255]);   // soft washes, not hard bands
+  const d = new Uint8Array([150, 150, 150, 255, 190, 190, 190, 255, 226, 226, 226, 255, 255, 255, 255, 255]);   // soft washes, not hard bands
   const t = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
 })();
 // ---------------------------------------------------------------- ink pass (outlines + halftone)
@@ -331,7 +331,7 @@ const inkRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
 inkRT.depthTexture = new THREE.DepthTexture(1, 1); inkRT.depthTexture.type = THREE.UnsignedIntType;
 const inkU = {
   tColor: { value: inkRT.texture }, tDepth: { value: inkRT.depthTexture }, res: { value: new THREE.Vector2(1, 1) },
-  near: { value: 0.3 }, far: { value: 2500 }, fadeNear: { value: 200 }, fadeFar: { value: 600 }, px: { value: 1 },
+  near: { value: 0.3 }, far: { value: 2500 }, fadeNear: { value: 200 }, fadeFar: { value: 600 }, px: { value: 1 }, dpr: { value: 1 },
   invProj: { value: new THREE.Matrix4() }, camWorld: { value: new THREE.Matrix4() }, paper: { value: new THREE.Color(PAL.bone) },
 };
 const inkScene = new THREE.Scene(), inkCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -339,7 +339,7 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
   uniforms: inkU, depthTest: false, depthWrite: false,
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
   fragmentShader: `#include <packing>
-    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px; uniform mat4 invProj, camWorld; uniform vec3 paper; varying vec2 vUv;
+    uniform sampler2D tColor, tDepth; uniform vec2 res; uniform float near, far, fadeNear, fadeFar, px, dpr; uniform mat4 invProj, camWorld; uniform vec3 paper; varying vec2 vUv;
     float D(vec2 uv){ return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, near, far); }
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -349,23 +349,25 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
     void main(){
       vec2 px1 = 1.0 / res, sc = vUv * res;
       // 1. wobbly edges: nothing is ruler-straight
-      vec2 uv = vUv + (vec2(fbm(sc * 0.0045), fbm(sc * 0.0045 + 17.3)) - 0.5) * 6.0 * px1 * px;
+      vec2 uv = vUv + (vec2(fbm(sc * 0.004), fbm(sc * 0.004 + 17.3)) - 0.5) * 1.2 * px1 * dpr;
       vec3 c0 = texture2D(tColor, uv).rgb;
-      vec2 o = px1 * 2.0 * px;
+      vec2 o = px1 * dpr;
       vec3 bl = (texture2D(tColor, uv + vec2(o.x, 0.)).rgb + texture2D(tColor, uv - vec2(o.x, 0.)).rgb
                + texture2D(tColor, uv + vec2(0., o.y)).rgb + texture2D(tColor, uv - vec2(0., o.y)).rgb) * 0.25;
-      vec3 col = mix(c0, bl, 0.4);
+      // crisp: anti-alias only along edges, and a touch of sharpening inside the washes
+      float lc = abs(dot(c0 - bl, vec3(0.3, 0.59, 0.11)));
+      vec3 col = mix(c0 + (c0 - bl) * 0.35, bl, smoothstep(0.02, 0.09, lc) * 0.55);
       // 2. no outlines: a darker rim where pigment pools at the edge of each wash
-      col *= 1.0 - smoothstep(0.01, 0.12, length(c0 - bl)) * 0.26;
+      col *= 1.0 - smoothstep(0.02, 0.15, length(c0 - bl)) * 0.18;
       vec2 q = px / res;
       float d0 = D(uv), dl = D(uv - vec2(q.x, 0.)), dr = D(uv + vec2(q.x, 0.)), du = D(uv + vec2(0., q.y)), dd = D(uv - vec2(0., q.y));
       float jump = max(max(abs(d0 - dl), abs(d0 - dr)), max(abs(d0 - du), abs(d0 - dd))) / d0;
       col *= 1.0 - smoothstep(0.04, 0.12, jump) * 0.16 * (1.0 - smoothstep(fadeNear, fadeFar, d0));
       // 3. granulation, anchored in the world so it does not swim; paper shows through the wash
       float z = texture2D(tDepth, uv).x, g;
-      if (z < 0.99999) { vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.16 + w.y * 0.09); }
+      if (z < 0.99999) { vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.32 + w.y * 0.18); }
       else g = fbm(sc * 0.003 + 5.0);
-      float a = clamp(1.1 * g + 0.42, 0.74, 1.0);
+      float a = clamp(1.1 * g + 0.55, 0.86, 1.0);
       col = pow(mix(pow(paper, vec3(0.4545)), pow(max(col, 0.0), vec3(0.4545)), a), vec3(2.2));   // mixed like pigment on paper, not in linear light
       // 4. light is rare: only ember-gold things glow
       vec3 glow = vec3(0.0); vec2 gr = px1 * 4.0 * px;
@@ -374,7 +376,7 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       col += glow * 0.075;
       // 5. visible paper grain over the whole frame
       float n = vnoise(sc * 0.85) * 0.6 + vnoise(sc * 1.9) * 0.4;
-      col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.9 * n - 0.28, 0.0, 1.0) * 0.35);
+      col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.9 * n - 0.28, 0.0, 1.0) * 0.16);
       // never pure black, never pure white
       col = clamp(col, vec3(0.0130, 0.0103, 0.0185), vec3(0.846, 0.791, 0.701));
       gl_FragColor = vec4(col, 1.0);
@@ -383,7 +385,7 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
 })));
 function resizeInk() {
   const pr = renderer.getPixelRatio(), w = Math.floor(innerWidth * pr), h = Math.floor(innerHeight * pr);
-  inkRT.setSize(w, h); inkU.res.value.set(w, h); inkU.px.value = Math.max(1.6, pr * 1.5);
+  inkRT.setSize(w, h); inkU.res.value.set(w, h); inkU.px.value = Math.max(1.6, pr * 1.5); inkU.dpr.value = pr;
 }
 resizeInk();
 
@@ -493,7 +495,7 @@ const mists = (() => {
   const tx = new THREE.CanvasTexture(cv), out = [];
   for (let i = 0; i < 16; i++) {
     const far = i < 5, a = far ? -1.9 + i * 0.25 : Math.random() * Math.PI * 2, r = far ? rr(480, 620) : rr(110, 220);
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, opacity: far ? 0.75 : 0.45, fog: false }));
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthWrite: false, opacity: far ? 0.6 : 0.22, fog: false }));
     s.scale.set(far ? 520 : rr(160, 260), far ? 70 : rr(18, 30), 1); s.position.set(Math.cos(a) * r, far ? 28 : rr(4, 12), Math.sin(a) * r);
     s.userData = { a, r, sp: rr(0.004, 0.01) * (Math.random() < 0.5 ? -1 : 1), far }; scene.add(s); out.push(s);
   }
@@ -510,7 +512,7 @@ const ravens = (() => {
   return out;
 })();
 function updateAtmosphere(time) {
-  for (const s of mists) { const u = s.userData; u.a += u.sp * 0.016; if (!u.far) s.position.set(Math.cos(u.a) * u.r, s.position.y, Math.sin(u.a) * u.r); s.material.opacity = (u.far ? 0.75 : 0.45) * (1 - night * 0.55); }
+  for (const s of mists) { const u = s.userData; u.a += u.sp * 0.016; if (!u.far) s.position.set(Math.cos(u.a) * u.r, s.position.y, Math.sin(u.a) * u.r); s.material.opacity = (u.far ? 0.6 : 0.22) * (1 - night * 0.55); }
   const hp = holdObj.position;
   for (const b of ravens) { const u = b.userData, a = time * u.sp + u.ph;
     b.position.set(hp.x + Math.cos(a) * u.r, u.h + Math.sin(time * 0.7 + u.ph) * 8, hp.z + Math.sin(a) * u.r); b.rotation.y = -a;
