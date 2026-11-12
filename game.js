@@ -1554,8 +1554,8 @@ function tryBuild(tgt = currentTarget) {
   if (state.phase === 'setup') advanceSetup(tgt);
   else {
     log({ road: '🧱 Wall built', hamlet: '🏘️ Hamlet founded (+1★)', keep: '🏰 Keep raised (+1★)', roost: '🐉 Dragon Roost built: now fetch an egg from the Ashen Waste', tower: '🏹 Scorpion Tower built: dragons cannot scorch the regions around it' }[kind]);
-    if (kind === 'roost') announce('THE ROOST IS READY', 'Walk to the Ashen Waste, press E at an egg, and carry it home');
-    if (state.mode && (!canAfford(state.mode) || limitHit(state.mode))) setMode(null);
+    if (kind === 'roost') announce('THE ROOST IS READY', 'Walk to the Ashen Waste and tap an egg (or press Dragon), then carry it home');
+    if (state.mode) setMode(null);
     state.builtInPlay = true; updateObjective();
   }
   refreshMarkers(); updateHUD(); checkWin();
@@ -1774,7 +1774,7 @@ function aiChooseReaverTile(pid) {
     for (const cid of t.corners) {
       const b = corners[cid].building; if (!b) continue;
       if (b.owner === pid) s -= 100;
-      else s += (b.type === 'keep' ? 2 : 1) * PIPS(t.num) * (renown(b.owner) >= lead ? 2 : 1);
+      else s += (b.type === 'keep' ? 2 : 1) * PIPS(t.num) * (renown(b.owner) >= lead ? 2 : 1) * (!players[b.owner].ai && renown(b.owner) <= lead && renown(b.owner) < GOAL - 3 ? 0.5 : 1);
     }
     if (s > bs) { bs = s; best = t; }
   }
@@ -2165,7 +2165,8 @@ function aiAccepts(p, give, get, from = P) {
   const goal = aiGoal(p.id);
   for (const k of RES_KEYS) if ((get[k] || 0) > 0) {
     if (p.res[k] < get[k]) return `has too few ${RES[k].icon}`;
-    if (p.res[k] - needOf(goal, k) < get[k]) return `needs its ${RES[k].icon}`;
+    const gets = RES_KEYS.some(r => (give[r] || 0) > 0 && p.res[r] === 0);   // early on, a card they lack is worth one they need
+    if (p.res[k] - needOf(goal, k) < get[k] && !(gets && p.res[k] > get[k])) return `needs its ${RES[k].icon}`;
   }
   const nG = bundleSum(give), nR = bundleSum(get);
   if (nG < nR) return 'wants a fairer deal';
@@ -2696,7 +2697,7 @@ function updateObjective() {
     html = (state.reaverReason === 'sellsword' ? '⚔️ Your Sellswords march!' : '🎺 You hold the Horn!') + ' <b>Click a region</b> on the map: the Wyrm blocks it and robs a rival there';
   } else if (state.phase === 'play' && guideOn) {
     const g = nextGoal(); currentGoal = g;
-    html = `<span class="goal-tag">🎯 Next goal</span> ${g.text}`;
+    html = `<span class="goal-tag">${g.news ? '📯 News' : g.warn ? '⚠️ Careful' : '🎯 Next goal'}</span> ${g.text}`;
     go = g.target;
   }
   o.classList.toggle('hidden', !html);
@@ -2722,7 +2723,7 @@ const kindName = { road: 'Wall', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon 
 const numsOf = c => c.tiles.map(id => tiles[id]).filter(t => t.num).map(t => `${t.num} ${RES[t.type].icon}`).join(', ');
 const myNums = () => [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
 const affordable = () => ['keep', 'hamlet', 'road', 'roost', 'tower', 'scroll'].filter(k => canAfford(k) && (k === 'scroll' ? deckCount() > 0 : !limitHit(k)));
-function coachSay(text, secs = 9, target = null) { coach.flash = { text, until: performance.now() + secs * 1000, target }; }
+function coachSay(text, secs = 9, target = null) { coach.flash = { text, until: performance.now() + secs * 1000, target, news: true }; }
 function coachObserve() {
   const me = players[P]; if (!me || state.phase !== 'play') return;
   const mine = corners.filter(c => owns(c)).map(c => c.id + c.building.type[0]).join(',');
@@ -2750,7 +2751,7 @@ function coachObserve() {
     const newly = snap.aff.split(',').filter(k => k && !prev.aff.split(',').includes(k));
     if (newly.length) { const k = newly[0]; return coachSay(`✔ You can now afford a <b>${kindName[k]}</b>${k === 'scroll' ? ' (📜 Scrolls)' : ': pick it in the build bar on the left, then click a gold marker'}`, 10); }
     if (!got.length && state.lastRoll !== 7) {
-      const nums = myNums(), rich = [6, 8, 5, 9].filter(n => !nums.includes(n));
+      const nums = myNums(), worst = Math.min(...nums.map(PIPS), 9), rich = [6, 8, 5, 9, 4, 10].filter(n => !nums.includes(n) && PIPS(n) > worst);
       return coachSay(`The stones showed <b>${state.lastRoll}</b>: none of your lands. You harvest on <b>${nums.join(', ') || 'nothing yet'}</b>.${rich.length ? ` Plots on <b>${rich.slice(0, 2).join(' or ')}</b> harvest far more often (more dots under the number)` : ''}`, 9);
     }
   }
@@ -2773,9 +2774,9 @@ function modeGoal() {
 // dangers worth interrupting for
 function dangerGoal() {
   const total = resTotal(P);
-  if (total > 7 && state.harvestT < 12 && !state.rolling) {
+  if (total > 7 && state.harvestT < 12 && !(state.rolling > 0)) {
     const k = affordable()[0];
-    return { text: `⚠ You hold <b>${total} cards</b>. If the stones show 7 you lose ${Math.floor(total / 2)}. ${k ? `Build a <b>${kindName[k]}</b> now` : 'Trade some away (⚖️ Trade)'} before the harvest`, target: null };
+    return { warn: true, text: `You hold <b>${total} cards</b>. If the stones show 7 you lose ${Math.floor(total / 2)}. ${k ? `Build a <b>${kindName[k]}</b> now` : 'Trade some away (⚖️ Trade)'} before the harvest`, target: null };
   }
   const leader = players.filter(p => p.id !== P).sort((a, b) => renown(b.id) - renown(a.id))[0];
   if (leader && renown(leader.id) >= GOAL - 2 && !coach.seen['lead' + renown(leader.id)]) {
@@ -2838,7 +2839,8 @@ function planGoal() {
     if (c && Math.hypot(c.x - player.pos.x, c.z - player.pos.z) < 120) return { text: '🌙 Night: sneak to a rival Hamlet and press <b>Raid</b> to steal 1 resource. Beware their towers and lords', target: at(c) };
   }
   // what are we saving for, and can the Guild help?
-  const goal = site || corners.some(c => !c.building && !c.adj.some(id => corners[id].building) && c.edges.some(id => !roadProblem(edges[id]))) ? 'hamlet' : me.built.hamlet ? 'keep' : 'road';
+  const short = k => RES_KEYS.reduce((n, r) => n + Math.max(0, (COST[k][r] || 0) - state.res[r]), 0);
+  const goal = limitHit('hamlet') ? 'keep' : me.built.hamlet && !limitHit('keep') && short('keep') + 1 < short('hamlet') ? 'keep' : 'hamlet';
   const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
   const tg = tradeGoal(goal); if (tg) return tg; void lack; void spare;
   if (canAfford('scroll') && deckCount() && resTotal(P) >= 6) return { text: 'Study a <b>Lore Scroll</b> (📜 Scrolls): Sellswords, secret Renown and more', target: null };
@@ -2867,7 +2869,7 @@ const bundleTxt = o => RES_KEYS.filter(k => o[k] > 0).map(k => `${o[k]}${RES[k].
 function resetTrade() { RES_KEYS.forEach(k => { tgive[k] = 0; tget[k] = 0; }); }
 resetTrade();
 // Guild: 4 of one kind for each 1 of anything; the bundle may combine several such swaps
-const guildRate = () => isDusk() ? 3 : 4;
+const guildRate = () => isDusk() || dayCount === 1 ? 3 : 4;   // a gentler first day
 function guildOK(give, get, res) {
   const g = bundleSum(give), r = bundleSum(get), q = guildRate();
   return g > 0 && r > 0 && g === q * r && RES_KEYS.every(k => (give[k] || 0) % q === 0 && !(give[k] && get[k]) && res[k] >= (give[k] || 0));
@@ -3055,7 +3057,8 @@ function drawMinimap() {
     if (t.num) {
       mctx.fillStyle = '#EDE6DA'; mctx.beginPath(); mctx.arc(X(t.x), Y(t.z), fs * 0.95, 0, 7); mctx.fill();
       mctx.fillStyle = (t.num === 6 || t.num === 8) ? '#b3261e' : '#2b1d12';
-      mctx.font = `bold ${fs}px Georgia`; mctx.fillText(t.num, X(t.x), Y(t.z) + 1);
+      mctx.font = `bold ${fs}px Georgia`; mctx.fillText(t.num, X(t.x), Y(t.z) - fs * 0.08);
+      const pp = PIPS(t.num); for (let i = 0; i < pp; i++) { mctx.beginPath(); mctx.arc(X(t.x) + (i - (pp - 1) / 2) * fs * 0.27, Y(t.z) + fs * 0.55, fs * 0.09, 0, 7); mctx.fill(); }   // more dots = rolled more often
     } else { mctx.font = `${fs * 1.4}px serif`; mctx.fillText('🌋', X(t.x), Y(t.z)); }
     if (big && RES[t.type]) { mctx.font = `${fs * 1.1}px serif`; mctx.fillText(RES[t.type].icon, X(t.x), Y(t.z) - fs * 2.1); }
     if (t === reaverTile && live) { mctx.font = `${fs * 1.3}px serif`; mctx.fillText('🏴', X(t.x) + fs * 1.5, Y(t.z) + fs * 0.9); }
@@ -3320,7 +3323,7 @@ function tryEgg() {
   if (me.dragon) { log('🐉 Your house already has a dragon'); return; }
   if (!roostOf(P)) { log('⚠️ First build a Dragon Roost beside one of your Keeps (key 4)'); return; }
   const e = cradleEggs.find(e => !e.taken && Math.hypot(e.x - player.pos.x, e.z - player.pos.z) < 6);
-  if (!e) { log('⚠️ Walk right up to a glowing egg in the Ashen Waste, then press E'); return; }
+  if (!e) { log('⚠️ Walk right up to a glowing egg in the Ashen Waste, then tap it or press Dragon'); return; }
   if (NET.guest) { netAct({ a: 'egg', i: cradleEggs.indexOf(e) }); return; }
   e.taken = true; e.mesh.visible = false; state.carrying = true; carryEgg.visible = true; sfx('build');
   announce('A DRAGON EGG!', 'Carry it home to your Roost. You walk slower while carrying it');
@@ -3598,7 +3601,7 @@ function dragonStatus() {
   const me = players[P], d = me.dragon;
   if (!d) {
     if (state.carrying) return '🥚 Carry the egg to your Roost!';
-    if (roostOf(P)) return '🥚 Fetch an egg from the Ashen Waste: walk up and press E';
+    if (roostOf(P)) return '🥚 Fetch an egg from the Ashen Waste: walk up and tap it (or press Dragon)';
     return '🐉 Dragons: build a Roost beside a Keep (key 4)';
   }
   if (d.stage === 'egg') return `🥚 Egg warming ${d.progress}/3 · eats ${iconsOf(DRAGON_FEED.egg)} each harvest`;
@@ -3699,6 +3702,7 @@ function simStep(dt, time) {
     state.rolling -= dt;
     runes.forEach((r, i) => { r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
     if (state.rolling <= 0) {
+      state.rolling = 0;
       resolveHarvest(); state.rollsLeft = (state.rollsLeft || 1) - 1;
       if (state.rollsLeft <= 0) state.dawnBounty = false;   // the bounty lasts one harvest (both casts)
       state.harvestT = state.harvestLen = state.rollsLeft > 0 ? 3 : nextHarvestDelay();   // short pause, then the second cast
@@ -3995,7 +3999,7 @@ function guestStep(dt, time) {
   state.dragonEye = !!(mine && mine.stage === 'grown' && !mine.restless);
   if (state.riding && (!mine || mine.restless || mine.stage === 'egg')) forceLand();
   if (state.rolling > 0) {
-    state.rolling -= dt;
+    state.rolling = Math.max(0, state.rolling - dt);
     runes.forEach((r, i) => { r.visible = true; r.material.map = runeTex[1 + Math.floor(Math.random() * 6)]; r.material.rotation += dt * (i ? 9 : -11); });
   }
   for (const p of players) {
@@ -4371,7 +4375,7 @@ document.querySelectorAll('#dpad [data-k]').forEach(b => {
 let orbit = 0;
 const clock = new THREE.Clock();
 function loop() {
-  const dt = Math.min(0.05, clock.getDelta()), time = clock.elapsedTime;
+  const rawDt = Math.min(0.25, clock.getDelta()), dt = Math.min(0.05, rawDt), time = clock.elapsedTime;
   if (state.phase === 'title' || state.phase === 'won' || state.phase === 'setup') {
     orbit += dt * 0.05;
     camera.position.set(Math.sin(orbit) * 210, 85, Math.cos(orbit) * 210);
@@ -4379,7 +4383,7 @@ function loop() {
   } else {
     if (!state.paused) updatePlayer(dt);
     const helpOpen = !$('helpOverlay').classList.contains('hidden') && !NET.online;
-    if (state.phase === 'play' && !NET.guest && (NET.online || !state.paused) && !helpOpen) simStep(dt, time);
+    if (state.phase === 'play' && !NET.guest && (NET.online || !state.paused) && !helpOpen) for (let left = rawDt; left > 1e-6; left -= 0.05) simStep(Math.min(0.05, left), time);
     if (state.phase === 'play' && NET.guest) guestStep(dt, time);
     if (!state.paused) {
       state.recallCD = Math.max(0, state.recallCD - dt);
@@ -4387,18 +4391,19 @@ function loop() {
     }
   }
   if (NET.online) netTick(dt);
+  $('hud').classList.toggle('setup', state.phase === 'setup');
   // harvest bar
   if (state.phase === 'play') {
     $('harvestLabel').textContent = state.rolling > 0 ? `🎲 The Rune Stones are cast… (${state.rollNo}/${ROLLS_PER_HARVEST})` : state.rollsLeft > 0 ? '🎲 Second cast coming…' :
       `🎺 Next harvest in ${Math.ceil(state.harvestT)}s` + (state.lastRoll ? ` · last roll ${state.lastRoll}` : '');
     $('harvestFill').style.width = (state.rolling > 0 ? 100 : 100 * (1 - state.harvestT / state.harvestLen)) + '%';
     // single player: nothing to build or buy? call the harvest now instead of waiting
-    const idle = !NET.online && !state.rolling && !(state.rollsLeft > 0) && state.harvestT > 3 && !state.riding
+    const idle = !NET.online && !(state.rolling > 0) && !(state.rollsLeft > 0) && state.harvestT > 3 && !state.riding
       && !['road', 'hamlet', 'keep', 'roost', 'tower', 'scroll'].some(k => canAfford(k) && (k === 'scroll' || !limitHit(k)));
     $('hurryBtn').classList.toggle('hidden', !idle);
   } else if (state.phase === 'setup') $('harvestLabel').textContent = 'Landing: found your first two Hamlets';
 
-  updateDayNight(dt); computeVisibility(); applyFogToWorld(dt);
+  updateDayNight(rawDt); computeVisibility(); applyFogToWorld(dt);
   if (state.phase === 'play') updateAim();
   if (state.phase === 'setup' || state.phase === 'play') drawMinimap();
 

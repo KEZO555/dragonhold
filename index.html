@@ -769,6 +769,13 @@
     #hud:has(#minimap.big) #objective { bottom:auto !important; top:8px !important; }
     #hud:has(#minimap.big) #house, #hud:has(#minimap.big) #harvest { display:none !important; }
   }
+  /* playtest round 2 */
+  #log { max-height:150px !important; overflow:hidden !important; }
+  #hud.setup #dpad, body:has(.overlay:not(.hidden)) #dpad, #hud:has(#minimap.big) #dpad { display:none !important; }
+  @media (max-width:600px) {
+    #modeChip { bottom:auto !important; top:176px !important; z-index:6; }
+    #hud:has(#minimap.big) #buildMenu, #hud:has(#minimap.big) #topBtns { display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -946,7 +953,7 @@
     <div id="loreStatus" style="min-height:20px;margin-bottom:6px"></div>
     <div id="hand" class="hand"></div>
     <div id="lorePick"></div>
-    <button id="loreClose" class="small" style="margin-top:12px">Close (L)</button>
+    <button id="loreClose" class="small" style="margin-top:12px">Close</button>
   </div>
 </div>
 
