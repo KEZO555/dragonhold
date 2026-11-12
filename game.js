@@ -8,11 +8,11 @@ import * as THREE from './three.module.js';
 const INK = '#1E1A26';
 // ---- batch 1 icon set (docs/design/batch1): filled token-colour shapes; the outline is drawn on each shape
 const ICONS = {
-  timber: "<path fill=\"#5F6B5E\" d=\"M5 9h11a3.5 3.5 0 0 1 0 7H5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#5F6B5E\" d=\"M10 9.2l2.2-6 1.6.6-1.3 3.4 2.8-1.8.9 1.4-3.6 2.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"5\" cy=\"12.5\" rx=\"2.5\" ry=\"3.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#5F6B5E\" cx=\"5\" cy=\"12.5\" r=\"1\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
-  stone: "<path fill=\"#6E6880\" d=\"M7 20V10a5 5 0 0 1 10 0v10z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M4 19h16v3H4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M11.2 8h1.6v2.2h2v1.6h-2V16h-1.6v-4.2h-2v-1.6h2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
-  wheat: "<path fill=\"#1E1A26\" d=\"M9.5 22l1.5-9h2l1.5 9z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"12\" cy=\"7\" rx=\"2\" ry=\"5.2\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"7.3\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(-32 7.3 9)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#1E1A26\" cx=\"16.7\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(32 16.7 9)\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#A89A86\" x=\"9.4\" y=\"15\" width=\"5.2\" height=\"2.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
-  cattle: "<rect fill=\"#8E8AA3\" x=\"11.3\" y=\"1\" width=\"1.4\" height=\"4.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"12\" cy=\"13.5\" rx=\"5.6\" ry=\"8.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M6.8 10.3q5.2 2.6 10.4 0v1.9q-5.2 2.6-10.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M6.5 14.3q5.5 2.6 11 0v1.9q-5.5 2.6-11 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#8E8AA3\" d=\"M7.6 18.2q4.4 2.2 8.8 0v1.6q-4.4 2.2-8.8 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
-  ember: "<path fill=\"#6E6880\" d=\"M7 7.5h10l2.2 4.5H4.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M4.8 12h14.4l1.8 6.5H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M3 18.5h18v1.6H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  timber: "<path fill=\"#5E7A4E\" d=\"M5 9h11a3.5 3.5 0 0 1 0 7H5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#5E7A4E\" d=\"M10 9.2l2.2-6 1.6.6-1.3 3.4 2.8-1.8.9 1.4-3.6 2.4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"5\" cy=\"12.5\" rx=\"2.5\" ry=\"3.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><circle fill=\"#5E7A4E\" cx=\"5\" cy=\"12.5\" r=\"1\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  stone: "<path fill=\"#8C857A\" d=\"M7 20V10a5 5 0 0 1 10 0v10z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M4 19h16v3H4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M11.2 8h1.6v2.2h2v1.6h-2V16h-1.6v-4.2h-2v-1.6h2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  wheat: "<path fill=\"#8A6A2E\" d=\"M9.5 22l1.5-9h2l1.5 9z\" stroke=\"#8A6A2E\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#8A6A2E\" cx=\"12\" cy=\"7\" rx=\"2\" ry=\"5.2\" stroke=\"#8A6A2E\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#8A6A2E\" cx=\"7.3\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(-32 7.3 9)\" stroke=\"#8A6A2E\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#8A6A2E\" cx=\"16.7\" cy=\"9\" rx=\"1.8\" ry=\"4.6\" transform=\"rotate(32 16.7 9)\" stroke=\"#8A6A2E\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#1E1A26\" x=\"9.4\" y=\"15\" width=\"5.2\" height=\"2.3\" stroke=\"#8A6A2E\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  cattle: "<rect fill=\"#A99BCB\" x=\"11.3\" y=\"1\" width=\"1.4\" height=\"4.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><ellipse fill=\"#EDE6DA\" cx=\"12\" cy=\"13.5\" rx=\"5.6\" ry=\"8.5\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#A99BCB\" d=\"M6.8 10.3q5.2 2.6 10.4 0v1.9q-5.2 2.6-10.4 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#A99BCB\" d=\"M6.5 14.3q5.5 2.6 11 0v1.9q-5.5 2.6-11 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#A99BCB\" d=\"M7.6 18.2q4.4 2.2 8.8 0v1.6q-4.4 2.2-8.8 0z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
+  ember: "<path fill=\"#7B93A8\" d=\"M7 7.5h10l2.2 4.5H4.8z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#46617C\" d=\"M4.8 12h14.4l1.8 6.5H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M3 18.5h18v1.6H3z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
   waste: "<path fill=\"#CFC6BC\" d=\"M2 19h20v2.4H2z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M4.6 19c0-5 1.5-9 5-11-2 3-2.6 6.5-2.6 11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M10 19c0-6 1.5-10.5 5-13-2 3.5-2.6 7.5-2.6 13z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#EDE6DA\" d=\"M15.4 19c0-5 1.5-8.5 4.6-10.5-1.9 2.8-2.2 6-2.2 10.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
   wall: "<path fill=\"#6E6880\" d=\"M2 21V10h3v2h3v-2h3v2h2v-2h3v2h3v-2h3v11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><rect fill=\"#3A3350\" x=\"2\" y=\"15.4\" width=\"20\" height=\"1.3\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
   hamlet: "<path fill=\"#6E6880\" d=\"M14 22v-6l3-3 3 3v6z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#3A3350\" d=\"M8 22V11h6v11z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M6.3 11L11 2.5l4.7 8.5z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/><path fill=\"#1E1A26\" d=\"M10 22v-4a1 1 0 0 1 2 0v4z\" stroke=\"#1E1A26\" stroke-width=\"1.4\" stroke-linejoin=\"round\" paint-order=\"stroke\"/>",
@@ -168,19 +168,19 @@ const COST = {
 const PAL = { ink: 0x1e1a26, violet: 0x3a3350, barrow: 0x6e6880, lavender: 0x8e8aa3, bone: 0xede6da, ashen: 0xcfc6bc,
   moss: 0x5f6b5e, straw: 0xa89a86, rose: 0x8c3b4a, ember: 0xe0a24a, mist: 0xb9b4c6 };
 const RES = {
-  timber: { name: 'Ashwood',    icon: '🌲', lore: 'Timber from the dead forests, light, grey and slow to burn.' },
-  stone:  { name: 'Gravestone', icon: '🪨', lore: 'Slabs cut from the barrows; the old names are sanded off first.' },
-  wheat:  { name: 'Blackwheat', icon: '🌾', lore: 'Dark grain that ripens under fog and bakes into bitter bread.' },
-  cattle: { name: 'Moth-silk',  icon: '🦋', lore: 'Thread unwound from moor cocoons, pale and stronger than rope.' },
-  ember:  { name: 'Iron',       icon: '🔩', lore: 'Ore from the crags, cold to the touch even in the forge.' },
+  timber: { name: 'Ashwood',    color: '#5E7A4E', icon: '🌲', lore: 'Timber from the dead forests, light, grey and slow to burn.' },
+  stone:  { name: 'Gravestone', color: '#8C857A', icon: '🪨', lore: 'Slabs cut from the barrows; the old names are sanded off first.' },
+  wheat:  { name: 'Blackwheat', color: '#B8955A', icon: '🌾', lore: 'Dark grain that ripens under fog and bakes into bitter bread.' },
+  cattle: { name: 'Moth-silk',  color: '#A99BCB', icon: '🦋', lore: 'Thread unwound from moor cocoons, pale and stronger than rope.' },
+  ember:  { name: 'Iron',       color: '#46617C', icon: '🔩', lore: 'Ore from the crags, cold to the touch even in the forge.' },
 };
 const RES_KEYS = Object.keys(RES);
 const BIOME = {
-  timber: { name: 'Deadwood',          color: 0x5f6b5e, mini: '#5F6B5E' , lore: 'A forest that stopped growing and never fell.' },
-  stone:  { name: 'Barrow hills',      color: 0x6e6880, mini: '#6E6880' , lore: 'Every mound is a grave, and every grave is a quarry.' },
-  wheat:  { name: 'Blackwheat fields', color: 0xa89a86, mini: '#A89A86' , lore: 'The only crop that asks for no sun.' },
-  cattle: { name: 'Moth moor',         color: 0x8e8aa3, mini: '#8E8AA3' , lore: 'The bushes hang heavy with cocoons, and the air is never still.' },
-  ember:  { name: 'Iron crags',        color: 0x3a3350, mini: '#3A3350' , lore: 'Sharp rock, deep shafts, and veins that ring when struck.' },
+  timber: { name: 'Deadwood',          color: 0x5e7a4e, mini: '#5E7A4E' , lore: 'A forest that stopped growing and never fell.' },
+  stone:  { name: 'Barrow hills',      color: 0x8c857a, mini: '#8C857A' , lore: 'Every mound is a grave, and every grave is a quarry.' },
+  wheat:  { name: 'Blackwheat fields', color: 0xb8955a, mini: '#B8955A' , lore: 'The only crop that asks for no sun.' },
+  cattle: { name: 'Moth moor',         color: 0xa99bcb, mini: '#A99BCB' , lore: 'The bushes hang heavy with cocoons, and the air is never still.' },
+  ember:  { name: 'Iron crags',        color: 0x46617c, mini: '#46617C' , lore: 'Sharp rock, deep shafts, and veins that ring when struck.' },
   cradle: { name: 'the Ashen Waste',   color: 0xcfc6bc, mini: '#CFC6BC' , lore: 'Nothing grows here. The Wyrm sleeps under the ash.' },
 };
 const HOUSES = {
@@ -760,14 +760,14 @@ const lavaLight = new THREE.PointLight(PAL.ember, 120, 40, 2);
 }
 
 // ---------------------------------------------------------------- number banners
-function bannerTexture(num, icon) {
+function bannerTexture(num, icon, ring = '#8E8AA3') {
   const cv = document.createElement('canvas'); cv.width = 128; cv.height = 176;
   const g = cv.getContext('2d'); g.scale(2, 2);
   g.fillStyle = '#1E1A26'; g.fillRect(30.6, 0, 2.8, 9);
   g.fill(new Path2D('M27.40 12.50a4.6 4.6 0 1 0 9.20 0a4.6 4.6 0 1 0 -9.20 0zM29.80 12.50a2.2 2.2 0 1 0 4.40 0a2.2 2.2 0 1 0 -4.40 0z'), 'evenodd');
   g.fillRect(22, 16, 20, 2.6);
   g.beginPath(); g.arc(32, 52, 29, 0, Math.PI * 2); g.fillStyle = '#EDE6DA'; g.fill(); g.lineWidth = 1.6; g.strokeStyle = '#1E1A26'; g.stroke();
-  g.beginPath(); g.arc(32, 52, 25.4, 0, Math.PI * 2); g.lineWidth = 0.9; g.strokeStyle = '#8E8AA3'; g.stroke();
+  g.beginPath(); g.arc(32, 52, 25.6, 0, Math.PI * 2); g.lineWidth = 2.6; g.strokeStyle = ring; g.stroke();
   g.font = '14px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#1E1A26'; g.fillText(icon || '', 32, 36);   // the resource icon
   const red = num === 6 || num === 8, ink = red ? '#8C3B4A' : '#1E1A26';
   g.fillStyle = ink; g.font = `700 ${num > 9 ? 21 : 25}px Cinzel, Georgia, serif`; g.textBaseline = 'alphabetic'; g.fillText(String(num), 32, 63.5);   // lining figures
@@ -779,7 +779,7 @@ for (const t of tiles) {
   if (!t.num) continue;
   const y = heightAt(t.x, t.z);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 7, 5), mat(PAL.ink)); pole.position.set(t.x, y + 3.5, t.z); pole.castShadow = true; scene.add(pole);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bannerTexture(t.num, RES[t.type].icon), fog: false, alphaTest: 0.5 }));
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bannerTexture(t.num, RES[t.type].icon, RES[t.type].color), fog: false, alphaTest: 0.5 }));
   sp.scale.set(5, 6.9, 1); sp.position.set(t.x, y + 10, t.z); scene.add(sp);
   t.banner = sp; t.pole = pole;
 }
@@ -2573,7 +2573,7 @@ function refreshMarkers() {
 
 // ---------------------------------------------------------------- HUD
 const $ = id => document.getElementById(id);
-$('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}" title="${RES[k].name}: ${RES[k].lore}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
+$('resources').innerHTML = RES_KEYS.map(k => `<div class="res" id="r-${k}" style="--rc:${RES[k].color}" title="${RES[k].name}: ${RES[k].lore}"><div class="ic">${RES[k].icon}</div><div class="n">0</div><div class="nm">${RES[k].name}</div></div>`).join('');
 const costStr = kind => Object.entries(COST[kind]).map(([k, n]) => RES[k].icon.repeat(n)).join(' ');
 $('buildMenu').innerHTML = [['road', '🧱', 'Wall'], ['hamlet', '🏠', 'Hamlet'], ['keep', '🏰', 'Keep'], ['roost', '🪺', 'Roost'], ['tower', '🏹', 'Tower']].map(([k, ic, nm]) =>
   `<div class="slot" id="b-${k}" data-k="${k}"><i>${ic}</i><div><b>${nm}</b><div class="c">${costStr(k).replace(/ /g, '')}</div></div></div>`).join('');
@@ -2734,8 +2734,8 @@ function guildOK(give, get, res) {
   return g > 0 && r > 0 && g === q * r && RES_KEYS.every(k => (give[k] || 0) % q === 0 && !(give[k] && get[k]) && res[k] >= (give[k] || 0));
 }
 function renderTrade() {
-  $('tradeTable').innerHTML = '<tr><th></th><th>have</th><th>you GIVE</th><th>you GET</th></tr>' + RES_KEYS.map(k => `<tr>
-    <td>${RES[k].icon} ${RES[k].name}</td><td class="have">${state.res[k]}</td>
+  $('tradeTable').innerHTML = '<tr><th>Resource</th><th>Have</th><th>You give</th><th>You get</th></tr>' + RES_KEYS.map(k => `<tr>
+    <td><span class="trdot" style="background:${RES[k].color}"></span>${RES[k].icon} <b style="color:var(--ink)">${RES[k].name}</b></td><td class="have">${state.res[k]}</td>
     <td><button class="st" data-a="g-" data-k="${k}">−</button><b class="${tgive[k] ? 'on' : ''}">${tgive[k]}</b><button class="st" data-a="g+" data-k="${k}">+</button></td>
     <td><button class="st" data-a="r-" data-k="${k}">−</button><b class="${tget[k] ? 'on' : ''}">${tget[k]}</b><button class="st" data-a="r+" data-k="${k}">+</button></td></tr>`).join('');
   const g = bundleSum(tgive), r = bundleSum(tget);

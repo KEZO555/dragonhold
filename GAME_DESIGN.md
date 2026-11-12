@@ -361,3 +361,15 @@ The files are in `docs/design/batch2/`, and `docs/design/DRAGONHOLD_DESIGN.md` i
   - night rim light on riders
   - wrecks on the shore
   - the fixed wall-view camera
+
+## Resource colours
+Each resource has one signature colour. It is used on its terrain tiles, its icon, its chip in the bottom bar (as a side bar and a ring around a bone disc), the ring of the number tokens on its tiles, the war-table map and the trade table.
+| Resource | Terrain | Colour |
+|---|---|---|
+| Ashwood | Deadwood | moss green `#5E7A4E` |
+| Gravestone | Barrow hills | stone grey `#8C857A` |
+| Blackwheat | Blackwheat fields | tarnished ochre `#B8955A` (icon ears `#8A6A2E`) |
+| Moth-silk | Moth moor | pale lilac `#A99BCB` |
+| Iron | Iron crags | steel blue `#46617C` |
+
+These extend the spec's palette: the barrow-stone, ash-lavender and bruised-violet tiles were too alike to tell apart.
