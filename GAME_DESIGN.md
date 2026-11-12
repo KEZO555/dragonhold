@@ -262,3 +262,11 @@ Soft watercolour with a dark mood:
 - **Rendering:** a post-process with pigment bleed, darker edges where washes meet, paper grain, uneven washes and wobbly hand-painted lines.
 - **Shading and light:** soft four-step shading, muted dusky skies and cool shadows.
 - **UI:** ink-wash panels with ragged painted edges, set in Cormorant Garamond.
+
+## Art direction: Pastel Goth (design session 1)
+**Goal:** a beautiful indie look with soft animation, pastel colours and a dark gothic mood.
+1. **Pastels glowing out of the dark.** Grounds are plum and ink-black. Colour comes from lavender, dusty rose, mint, powder blue and peach. Houses: Varn rose, Calder powder blue, Morrow mint, Ashby peach.
+2. **Soft forms, soft light.** Shading is a gentle four-step gradient. Bright things bloom softly, distance fades into lilac haze, outlines are soft plum, and the vignette sinks into violet.
+3. **The world breathes.** Pines and grass sway in the wind. Pastel motes drift by day and become fireflies by night. UI panels and announcements float and fade in.
+4. **Goth mood.** Days are an eternal dusk and nights are a deep indigo. Pines are violet and teal, and the volcano fields are plum-wine with rose-glowing vents.
+5. **Indie polish.** A small palette, readable silhouettes and calm serif type (Cormorant Garamond).

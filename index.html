@@ -429,10 +429,70 @@
   .rule { color:var(--rose) !important; } .rule span { background:linear-gradient(90deg, transparent, rgba(201,164,108,.7), transparent) !important; }
   .dp { background:var(--grain), radial-gradient(circle at 35% 30%, rgba(70,74,96,.92), rgba(26,27,37,.92)) !important; border:none !important; }
   .icw svg.ic { filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)) saturate(.85); }
+  /* ===================== PASTEL GOTH ===================== */
+  :root { --plum0:#120d1c; --plum1:#1e1630; --plum2:#2c2244; --lilac:#c4b2ee; --rose:#f0a8c0; --mint:#a8e4cc; --peach:#f6c8a8; --sky:#a8c4f4;
+    --gold:#d8c0f0; --gold2:#f4e4ff; --ochre:#d8c0f0; --ochre2:#f4e4ff; --goldDim:rgba(196,178,238,.35); --text:#ece4f4; --paper:#ece4f4; --muted:#a69cba; --hair:rgba(196,178,238,.16); }
+  html,body { background:#0c0814; }
+  b { color:#fff4fb; }
+  .panel::before { inset:-2px; border-radius:18px;
+    background:var(--grain), radial-gradient(140% 120% at 20% 0%, rgba(74,58,110,.94), rgba(34,26,52,.95) 55%, rgba(20,15,32,.96)) !important;
+    box-shadow:0 0 0 1px rgba(196,178,238,.10), inset 0 1px 0 rgba(255,240,255,.08), inset 0 0 30px rgba(10,4,20,.5), 0 16px 40px rgba(8,2,18,.6), 0 0 30px rgba(160,120,220,.08) !important; }
+  .panel::after { border-radius:15px; border:1px solid rgba(196,178,238,.18) !important; }
+  .title { background:linear-gradient(180deg,#fff4fb 0%,#f4c4dc 45%,#b8a0ec 100%) !important; -webkit-background-clip:text !important; background-clip:text !important;
+    filter:drop-shadow(0 2px 0 rgba(20,8,30,.8)) drop-shadow(0 0 28px rgba(240,168,192,.35)) !important; }
+  #announce .big { background:linear-gradient(180deg,#fff4fb,#f4c4dc 55%,#b8a0ec) !important; -webkit-background-clip:text !important; background-clip:text !important;
+    filter:drop-shadow(0 3px 0 rgba(20,8,30,.85)) drop-shadow(0 0 36px rgba(184,160,236,.45)) !important; }
+  #announce.show .big { animation:floatIn .9s cubic-bezier(.2,.8,.2,1) !important; }
+  @keyframes floatIn { 0% { opacity:0; transform:translateY(16px); filter:blur(8px); } 100% { opacity:1; transform:none; } }
+  .cols h3, .card h3, .cheatgrid h3, #tradeTable th, #objective .goal-tag, #buildMenu .bm-title, .step { color:var(--rose) !important; }
+  #house .name { color:var(--rose) !important; } #house .renown, .res .n { color:#fff4fb !important; }
+  .tag, #start .tag { color:#bfb2d4 !important; }
+  button { color:#f4ecff !important; border-radius:14px !important;
+    background:var(--grain), radial-gradient(130% 150% at 30% 15%, rgba(96,78,140,.96), rgba(46,36,72,.96) 70%) !important;
+    box-shadow:inset 0 0 0 1px rgba(196,178,238,.18), inset 0 -6px 12px rgba(10,4,24,.35), 0 4px 14px rgba(8,2,18,.5) !important;
+    transition:transform .25s cubic-bezier(.2,.8,.2,1), filter .25s, box-shadow .25s !important; }
+  button:hover { transform:translateY(-2px) !important; filter:brightness(1.15) !important; box-shadow:inset 0 0 0 1px rgba(196,178,238,.35), 0 8px 22px rgba(160,120,220,.25) !important; }
+  button.primary, #lobbyStart, #helpClose, #winBtn, #tradeBtn { color:#2a1636 !important; text-shadow:0 1px 0 rgba(255,255,255,.35) !important;
+    background:var(--grain), linear-gradient(120deg, #f6bcd2 0%, #d8b8f4 50%, #a8d8f0 100%) !important; background-size:auto, 200% 100% !important;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.45), inset 0 -8px 16px rgba(120,60,140,.18), 0 8px 26px rgba(216,160,230,.35) !important; animation:shimmer 6s ease-in-out infinite; }
+  @keyframes shimmer { 0%,100% { background-position:0 0, 0% 50%; } 50% { background-position:0 0, 100% 50%; } }
+  button.ghost { background:transparent !important; box-shadow:none !important; color:var(--muted) !important; }
+  .act.ready, .tb.on, .slot.active, #buildMenu .slot.active, .pick.sel, .rivals span.sel, .res.flash {
+    background:var(--grain), radial-gradient(130% 150% at 30% 15%, rgba(240,168,192,.5), rgba(140,100,200,.45)) !important; box-shadow:inset 0 0 0 1px rgba(255,220,240,.5), 0 0 20px rgba(240,168,192,.3) !important; color:#fff !important; }
+  .act.fire, #challengeBtn { background:var(--grain), radial-gradient(130% 150% at 30% 15%, #f08aa8, #7a2e5a) !important; }
+  #raidBtn { background:var(--grain), radial-gradient(130% 150% at 30% 15%, #9a8ae8, #2e2460) !important; }
+  #tollBtn { background:var(--grain), radial-gradient(130% 150% at 30% 15%, rgba(246,200,168,.6), rgba(110,70,110,.8)) !important; }
+  #buildMenu .slot:not(.poor) { background:radial-gradient(130% 150% at 0% 50%, rgba(168,228,204,.2), rgba(168,228,204,.03)) !important; box-shadow:inset 0 0 0 1px rgba(168,228,204,.32) !important; }
+  #buildMenu .slot, .hcard, .seat, .scard, .cheatgrid section, .pick, .res { background:rgba(255,240,255,.04) !important; box-shadow:inset 0 0 0 1px rgba(196,178,238,.1) !important; border-radius:14px !important; transition:transform .25s, background .25s; }
+  #buildMenu .slot:hover, .hcard:hover { transform:translateX(2px); }
+  .res.loss { background:rgba(240,120,150,.4) !important; }
+  #log div { background:var(--grain), linear-gradient(90deg, rgba(44,34,68,.9), rgba(24,18,38,.7)) !important; border-left:3px solid var(--rose) !important; animation:slideIn .5s cubic-bezier(.2,.8,.2,1), fade 12s forwards !important; }
+  @keyframes slideIn { 0% { opacity:0; transform:translateX(-12px); } 100% { opacity:1; transform:none; } }
+  #announce .small { background:var(--grain), radial-gradient(140% 140% at 30% 10%, rgba(74,58,110,.95), rgba(24,18,38,.95)) !important; box-shadow:inset 0 0 0 1px rgba(196,178,238,.16), 0 10px 30px rgba(8,2,18,.6) !important; }
+  #minimap { background:#1c1838 !important; box-shadow:0 0 0 3px rgba(20,14,32,.9), 0 0 0 4px rgba(196,178,238,.35), 0 0 34px rgba(160,120,220,.2) !important; filter:saturate(.9); }
+  #harvest .bar { background:rgba(10,4,20,.5) !important; } #harvest .fill { background:linear-gradient(90deg,#b8a0ec,#f0a8c0,#ffe0ec) !important; box-shadow:0 0 12px rgba(240,168,192,.6); filter:none; }
+  #tip.ok { background:rgba(40,70,64,.92) !important; } #tip.bad { background:rgba(80,30,54,.92) !important; }
+  .overlay { background:radial-gradient(ellipse at center, rgba(40,26,64,.62), rgba(8,4,16,.95)) !important; animation:fadeOv .5s ease-out; }
+  @keyframes fadeOv { from { opacity:0; } to { opacity:1; } }
+  .overlay .card { animation:floatIn .7s cubic-bezier(.2,.8,.2,1); }
+  .code, .online input, #netName, #joinCode { background:rgba(10,4,20,.45) !important; box-shadow:inset 0 0 0 1px rgba(196,178,238,.2) !important; color:var(--text) !important; }
+  .online input:focus { box-shadow:inset 0 0 0 1px var(--rose), 0 0 0 3px rgba(240,168,192,.18) !important; }
+  .rivals span { background:rgba(255,240,255,.05) !important; box-shadow:inset 0 0 0 1px rgba(196,178,238,.2) !important; }
+  .hcard .hn { filter:none !important; }
+  #start { background:linear-gradient(90deg, rgba(12,8,20,.95) 0%, rgba(12,8,20,.78) 40%, rgba(12,8,20,.2) 78%, rgba(12,8,20,.04) 100%),
+               radial-gradient(ellipse at 78% 100%, rgba(240,168,192,.22), transparent 60%) !important; }
+  .rule { color:var(--rose) !important; } .rule span { background:linear-gradient(90deg, transparent, rgba(196,178,238,.7), transparent) !important; }
+  .dp { background:var(--grain), radial-gradient(circle at 35% 30%, rgba(96,78,140,.92), rgba(34,26,52,.92)) !important; }
+  #objective .goal-tag { color:var(--mint) !important; }
+  #modeChip { background:linear-gradient(120deg,#f6bcd2,#d8b8f4) !important; color:#2a1636 !important; border:none !important; }
+  #duel { background:radial-gradient(ellipse at center, rgba(90,30,70,.4), rgba(8,4,16,.92)) !important; }
+  #duelLog .result.win { color:var(--mint) !important; } #duelLog .result.lose { color:var(--rose) !important; }
+  .icw svg.ic { filter:drop-shadow(0 1px 1px rgba(10,4,20,.7)) saturate(.8) brightness(1.08); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wcEdge" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="4" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="7" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="wcEdge" x="-4%" y="-4%" width="108%" height="108%"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="4" result="t"/><feDisplacementMap in="SourceGraphic" in2="t" scale="3" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 
 <canvas id="view"></canvas>
 
