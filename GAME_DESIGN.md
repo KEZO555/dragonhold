@@ -373,3 +373,35 @@ Each resource has one signature colour. It is used on its terrain tiles, its ico
 | Iron | Iron crags | steel blue `#46617C` |
 
 These extend the spec's palette: the barrow-stone, ash-lavender and bruised-violet tiles were too alike to tell apart.
+
+## The Wyrm flies
+When the Wyrm moves (on a 7 or a Sellsword), the coiled sleeper vanishes and a winged Wyrm rises about 20 m. It flies an arc to its new tile in 2.5 s, then lands and coils in 1 s. Guests see the same flight.
+
+## The coach (smarter hints)
+The "Next goal" line now works in four layers, in this order:
+1. **What you are doing:** while placing something, it says how many spots glow, where the nearest one is (with Go), and the placement rule. If you can't afford it yet, it says what you still need.
+2. **Danger:**
+   - You hold more than 7 cards and a harvest is near: it says how many a 7 would cost, and what to build or trade.
+   - A rival is 2 Renown from victory: it says how to stop them.
+3. **What just happened**, for about 10 s:
+   - You built: the numbers the new Hamlet or Keep harvests on, and what to do next.
+   - A wall opened Hamlet plots, or you're close to the Great Wall.
+   - The Wyrm landed on your land.
+   - A harvest gave you nothing, with which numbers harvest more often.
+   - A 7 took cards, and why.
+   - You can now afford something.
+   - Your dragon changed stage.
+4. **The plan:** the next build, with the reason and exactly where to click. If you're short, it gives a specific trade: at the Guild, or a 1-for-1 raven offer when you're only 1–2 cards short.
+
+## Review fixes
+- **Camera:** after landing, and after the Recall Horn, you stand 22 m (18 m) from your Hamlet, so the camera is no longer inside it.
+- **Announcements:** smaller, shown below the harvest plate, and shorter.
+- **Build bar:** the selected item stays readable (a stuck fade made it blank).
+- **Action buttons:** each round seal has a label (Trade, Scrolls, Dragon, Map, Home).
+- **Overlays:** they scroll, so Help's "Got it" button can always be reached.
+- **Phone layout:**
+  - House and harvest panels side by side at the top; the build bar is a row of icons.
+  - Minimap and buttons on the right; the D-pad on the left.
+  - The coach sits above the resource row; resources show icon and count; labelled action seals.
+  - Prompts and raven offers hide the coach while they show.
+  - Trade, scrolls and help fit the screen width.

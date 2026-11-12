@@ -838,9 +838,38 @@ const reavers = (() => {
   g.userData.breath = g.children[2]; scene.add(g); return g;
 })();
 let reaverTile = tiles.find(t => t.type === 'cradle');
+// The Wyrm wakes and flies: the coiled sleeper hides, a winged Wyrm rises 20 m, arcs to its new tile over 2.5 s, lands and coils (1 s)
+let wyrmFly = null, wyrmFlyer = null;
 function placeReavers(t) {
+  const first = !reaverTile || !reavers.userData.placed;
   reaverTile = t;
-  const x = t.x + 9, z = t.z + 5; reavers.position.set(x, heightAt(x, z), z);
+  const x = t.x + 9, z = t.z + 5, to = new THREE.Vector3(x, heightAt(x, z), z);
+  if (first || state.phase !== 'play') { reavers.position.copy(to); reavers.userData.placed = true; return; }
+  if (reavers.position.distanceTo(to) < 1) return;
+  wyrmFly = { from: (wyrmFly ? wyrmFly.to : reavers.position).clone(), to, t: 0 };
+  if (!wyrmFlyer) {
+    wyrmFlyer = makeDragon({ color: PAL.ember });
+    wyrmFlyer.traverse(o => { if (o.isMesh && o.material && !o.material.isMeshBasicMaterial) { o.material = o.material.clone(); o.material.color.setHex(o.material.side === THREE.DoubleSide ? PAL.violet : PAL.ink); } });
+    wyrmFlyer.scale.setScalar(1.7);
+  }
+  wyrmFlyer.visible = true; reavers.visible = false;
+  sfx('raid');
+}
+function updateWyrmFlight(dt, time) {
+  if (!wyrmFly) return;
+  const f = wyrmFly, FLY = 2.5, COIL = 1.0; f.t += dt;
+  const k = Math.min(1, f.t / FLY), e = k * k * (3 - 2 * k);
+  if (f.t <= FLY) {
+    const x = f.from.x + (f.to.x - f.from.x) * e, z = f.from.z + (f.to.z - f.from.z) * e;
+    const y = f.from.y + (f.to.y - f.from.y) * e + Math.sin(Math.PI * k) * 20 + 4 * Math.min(1, k * 6) * (1 - k);
+    wyrmFlyer.position.set(x, y, z); wyrmFlyer.rotation.set(-Math.cos(Math.PI * k) * 0.35, Math.atan2(f.to.x - f.from.x, f.to.z - f.from.z), 0);
+    wyrmFlyer.userData.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(time * Math.PI * 2 / 1.2) * 0.75; });
+  } else {   // land and coil
+    const c = Math.min(1, (f.t - FLY) / COIL);
+    wyrmFlyer.visible = c < 0.5; reavers.visible = c >= 0.5;
+    reavers.position.copy(f.to); reavers.scale.setScalar(0.6 + 0.4 * c);
+    if (c >= 1) { wyrmFly = null; reavers.scale.setScalar(1); }
+  }
 }
 placeReavers(reaverTile);
 
@@ -2296,7 +2325,7 @@ function recall() {
   if (!mine.length) return;
   const c = mine[state.recallIdx++ % mine.length];
   const dx = -c.x, dz = -c.z, L = Math.hypot(dx, dz) || 1;
-  const x = c.x + dx / L * 6, z = c.z + dz / L * 6;
+  const x = c.x + dx / L * 18, z = c.z + dz / L * 18;
   player.pos.set(x, heightAt(x, z), z); player.vy = 0; player.yaw = Math.atan2(c.x - x, c.z - z) + Math.PI;
   state.recallCD = 30; sfx('horn'); log('📯 Recalled to your ' + c.building.type);
 }
@@ -2672,8 +2701,97 @@ const beacon = (() => {   // a pillar of light over the next goal
 })();
 const needTxt = kind => { const m = []; for (const [k, n] of Object.entries(COST[kind])) if (state.res[k] < n) m.push(`${n - state.res[k]} ${RES[k].icon}`); return m.join(' '); };
 const at = c => ({ x: c.x - c.x / (Math.hypot(c.x, c.z) || 1) * 4, z: c.z - c.z / (Math.hypot(c.x, c.z) || 1) * 4 });
-// What should a beginner do right now? One clear step at a time.
+// ---------------------------------------------------------------- the coach
+// It watches what happens to you (builds, harvests, the Wyrm, losses) and answers right away, then
+// warns of danger, then suggests one clear next step with the reason for it.
+const coach = { snap: null, flash: null, seen: {} };
+const kindName = { road: 'Wall', hamlet: 'Hamlet', keep: 'Keep', roost: 'Dragon Roost', tower: 'Scorpion Tower', scroll: 'Lore Scroll' };
+const numsOf = c => c.tiles.map(id => tiles[id]).filter(t => t.num).map(t => `${t.num} ${RES[t.type].icon}`).join(', ');
+const myNums = () => [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
+const affordable = () => ['keep', 'hamlet', 'road', 'roost', 'tower', 'scroll'].filter(k => canAfford(k) && (k === 'scroll' ? deckCount() > 0 : !limitHit(k)));
+function coachSay(text, secs = 9, target = null) { coach.flash = { text, until: performance.now() + secs * 1000, target }; }
+function coachObserve() {
+  const me = players[P]; if (!me || state.phase !== 'play') return;
+  const mine = corners.filter(c => owns(c)).map(c => c.id + c.building.type[0]).join(',');
+  const snap = { mine, roads: state.built.road, res: { ...state.res }, total: resTotal(P), roll: state.rollSeq || 0, wyrm: reaverTile?.id, aff: affordable().join(','), dragon: dragonOf(P)?.stage || '' };
+  const prev = coach.snap; coach.snap = snap; if (!prev) return;
+  // you built something
+  if (snap.mine !== prev.mine) {
+    const before = new Set(prev.mine.split(',')), fresh = corners.filter(c => owns(c) && !before.has(c.id + c.building.type[0]))[0];
+    if (fresh && fresh.building.type === 'keep') return coachSay(`✔ <b>Keep raised</b> (+1★). It now harvests <b>double</b> on ${numsOf(fresh)}. A Keep can also hold a <b>Dragon Roost</b>`, 10, at(fresh));
+    if (fresh) return coachSay(`✔ <b>Hamlet founded</b> (+1★). It harvests on ${numsOf(fresh)}. ${state.built.hamlet >= 2 && !state.built.keep ? 'Upgrade your best Hamlet to a <b>Keep</b> next: it doubles its harvest' : 'Keep spreading toward new numbers'}`, 10, at(fresh));
+  }
+  if (snap.roads > prev.roads) {
+    const open = corners.filter(c => siteReady('hamlet', c)).length;
+    return coachSay(open ? `✔ <b>Wall built</b>. ${open === 1 ? 'A Hamlet plot is' : open + ' Hamlet plots are'} now open (gold rings): found a Hamlet there for 🌲🪨🌾🦋` : `✔ <b>Wall built</b>. Keep walling toward an empty corner (no Hamlet may stand next to another)` + (state.longest >= 3 && state.highwayHolder !== P ? `. ${Math.max(0, 5 - state.longest)} more for the <b>Great Wall</b> (+2★)` : ''), 9);
+  }
+  // the Wyrm moved onto (or off) your lands
+  if (snap.wyrm !== prev.wyrm && reaverTile) {
+    const hurt = reaverTile.corners.some(cid => owns(corners[cid]));
+    if (hurt) return coachSay(`🏴 The Wyrm now sits on your <b>${BIOME[reaverTile.type].name} (${reaverTile.num})</b>: it yields nothing while it lies there. The next 7, or a <b>Sellsword</b> scroll, moves it`, 11, { x: reaverTile.x, z: reaverTile.z });
+  }
+  // a harvest happened
+  if (snap.roll !== prev.roll) {
+    const got = RES_KEYS.filter(k => snap.res[k] > prev.res[k]), lost = prev.total - snap.total;
+    if (state.lastRoll === 7 && lost > 0) return coachSay(`💀 A 7: you held ${prev.total} cards and lost ${lost}. Over 7 cards is risky: spend or trade before the stones are cast`, 11);
+    const newly = snap.aff.split(',').filter(k => k && !prev.aff.split(',').includes(k));
+    if (newly.length) { const k = newly[0]; return coachSay(`✔ You can now afford a <b>${kindName[k]}</b>${k === 'scroll' ? ' (📜 Scrolls)' : ': pick it in the build bar on the left, then click a gold marker'}`, 10); }
+    if (!got.length && state.lastRoll !== 7) {
+      const nums = myNums(), rich = [6, 8, 5, 9].filter(n => !nums.includes(n));
+      return coachSay(`The stones showed <b>${state.lastRoll}</b>: none of your lands. You harvest on <b>${nums.join(', ') || 'nothing yet'}</b>.${rich.length ? ` Plots on <b>${rich.slice(0, 2).join(' or ')}</b> harvest far more often (more dots under the number)` : ''}`, 9);
+    }
+  }
+  if (snap.dragon !== prev.dragon && snap.dragon) {
+    const msg = { egg: 'Your egg is in the Roost. Feed it 🔩 at harvests: it hatches after 3', wyrmling: 'Your egg hatched: a <b>Wyrmling</b> (+1★)! Press <b>Ride</b> to fly and see through the mist', grown: 'Your dragon is <b>grown</b> (+2★): ride it and press <b>Fire</b> over a rival region' }[snap.dragon];
+    if (msg) return coachSay('🐉 ' + msg, 11);
+  }
+}
+// help for whatever you are placing right now
+function modeGoal() {
+  const m = state.mode; if (!m) return null;
+  const spots = m === 'road' ? edges.filter(e => siteReady('road', e)) : corners.filter(c => siteReady(m, c));
+  const near = spots.map(x => ({ x, d: Math.hypot((x.mx ?? x.x) - player.pos.x, (x.mz ?? x.z) - player.pos.z) })).sort((a, b) => a.d - b.d)[0];
+  const how = { road: 'Walls go on the edges between regions, joined to your own walls or settlements', hamlet: 'Hamlets go on corners touching your wall, never next to another settlement', keep: 'Upgrade one of your own Hamlets', roost: 'The Roost goes beside one of your Keeps', tower: 'A Scorpion Tower guards one of your settlements' }[m];
+  if (!canAfford(m)) return { text: `Placing a <b>${kindName[m]}</b>: you still need ${needTxt(m)}. ${how}`, target: null };
+  if (!near) return { text: `No spot for a <b>${kindName[m]}</b> right now. ${how}. Press ✕ to cancel`, target: null };
+  const tgt = m === 'road' ? { x: near.x.mx, z: near.x.mz } : at(near.x);
+  return { text: `Placing a <b>${kindName[m]}</b>: ${spots.length} spot${spots.length > 1 ? 's' : ''} glow gold. Walk close and <b>click the gold marker</b>. ${how}`, target: tgt };
+}
+// dangers worth interrupting for
+function dangerGoal() {
+  const total = resTotal(P);
+  if (total > 7 && state.harvestT < 12 && !state.rolling) {
+    const k = affordable()[0];
+    return { text: `⚠ You hold <b>${total} cards</b>. If the stones show 7 you lose ${Math.floor(total / 2)}. ${k ? `Build a <b>${kindName[k]}</b> now` : 'Trade some away (⚖️ Trade)'} before the harvest`, target: null };
+  }
+  const leader = players.filter(p => p.id !== P).sort((a, b) => renown(b.id) - renown(a.id))[0];
+  if (leader && renown(leader.id) >= GOAL - 2 && !coach.seen['lead' + renown(leader.id)]) {
+    coach.seen['lead' + renown(leader.id)] = true;
+    coachSay(`⚠ <b>${nameOf(leader.id)}</b> has ${renown(leader.id)} Renown, ${GOAL - renown(leader.id)} from victory! Send the Wyrm onto their best region, raid them at night, or out-build them`, 12);
+    return coach.flash;
+  }
+  return null;
+}
+// one card short: say exactly which trade gets you there
+function tradeGoal(goal) {
+  const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), missingN = lack.reduce((n, k) => n + COST[goal][k] - state.res[k], 0);
+  if (!lack.length) return null;
+  const spare = RES_KEYS.filter(k => state.res[k] - (COST[goal][k] || 0) >= 1).sort((a, b) => state.res[b] - state.res[a]);
+  const guild = spare.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
+  if (guild) return { text: `${isDusk() ? '🌇 Dusk market (3:1)! ' : ''}You need ${needTxt(goal)} for a <b>${kindName[goal]}</b>. Trade ${guildRate()} ${RES[guild].icon} → 1 ${RES[lack[0]].icon} at the Guild (⚖️ Trade)`, target: null };
+  if (missingN <= 2 && spare.length) return { text: `Only ${needTxt(goal)} short of a <b>${kindName[goal]}</b>. Offer a spare ${RES[spare[0]].icon} to the other houses: ⚖️ Trade → give 1 ${RES[spare[0]].icon}, get 1 ${RES[lack[0]].icon} → <b>Offer to houses</b>`, target: null };
+  return null;
+}
 function nextGoal() {
+  coachObserve();
+  const m = modeGoal(); if (m) return m;   // you are placing something: help with that first
+  const d = dangerGoal(); if (d) return d;
+  if (coach.flash && performance.now() < coach.flash.until) return coach.flash;   // then react to what just happened
+  coach.flash = null;
+  return planGoal();
+}
+// What should a beginner do right now? One clear step at a time.
+function planGoal() {
   const me = players[P], d = dragonOf(P), have = ownedTypes(P);
   if (state.carrying) { const c = roostOf(P); return { text: 'Carry the <b>dragon egg</b> home to your Roost', target: c && at(c) }; }
   if (state.riding && d && d.stage === 'grown' && d.fireCD === 0 && !d.restless) {
@@ -2683,13 +2801,13 @@ function nextGoal() {
   if (state.riding) return { text: 'Click anywhere to fly there. Higher up you see through the mist. Press <b>Land</b> to get off', target: null };
   if (canAfford('keep') && !limitHit('keep')) {
     const c = corners.filter(c => owns(c) && c.building.type === 'hamlet').sort((a, b) => cornerScore(b, P) - cornerScore(a, P))[0];
-    if (c) return { text: 'Upgrade a Hamlet to a <b>Keep</b>: it harvests double (+1★). Click the gold ring', target: at(c) };
+    if (c) return { text: `Upgrade your Hamlet on ${numsOf(c)} to a <b>Keep</b> (+1★, double harvest): <b>Keep</b> in the build bar, then click the gold marker`, target: at(c) };
   }
   const site = !limitHit('hamlet') ? bestSite(P) : null;
-  if (site && canAfford('hamlet')) return { text: 'Found a new <b>Hamlet</b> on the gold ring (+1★)', target: at(site) };
+  if (site && canAfford('hamlet')) return { text: `Found a <b>Hamlet</b> on ${numsOf(site)} (+1★): <b>Hamlet</b> in the build bar, then click the gold marker`, target: at(site) };
   if (canAfford('road') && !limitHit('road') && !(site && missing('hamlet').length <= 1)) {
     const e = bestRoad(P, false);
-    if (e) return { text: 'Build a <b>Wall</b> toward a new Hamlet spot: click the gold dashed line', target: { x: e.mx * 0.92, z: e.mz * 0.92 } };
+    if (e) return { text: `Build a <b>Wall</b> toward an empty corner, so you can found a new Hamlet there: <b>Wall</b> in the build bar, then click the gold dashed line`, target: { x: e.mx * 0.92, z: e.mz * 0.92 } };
   }
   if (roostOf(P) && !d) { const egg = cradleEggs.find(e => !e.taken); if (egg) return { text: 'Fetch a <b>dragon egg</b> from the volcano and carry it to your Roost', target: { x: egg.x * 0.8, z: egg.z * 0.8 } }; }
   if (!roostOf(P) && me.built.keep > 0 && canAfford('roost')) { const c = corners.find(c => owns(c) && c.building.type === 'keep' && !roostProblem(c)); if (c) return { text: 'Build a <b>Dragon Roost</b> beside your Keep (🔨 Build → Dragon Roost)', target: at(c) }; }
@@ -2701,11 +2819,11 @@ function nextGoal() {
   // what are we saving for, and can the Guild help?
   const goal = site || corners.some(c => !c.building && !c.adj.some(id => corners[id].building) && c.edges.some(id => !roadProblem(edges[id]))) ? 'hamlet' : me.built.hamlet ? 'keep' : 'road';
   const lack = RES_KEYS.filter(k => state.res[k] < (COST[goal][k] || 0)), spare = RES_KEYS.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
-  if (lack.length && spare) return { text: `${isDusk() ? '🌇 Dusk market! ' : ''}Trade at the Guild: ${guildRate()} ${RES[spare].icon} → 1 ${RES[lack[0]].icon} (⚖️ Trade) to get closer to a ${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Wall'}`, target: null };
+  const tg = tradeGoal(goal); if (tg) return tg; void lack; void spare;
   if (canAfford('scroll') && deckCount() && resTotal(P) >= 6) return { text: 'Study a <b>Lore Scroll</b> (📜 Scrolls): Sellswords, secret Renown and more', target: null };
   const nums = [...new Set(corners.filter(c => owns(c)).flatMap(c => c.tiles.map(id => tiles[id].num)).filter(Boolean))].sort((a, b) => a - b);
   void have;
-  return { text: `Save up for a <b>${goal === 'keep' ? 'Keep' : goal === 'hamlet' ? 'Hamlet' : 'Wall'}</b> (need ${needTxt(goal) || 'nothing'}). Your lands harvest on <b>${nums.join(', ') || '—'}</b>`, target: null };
+  return { text: `Saving for a <b>${kindName[goal]}</b>: you need ${needTxt(goal) || 'nothing more'}. Your lands harvest when the stones show <b>${nums.join(', ') || '—'}</b>${state.harvestT > 3 && !NET.online ? '. Nothing to do? Press <b>Cast the stones</b>' : ''}`, target: null };
 }
 setInterval(() => { if (state.phase === 'play') updateObjective(); }, 700);
 function flashRes(k, loss) {
@@ -2719,7 +2837,7 @@ function log(msg) {
 let annTimer = 0;
 const SMALLW = new Set(['of', 'the', 'a', 'an', 'in', 'at', 'to', 'and', 'is', 'on', 'for']);
 const titleCase = t => t === t.toUpperCase() ? t.toLowerCase().replace(/[\p{L}']+/gu, (w, i) => i > 0 && SMALLW.has(w) ? w : w[0].toUpperCase() + w.slice(1)) : t;
-function announce(big, small) { $('annBig').textContent = titleCase(big); $('annSmall').textContent = small || ''; $('announce').classList.add('show'); annTimer = 3.2; }
+function announce(big, small) { $('annBig').textContent = titleCase(big); $('annSmall').textContent = small || ''; $('announce').classList.add('show'); annTimer = 2.8; }
 
 // trade
 const tgive = {}, tget = {};
@@ -2986,7 +3104,7 @@ function endLanding() {
   setWarMap(false);
   const first = corners.find(c => owns(c)) || corners[0];
   const dx = -first.x, dz = -first.z, L = Math.hypot(dx, dz) || 1;
-  const x = first.x + dx / L * 9, z = first.z + dz / L * 9;
+  const x = first.x + dx / L * 22, z = first.z + dz / L * 22;
   player.pos.set(x, heightAt(x, z), z); player.yaw = Math.atan2(first.x - x, first.z - z) + Math.PI; player.pitch = -0.22;
   lockPointer();
 }
@@ -4266,7 +4384,7 @@ function loop() {
   for (let i = 0; i < wp.count; i++) { const x = base[i * 3], z = base[i * 3 + 2]; wp.array[i * 3 + 1] = Math.sin(x * 0.05 + time) * 0.35 + Math.cos(z * 0.07 + time * 0.8) * 0.35; }
   wp.needsUpdate = true; water.geometry.computeVertexNormals();
   windmills.forEach(b => b.rotation.z += dt * Math.PI * 2 / 10);
-  windU.value = time; updateMotes(time); updateAtmosphere(time);
+  windU.value = time; updateMotes(time); updateAtmosphere(time); updateWyrmFlight(dt, time);
   clouds.forEach(c => { c.position.x += dt * 3; if (c.position.x > 600) c.position.x = -600; });
   const top = heightAt(0, 0) + 2;
   smoke.forEach(s => { s.userData.age += dt * 0.12; if (s.userData.age > 1) s.userData.age = 0; const a = s.userData.age; s.position.set(Math.sin(a * 9 + s.id) * 3 + a * 18, top + a * 45, Math.cos(a * 7 + s.id) * 3); s.scale.setScalar(s.userData.base * (1 + a * 1.5)); s.material.opacity = Math.min(1, a * 6) * (1 - a); });
@@ -4288,4 +4406,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { refreshJoint, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { get wyrmFly() { return wyrmFly; }, aiRavenOffer, refreshJoint, challenge, startDuel, toggleTrade, setView, buildHamlet, buildKeep, setWarMap, placeReavers, showWin, setDpad, get ravenOffer() { return ravenOffer; }, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

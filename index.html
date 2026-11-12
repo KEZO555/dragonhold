@@ -694,6 +694,73 @@
   .res .ic { width:32px; height:32px; border-radius:50%; background:var(--bone); display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px var(--rc); }
   .res .ic .icw svg.ic { width:24px !important; height:24px !important; filter:none !important; }
   .trdot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; border:1px solid var(--ink); vertical-align:1px; }
+  /* ===================== review fixes: clarity and layout ===================== */
+  /* announcements: smaller, below the harvest plate, never over the whole view */
+  #announce { top:150px !important; transform:translateX(-50%) !important; padding:10px 40px 12px !important; min-width:0 !important; max-width:min(720px,80vw); border-top-width:5px !important; border-bottom-width:5px !important; }
+  #announce .big { font-size:34px !important; }
+  #announce .small { font-size:18px !important; }
+  /* the selected build slot stays readable */
+  #buildMenu .slot { transition:none !important; }
+  #hud #buildMenu .slot.active, #hud #buildMenu .slot.active:not(.poor) { background:#1E1A26 !important; background-color:#1E1A26 !important; opacity:1 !important; filter:none !important; }
+  #buildMenu .slot.active b, #buildMenu .slot.active .c { color:var(--bone) !important; }
+  #buildMenu .slot.active .icw svg.ic { filter:brightness(0) invert(.92) !important; }
+  /* action seals carry a small label */
+  #actions { bottom:22px !important; }
+  .act { position:relative; overflow:visible !important; }
+  .act > span { display:block !important; position:absolute; top:48px; left:50%; transform:translateX(-50%); font-size:12px !important; letter-spacing:.04em; color:var(--bone) !important; white-space:nowrap; font-family:'Cormorant Garamond',serif !important; font-weight:600 !important; pointer-events:none; }
+  .act.poor > span { opacity:.6; }
+  #resources.panel { bottom:16px !important; }
+  /* overlays scroll instead of pushing their buttons off screen */
+  .overlay { overflow-y:auto !important; align-items:flex-start !important; padding:28px 10px !important; }
+  .overlay .card.panel { margin:auto !important; max-height:none !important; overflow:visible !important; }
+  .hand { align-items:flex-start; }
+  /* the coach line reads as a sentence */
+  #objective { line-height:1.35; }
+  #objective .go { margin-left:8px; }
+  /* ---------- phones ---------- */
+  @media (max-width:600px) {
+    html,body { font-size:15px; }
+    #house.panel { top:8px !important; left:8px !important; transform:none !important; min-width:0 !important; max-width:46vw !important; padding:6px 10px !important; }
+    #house .name { font-size:18px !important; } #house .renown { font-size:14px !important; }
+    #scores, #houseToggle, #details { display:none !important; }
+    #harvest.panel { top:8px !important; left:auto !important; right:8px !important; transform:none !important; width:48vw !important; padding:6px 8px !important; }
+    #harvest #clock { display:none; } #harvest #harvestLabel { font-size:13px !important; } #hurryBtn { margin:4px 0 2px !important; min-height:34px !important; font-size:13px !important; }
+    #objective.panel { top:auto !important; bottom:150px !important; left:8px !important; right:8px !important; transform:none !important; max-width:none !important; font-size:14px !important; padding:6px 10px !important; }
+    #minimap { top:118px !important; right:8px !important; width:92px !important; height:92px !important; }
+    #topBtns { top:218px !important; right:8px !important; flex-direction:row !important; gap:6px !important; }
+    .tb { width:38px !important; height:38px !important; min-height:38px !important; }
+    #buildMenu { top:118px !important; left:8px !important; transform:none !important; padding:4px !important; gap:4px !important; flex-direction:row !important; }
+    #buildMenu .slot { width:auto !important; padding:4px !important; min-height:0 !important; }
+    #buildMenu .slot > div { display:none !important; }
+    #buildMenu .slot i .icw svg.ic { width:26px !important; height:26px !important; }
+    #hud::before { height:128px !important; }
+    #frame .wall { height:150px !important; } #frame .qf { display:none; }
+    #resources.panel { left:6px !important; right:6px !important; bottom:76px !important; display:flex !important; gap:4px !important; justify-content:space-between; }
+    .res { flex:1; padding:0 4px !important; height:40px !important; justify-content:center; gap:4px !important; border-left-width:4px !important; }
+    .res .nm { display:none !important; } .res .ic { width:24px !important; height:24px !important; } .res .ic .icw svg.ic { width:18px !important; height:18px !important; } .res .n { font-size:17px !important; }
+    #actions { left:6px !important; right:6px !important; bottom:22px !important; justify-content:space-around; gap:0 !important; }
+    .act { width:40px !important; height:40px !important; } .act > span { top:40px; font-size:11px !important; }
+    #log { display:none !important; }
+    #dpad { left:4px !important; right:auto !important; bottom:300px !important; transform:scale(.7) !important; transform-origin:bottom left !important; }
+    #announce { top:118px !important; width:92vw; max-width:92vw; padding:8px 12px !important; }
+    #announce .big { font-size:24px !important; } #announce .small { font-size:14px !important; }
+    #raven.panel { top:176px !important; bottom:auto !important; left:8px !important; right:8px !important; max-width:none !important; }
+    #announce { top:176px !important; z-index:6; }
+    #hud:has(#raven:not(.hidden)) #objective, #hud:has(#challengeBtn:not(.hidden)) #objective, #hud:has(#raidBtn:not(.hidden)) #objective, #hud:has(#tollBtn:not(.hidden)) #objective { display:none !important; }
+    #challengeBtn, #raidBtn, #tollBtn { bottom:160px !important; font-size:14px !important; max-width:70vw; white-space:normal; }
+    #modeChip { bottom:196px !important; }
+    .overlay { padding:14px 4px !important; }
+    .overlay .card.panel { width:96vw !important; min-width:0 !important; padding:22px 12px !important; }
+    .title { font-size:30px !important; }
+    #tradeTable td, #tradeTable th { padding:4px 3px !important; font-size:14px !important; }
+    #tradeTable .st { width:30px !important; height:30px !important; min-height:30px !important; font-size:14px !important; }
+    #tradeTable td:first-child .trdot { display:none; }
+    .tradeBtns button { font-size:14px !important; padding:4px 10px !important; margin:3px !important; }
+    .scard.art, .scard.art > svg { width:130px !important; }
+    .cheatgrid { grid-template-columns:1fr !important; }
+    .startRow { flex-wrap:wrap; } .startCard .online { flex-direction:column; align-items:stretch; } .field input { width:100% !important; }
+    #duelMoves button { width:96px !important; height:72px !important; font-size:16px !important; }
+  }
 </style>
 </head>
 <body>
