@@ -2292,6 +2292,16 @@ function groundAt(sx, sy, maxD = 320) {
 function tapAt(sx, sy) {
   if (state.paused || state.phase !== 'play') return;
   closeMenus();
+  if (!state.riding) {   // the floating gold plaques are buttons too
+    _ndc.set(sx / innerWidth * 2 - 1, -(sy / innerHeight) * 2 + 1); _rc.setFromCamera(_ndc, camera);
+    const labels = [...cornerSigns.map((s, i) => [s.label, { c: corners[i] }]), ...edgeSigns.map((s, i) => [s.label, { e: edges[i] }])].filter(([l]) => l.visible);
+    const hits = _rc.intersectObjects(labels.map(([l]) => l), false);
+    if (hits.length) {
+      const [, t] = labels.find(([l]) => l === hits[0].object);
+      const kind = t.e ? 'road' : (state.mode && state.mode !== 'road' ? state.mode : siteReady('keep', t.c) ? 'keep' : siteReady('hamlet', t.c) ? 'hamlet' : state.mode);
+      if (kind) { const tgt = { ...t, kind }; tgt.problem = problemFor(kind, tgt); currentTarget = tgt; if (!tgt.problem) tryBuild(tgt); else { log('⚠️ ' + tgt.problem); sfx('bad'); } return; }
+    }
+  }
   const hit = groundAt(sx, sy);
   if (!hit || state.riding) return;   // tapping the ground never moves you: walk with WASD / arrows / D-pad
   // an egg in the Ashen Waste?
@@ -2640,6 +2650,7 @@ $('btnGuide').addEventListener('click', () => setGuide(!guideOn));
 $('btnHelp').addEventListener('click', () => $('helpOverlay').classList.remove('hidden'));
 $('startHelp').addEventListener('click', () => $('helpOverlay').classList.remove('hidden'));
 $('helpClose').addEventListener('click', () => $('helpOverlay').classList.add('hidden'));
+$('helpX').addEventListener('click', () => $('helpOverlay').classList.add('hidden'));
 setGuide(guideOn);
 $('goal').textContent = GOAL;
 function updateHUD() {
@@ -2689,12 +2700,14 @@ function updateObjective() {
     go = g.target;
   }
   o.classList.toggle('hidden', !html);
-  if (html) o.innerHTML = html + (go ? ' <button class="small go" id="goBtn">🧭 Go</button>' : '');
-  if (go) $('goBtn').onclick = () => { if (state.riding) flyTo(go); else walkTo(go); };
+  const full = html ? html + (go ? ' <button class="small go" id="goBtn">🧭 Go</button>' : '') : '';
+  if (full !== o.dataset.html) { o.dataset.html = full; o.innerHTML = full; }
+  objectiveGo = go;
   beacon.visible = !!(go && guideOn && state.phase === 'play');
   if (beacon.visible) beacon.position.set(go.x, heightAt(go.x, go.z), go.z);
 }
-let currentGoal = null;
+let currentGoal = null, objectiveGo = null;
+$('objective').addEventListener('click', e => { if (!e.target.closest('#goBtn') || !objectiveGo) return; if (state.riding) flyTo(objectiveGo); else walkTo(objectiveGo); });
 const beacon = (() => {   // a pillar of light over the next goal
   const m = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.2, 70, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xe8c070, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false }));
   m.geometry.translate(0, 35, 0); m.visible = false; scene.add(m); return m;
@@ -2779,7 +2792,15 @@ function tradeGoal(goal) {
   const spare = RES_KEYS.filter(k => state.res[k] - (COST[goal][k] || 0) >= 1).sort((a, b) => state.res[b] - state.res[a]);
   const guild = spare.find(k => state.res[k] - (COST[goal][k] || 0) >= guildRate());
   if (guild) return { text: `${isDusk() ? '🌇 Dusk market (3:1)! ' : ''}You need ${needTxt(goal)} for a <b>${kindName[goal]}</b>. Trade ${guildRate()} ${RES[guild].icon} → 1 ${RES[lack[0]].icon} at the Guild (⚖️ Trade)`, target: null };
-  if (missingN <= 2 && spare.length) return { text: `Only ${needTxt(goal)} short of a <b>${kindName[goal]}</b>. Offer a spare ${RES[spare[0]].icon} to the other houses: ⚖️ Trade → give 1 ${RES[spare[0]].icon}, get 1 ${RES[lack[0]].icon} → <b>Offer to houses</b>`, target: null };
+  if (missingN <= 2 && spare.length) {
+    const ais = players.filter(p => p.ai);
+    for (const n of [1, 2]) for (const k of spare) {
+      if (state.res[k] - (COST[goal][k] || 0) < n) continue;
+      const give = { [k]: n }, get = { [lack[0]]: 1 };
+      if (ais.some(p => !aiAccepts(p, give, get, P)))
+        return { text: `Only ${needTxt(goal)} short of a <b>${kindName[goal]}</b>. A house will take this deal: ⚖️ Trade → give ${n} ${RES[k].icon}, get 1 ${RES[lack[0]].icon} → <b>Offer to houses</b>`, target: null };
+    }
+  }
   return null;
 }
 function nextGoal() {
@@ -2985,11 +3006,12 @@ function mapToWorld(ev) {
 }
 function mapTargetAt(ev) {
   if (state.phase !== 'setup' || !state.mode) return null;
-  const w = mapToWorld(ev); let best = null, bd = 1e9;
-  if (state.mode === 'road') { for (const e of edges) { const d = Math.hypot(e.mx - w.x, e.mz - w.z); if (d < bd) { bd = d; best = { e }; } } }
-  else for (const c of corners) { const d = Math.hypot(c.x - w.x, c.z - w.z); if (d < bd) { bd = d; best = { c }; } }
-  if (bd > 11) return null;
-  best.problem = problemFor(state.mode, best); return best;
+  const w = mapToWorld(ev), cands = state.mode === 'road' ? edges.map(e => ({ e, x: e.mx, z: e.mz })) : corners.map(c => ({ c, x: c.x, z: c.z }));
+  const near = cands.map(t => ({ t, d: Math.hypot(t.x - w.x, t.z - w.z) })).filter(o => o.d < 16).sort((a, b) => a.d - b.d);
+  if (!near.length) return null;
+  const pickT = o => { const b = o.t.e ? { e: o.t.e } : { c: o.t.c }; b.problem = problemFor(state.mode, b); return b; };
+  const legal = near.map(pickT).find(b => !b.problem);   // a finger lands a few pixels off: take the nearest legal spot
+  return legal || pickT(near[0]);
 }
 let reaverHover = null;
 mm.addEventListener('mousemove', ev => { mapHover = mapTargetAt(ev); if (state.reaverPick) { const w = mapToWorld(ev); reaverHover = tileAtWorld(w.x, w.z); } });
@@ -3614,7 +3636,7 @@ function todAt(t) {
 const _sunDir = new THREE.Vector3();
 let todNow = null;
 function updateDayNight(dt) {
-  if (state.phase === 'play' && (!state.paused || NET.online)) { dayT += dt / DAY_LENGTH; if (dayT >= 1) { dayT -= 1; dayCount++; log(`🌅 Dawn of day ${dayCount}`); if (!NET.guest) state.dawnBounty = true; } }
+  if (state.phase === 'play' && (!state.paused || NET.online) && !(!NET.online && !$('helpOverlay').classList.contains('hidden'))) { dayT += dt / DAY_LENGTH; if (dayT >= 1) { dayT -= 1; dayCount++; log(`🌅 Dawn of day ${dayCount}`); if (!NET.guest) state.dawnBounty = true; } }
   const T = todNow = todAt(dayT);
   const a = sunAngle(dayT); _sunDir.set(-Math.cos(a) * 0.9, Math.sin(a), 0.42).normalize();
   night = 1 - smooth(-0.12, 0.18, _sunDir.y);
@@ -4356,7 +4378,8 @@ function loop() {
     camera.lookAt(0, 8, 0);
   } else {
     if (!state.paused) updatePlayer(dt);
-    if (state.phase === 'play' && !NET.guest && (NET.online || !state.paused)) simStep(dt, time);
+    const helpOpen = !$('helpOverlay').classList.contains('hidden') && !NET.online;
+    if (state.phase === 'play' && !NET.guest && (NET.online || !state.paused) && !helpOpen) simStep(dt, time);
     if (state.phase === 'play' && NET.guest) guestStep(dt, time);
     if (!state.paused) {
       state.recallCD = Math.max(0, state.recallCD - dt);
@@ -4406,4 +4429,4 @@ function loop() {
 loop();
 
 // debug hooks for automated testing
-window.__dh = { get wyrmFly() { return wyrmFly; }, aiRavenOffer, refreshJoint, challenge, startDuel, toggleTrade, setView, buildHamlet, buildKeep, setWarMap, placeReavers, showWin, setDpad, get ravenOffer() { return ravenOffer; }, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };
+window.__dh = { edgeSigns, camera, get wyrmFly() { return wyrmFly; }, aiRavenOffer, refreshJoint, challenge, startDuel, toggleTrade, setView, buildHamlet, buildKeep, setWarMap, placeReavers, showWin, setDpad, get ravenOffer() { return ravenOffer; }, ownerPass, buildRoad, tollPasses, payToll, wallGates, gatePath, wallBlocks, walkHeight, get dayT() { return dayT; }, isNight, isDusk, raid, guildOK, nextHarvestDelay, keysW: () => !!keys.KeyW, project: (x, z) => { const v = new THREE.Vector3(x, heightAt(x, z) + 0.5, z).project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, front: v.z < 1 }; }, currentGoalTarget: () => currentGoal && currentGoal.target, get dragons() { return players.map(p => p.dragon); }, cradleEggs, tryEgg, toggleRide, dragonfire, scorch, dragonsOnHarvest, buildRoost, buildTower, updateDragons, aiDragonfire, buyScroll, playScroll, get deck() { return deck; }, toggleLore, resolveHarvest, get reaverTile() { return reaverTile; }, players, aiThink, updateAI, sendReavers, finishReaverPick, answerRaven, sendRaven, setDay: t => { dayT = t; }, HOUSES, state, explored, visible, mapTargetAt, tiles, corners, edges, player, tryBuild, setMode, startHarvest, renown, heightAt, checkWin };

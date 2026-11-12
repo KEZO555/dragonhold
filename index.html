@@ -761,6 +761,14 @@
     .startRow { flex-wrap:wrap; } .startCard .online { flex-direction:column; align-items:stretch; } .field input { width:100% !important; }
     #duelMoves button { width:96px !important; height:72px !important; font-size:16px !important; }
   }
+  /* playtest fixes: the war map's instructions sit above it; the big map fills a phone; Help closes from the top */
+  #hud:has(#minimap.big) #objective { z-index:9 !important; top:auto !important; bottom:8px !important; left:50% !important; right:auto !important; transform:translateX(-50%) !important; max-width:min(720px,94vw) !important; box-shadow:0 0 0 3px var(--ember), 0 8px 24px rgba(30,26,38,.5) !important; }
+  #helpX { position:sticky; top:0; float:right; z-index:3; min-height:40px !important; margin:-14px -14px 0 0; background:var(--plate) !important; }
+  @media (max-width:600px) {
+    #minimap.big { top:50% !important; left:50% !important; right:auto !important; width:94vw !important; height:94vw !important; transform:translate(-50%,-50%) !important; z-index:5; }
+    #hud:has(#minimap.big) #objective { bottom:auto !important; top:8px !important; }
+    #hud:has(#minimap.big) #house, #hud:has(#minimap.big) #harvest { display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -885,7 +893,7 @@
 
 <div id="helpOverlay" class="overlay hidden">
   <div class="card panel cheat">
-    <h2 class="title" style="text-align:center;margin-bottom:2px">The Rules</h2>
+    <button id="helpX" class="small" aria-label="Close the rules">✖ Close</button><h2 class="title" style="text-align:center;margin-bottom:2px">The Rules</h2>
     <div style="text-align:center;margin-bottom:10px"><b>Goal:</b> first house to <b>12 Renown ★</b></div>
     <div class="cheatgrid">
       <section><h3>RENOWN ★</h3>
