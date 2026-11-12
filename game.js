@@ -290,8 +290,8 @@ function heightAt(x, z) {
     else if (t.type === 'wheat') h = h * (1 - k * 0.7) + 1.9 * k * 0.7;
     else if (t.type === 'cradle') {
       const dc = Math.hypot(x, z), kk = Math.max(0, 1 - dc / (HEX_R * 0.9));
-      h += 7 * Math.pow(kk, 1.5);
-      if (dc < 6) h -= (6 - dc) * 0.6;
+      h += 34 * Math.pow(kk, 1.6);
+      if (dc < 6) h -= (6 - dc) * 2.6;
     }
   }
   const s = smooth(2.72, 3.25, d);
@@ -359,10 +359,12 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       vec3 col = mix(c0 + (c0 - bl) * 0.35, bl, smoothstep(0.02, 0.09, lc) * 0.55);
       // 2. no outlines: a darker rim where pigment pools at the edge of each wash
       col *= 1.0 - smoothstep(0.02, 0.15, length(c0 - bl)) * 0.18;
-      vec2 q = px / res;
+      vec2 q = px1 * max(dpr, 1.0);
       float d0 = D(uv), dl = D(uv - vec2(q.x, 0.)), dr = D(uv + vec2(q.x, 0.)), du = D(uv + vec2(0., q.y)), dd = D(uv - vec2(0., q.y));
       float jump = max(max(abs(d0 - dl), abs(d0 - dr)), max(abs(d0 - du), abs(d0 - dd))) / d0;
-      col *= 1.0 - smoothstep(0.04, 0.12, jump) * 0.16 * (1.0 - smoothstep(fadeNear, fadeFar, d0));
+      float crease = (abs(dl + dr - 2.0 * d0) + abs(du + dd - 2.0 * d0)) / d0;
+      // thin ink outlines: silhouettes and creases, fading into the distance
+      float inkLine = max(smoothstep(0.03, 0.07, jump), smoothstep(0.012, 0.03, crease) * 0.6) * (1.0 - smoothstep(fadeNear * 0.8, fadeFar, d0));
       // 3. granulation, anchored in the world so it does not swim; paper shows through the wash
       float z = texture2D(tDepth, uv).x, g;
       if (z < 0.99999) { vec3 w = worldAt(uv, z); g = fbm(w.xz * 0.32 + w.y * 0.18); }
@@ -377,6 +379,7 @@ inkScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMater
       // 5. visible paper grain over the whole frame
       float n = vnoise(sc * 0.85) * 0.6 + vnoise(sc * 1.9) * 0.4;
       col *= mix(vec3(1.0), vec3(0.2, 0.17, 0.22), clamp(0.9 * n - 0.28, 0.0, 1.0) * 0.16);
+      col = mix(col, vec3(0.0130, 0.0103, 0.0185), inkLine * 0.85);
       // never pure black, never pure white
       col = clamp(col, vec3(0.0130, 0.0103, 0.0185), vec3(0.846, 0.791, 0.701));
       gl_FragColor = vec4(col, 1.0);
@@ -527,7 +530,7 @@ function updateAtmosphere(time) {
   const p = g.attributes.position;
   for (let i = 0; i < p.count; i++) p.setY(i, heightAt(p.getX(i), p.getZ(i)));
   const ng = g.toNonIndexed(), np = ng.attributes.position, cols = new Float32Array(np.count * 3);
-  const c = new THREE.Color(), sand = new THREE.Color(PAL.ashen), wet = new THREE.Color(PAL.barrow), mask = new Float32Array(np.count);
+  const _vc = new THREE.Color(), c = new THREE.Color(), sand = new THREE.Color(PAL.ashen), wet = new THREE.Color(PAL.barrow), mask = new Float32Array(np.count);
   for (let i = 0; i < np.count; i += 3) {
     const cx = (np.getX(i) + np.getX(i + 1) + np.getX(i + 2)) / 3, cz = (np.getZ(i) + np.getZ(i + 1) + np.getZ(i + 2)) / 3;
     const cy = (np.getY(i) + np.getY(i + 1) + np.getY(i + 2)) / 3;
@@ -535,7 +538,7 @@ function updateAtmosphere(time) {
     let m = 0;
     if (cy < 0.2) c.copy(wet);
     else if (cy < 1.0 || !t) c.copy(sand);
-    else { c.setHex(BIOME[t.type].color); m = 1; }
+    else { c.setHex(BIOME[t.type].color); m = 1; if (t.type === 'cradle') c.lerp(_vc.setHex(PAL.barrow), Math.min(0.75, Math.max(0, (cy - 6) / 30))); }
     c.offsetHSL(0, 0, (j - 0.5) * 0.02);
     for (let k = 0; k < 3; k++) { cols[(i + k) * 3] = c.r; cols[(i + k) * 3 + 1] = c.g; cols[(i + k) * 3 + 2] = c.b; mask[i + k] = m; }
   }
